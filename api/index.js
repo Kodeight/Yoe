@@ -838,9 +838,7 @@ var app = express();
 app.use(express.json());
 app.use("/api", apiRouter);
 var app_default = app;
-
-// api/index.ts
-var index_default = app_default;
 export {
-  index_default as default
+  app,
+  app_default as default
 };
