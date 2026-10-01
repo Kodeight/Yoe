@@ -3,6 +3,8 @@
 @custom-variant light-mode (&:where(.light-mode, .light-mode *));
 
 :root {
+  --font-brand: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-signature: 'Caveat', cursive;
   --yoe-aqua: #00f0b5;
   --yoe-cyan: #00c2ff;
   --yoe-emerald: #10b981;
@@ -42,7 +44,7 @@
 }
 
 body {
-  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--font-brand);
   background-color: var(--bg-primary);
   color: var(--text-primary);
   min-height: 100dvh;
@@ -51,6 +53,14 @@ body {
   overflow-x: hidden;
   -webkit-tap-highlight-color: transparent;
   -webkit-touch-callout: none;
+}
+
+.font-brand {
+  font-family: var(--font-brand);
+}
+
+.font-signature, .signature {
+  font-family: var(--font-signature);
 }
 
 /* Prevent yellow autofill backgrounds across all browsers */

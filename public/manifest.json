@@ -3,10 +3,22 @@
   "name": "Yoe - Speak. Learn. Grow.",
   "icons": [
     {
+      "src": "/icons/icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any"
+    },
+    {
       "src": "/icon-192.png",
       "type": "image/png",
       "sizes": "192x192",
       "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any"
     },
     {
       "src": "/icon-512.png",
@@ -16,8 +28,8 @@
     }
   ],
   "start_url": "/",
-  "background_color": "#0b0f17",
-  "theme_color": "#10b981",
+  "background_color": "#070b12",
+  "theme_color": "#070b12",
   "display": "standalone",
   "orientation": "portrait",
   "scope": "/",
