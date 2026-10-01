@@ -1,15 +1,28 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
 import { useApp } from '../context/AppContext';
 import { useAudio } from '../context/AudioContext';
 import { ChatMessage, ScenarioObjective, CorrectionDetail } from '../types';
-import { ArrowLeft, Mic, MicOff, Send, Volume2, Sparkles, CheckCircle2, Circle, ChevronDown, ChevronUp, Lightbulb, AlertCircle, Award } from 'lucide-react';
-import { recordDayActivity } from '../utils/streakManager';
+import { YoeOrb, OrbState } from '../components/YoeOrb';
+import {
+  ArrowLeft,
+  Mic,
+  MicOff,
+  Send,
+  Volume2,
+  Sparkles,
+  CheckCircle2,
+  Circle,
+  ChevronDown,
+  ChevronUp,
+  Lightbulb,
+  Award,
+  Compass,
+  MessageSquare
+} from 'lucide-react';
 import { SessionSummaryModal, SessionSummaryData } from '../components/SessionSummaryModal';
-import { addDailyGoalProgress } from '../components/DailyLearningGoalCard';
 
 export const ConversationView: React.FC = () => {
-  const { activeScenario, activeJourney, setActiveView, refreshProgress } = useApp();
+  const { activeScenario, activeJourney, scenarios, setActiveScenarioId, setActiveView, refreshProgress } = useApp();
   const { isListening, transcript, startListening, stopListening, speakText, isSpeaking, playNotificationSound } = useAudio();
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -21,7 +34,7 @@ export const ConversationView: React.FC = () => {
   const [showTranslations, setShowTranslations] = useState<Record<string, boolean>>({});
   const [expandedCorrections, setExpandedCorrections] = useState<Record<string, boolean>>({});
 
-  // Session summary state
+  // Session tracking
   const [sessionStartTime] = useState<number>(() => Date.now());
   const [sessionMistakes, setSessionMistakes] = useState<CorrectionDetail[]>([]);
   const [sessionVocab, setSessionVocab] = useState<Array<{ word: string; translation: string; phonetic?: string }>>([]);
@@ -29,7 +42,7 @@ export const ConversationView: React.FC = () => {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Initialize conversation history
+  // Initialize conversation when scenario is selected
   useEffect(() => {
     if (activeScenario) {
       const initialGreetingMsg: ChatMessage = {
@@ -37,27 +50,34 @@ export const ConversationView: React.FC = () => {
         sessionId: activeScenario.id,
         sender: 'tutor',
         text: activeScenario.initialGreeting,
-        translation: 'Hello! Welcome. What would you like to order today?',
+        translation: 'Greetings! Let us begin our scenario conversation.',
         timestamp: new Date().toISOString()
       };
       setMessages([initialGreetingMsg]);
-
-      // Speak initial greeting automatically
+      setCompletedObjectives({});
       speakText(activeScenario.initialGreeting, activeJourney?.targetLanguage);
     }
   }, [activeScenario]);
 
-  // Sync speech recognition transcript to input field
+  // Sync speech recognition transcript
   useEffect(() => {
     if (transcript) {
       setInputText(transcript);
     }
   }, [transcript]);
 
-  // Auto scroll to bottom
+  // Scroll to bottom on new messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isLoading]);
+
+  // Calculate current dynamic orb visual state
+  const getOrbState = (): OrbState => {
+    if (isListening) return 'listening';
+    if (isLoading) return 'thinking';
+    if (isSpeaking) return 'speaking';
+    return 'idle';
+  };
 
   const handleSendMessage = async (textToSend?: string) => {
     const text = textToSend || inputText;
@@ -91,172 +111,190 @@ export const ConversationView: React.FC = () => {
 
       const data = await res.json();
 
-      if (data.replyMessage) {
-        setMessages(prev => [...prev, data.replyMessage]);
+      if (data.message) {
+        setMessages(prev => [...prev, data.message]);
         playNotificationSound();
-        speakText(data.replyMessage.text, activeJourney.targetLanguage);
+        speakText(data.message.text, activeJourney.targetLanguage);
 
-        // Update objectives if fulfilled
-        if (data.aiResult?.completedObjectiveIds) {
-          setCompletedObjectives(prev => {
-            const next = { ...prev };
-            data.aiResult.completedObjectiveIds.forEach((id: string) => {
-              next[id] = true;
-            });
-            return next;
+        // Track completed objectives
+        if (data.aiResponse?.completedObjectiveIds) {
+          const updated = { ...completedObjectives };
+          data.aiResponse.completedObjectiveIds.forEach((id: string) => {
+            updated[id] = true;
           });
+          setCompletedObjectives(updated);
         }
 
-        // Update suggested replies
-        if (data.aiResult?.suggestedNextReplies) {
-          setSuggestedReplies(data.aiResult.suggestedNextReplies);
+        // Suggested next replies
+        if (data.aiResponse?.suggestedNextReplies) {
+          setSuggestedReplies(data.aiResponse.suggestedNextReplies);
         }
 
-        // Accumulate mistakes for end-of-session review
-        if (data.aiResult?.correction) {
-          setSessionMistakes(prev => [...prev, data.aiResult.correction]);
+        // Track mistakes
+        if (data.aiResponse?.correction) {
+          setSessionMistakes(prev => [...prev, data.aiResponse.correction]);
         }
 
-        // Accumulate vocabulary learned
-        if (data.aiResult?.vocabulary && data.aiResult.vocabulary.length > 0) {
-          setSessionVocab(prev => {
-            const existingWords = new Set(prev.map(v => v.word.toLowerCase()));
-            const newWords = data.aiResult.vocabulary.filter((v: any) => !existingWords.has(v.word.toLowerCase()));
-            return [...prev, ...newWords];
-          });
+        // Track vocabulary
+        if (data.aiResponse?.vocabulary) {
+          setSessionVocab(prev => [...prev, ...data.aiResponse.vocabulary]);
         }
-
-        // Record streak activity for today
-        recordDayActivity();
-        refreshProgress();
       }
     } catch (err) {
-      console.error('Error sending message:', err);
+      console.error('AI chat processing error:', err);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const toggleTranslation = (msgId: string) => {
-    setShowTranslations(prev => ({ ...prev, [msgId]: !prev[msgId] }));
-  };
-
-  const toggleCorrection = (msgId: string) => {
-    setExpandedCorrections(prev => ({ ...prev, [msgId]: !prev[msgId] }));
-  };
-
   const handleOpenSummary = () => {
     const elapsedMinutes = Math.max(1, Math.round((Date.now() - sessionStartTime) / 60000));
-    // Contribute to user's daily learning goal
-    addDailyGoalProgress('minutes', elapsedMinutes);
-    addDailyGoalProgress('lessons', 1);
     setShowSummaryModal(true);
   };
 
-  const handleRestartSession = () => {
-    setShowSummaryModal(false);
-    setSessionMistakes([]);
-    setSessionVocab([]);
-    if (activeScenario) {
-      const initialGreetingMsg: ChatMessage = {
-        id: `msg_init_${activeScenario.id}_${Date.now()}`,
-        sessionId: activeScenario.id,
-        sender: 'tutor',
-        text: activeScenario.initialGreeting,
-        translation: 'Hello! Welcome. What would you like to order today?',
-        timestamp: new Date().toISOString()
-      };
-      setMessages([initialGreetingMsg]);
-      setCompletedObjectives({});
-    }
-  };
-
-  const completedObjsList = activeScenario?.objectives.filter(o => completedObjectives[o.id]) || [];
-  const allObjectivesCompleted = (activeScenario?.objectives.length || 0) > 0 &&
-    completedObjsList.length === activeScenario?.objectives.length;
-
+  // Safe Empty State when no scenario is active
   if (!activeScenario) {
+    const fallbackScenario = scenarios[0];
     return (
-      <div className="p-8 text-center text-slate-400">
-        No active scenario selected. Please pick one from Explore!
+      <div className="min-h-[100dvh] flex flex-col justify-between p-4 safe-top-padding safe-bottom-padding text-slate-100">
+        <div className="flex items-center justify-between py-2">
+          <button
+            onClick={() => setActiveView('home')}
+            className="p-2 rounded-full glass-pill hover:border-emerald-500/40 text-slate-300 transition-colors cursor-pointer"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+          <span className="text-xs font-bold text-slate-400">Yoe Conversation</span>
+          <div className="w-9" />
+        </div>
+
+        <div className="max-w-sm mx-auto text-center space-y-4 my-auto">
+          <YoeOrb size="lg" state="idle" interactive />
+          <h2 className="text-2xl font-black text-slate-100 dark:text-slate-100 light-mode:text-slate-900 tracking-tight">
+            Ready to Speak?
+          </h2>
+          <p className="text-xs text-slate-400 dark:text-slate-400 light-mode:text-slate-600 leading-relaxed">
+            Choose any realistic scenario world from our curriculum to start practicing speaking with your AI tutor.
+          </p>
+
+          <div className="pt-3 space-y-2.5">
+            <button
+              onClick={() => setActiveView('explore')}
+              className="w-full py-3 rounded-2xl bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 text-slate-950 font-black text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 cursor-pointer hover:opacity-95"
+            >
+              <Compass className="w-4 h-4" />
+              <span>Explore Scenario Worlds</span>
+            </button>
+
+            {fallbackScenario && (
+              <button
+                onClick={() => {
+                  setActiveScenarioId(fallbackScenario.id);
+                }}
+                className="w-full py-3 rounded-2xl glass-pill text-xs font-bold text-slate-200 dark:text-slate-200 light-mode:text-slate-800 hover:border-emerald-500/40 cursor-pointer"
+              >
+                Quick Start: {fallbackScenario.title}
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="text-center text-[11px] text-slate-500 py-2">
+          Tap any scenario card to enter interactive dialogue
+        </div>
       </div>
     );
   }
 
-  return (
-    <div className="flex flex-col h-screen max-w-md mx-auto bg-[#0b0f17] text-slate-100">
+  const completedCount = Object.values(completedObjectives).filter(Boolean).length;
+  const totalObjectives = activeScenario.objectives.length;
 
-      {/* Top Header */}
-      <div className="sticky top-0 z-30 bg-slate-900/90 backdrop-blur-xl border-b border-white/10 px-4 py-3 flex items-center justify-between">
+  return (
+    <div className="flex flex-col h-[100dvh] max-w-md mx-auto bg-[var(--bg-primary)] text-slate-100">
+
+      {/* Top Scenario Glass Bar */}
+      <div className="sticky top-0 z-30 glass-header px-4 py-2.5 flex items-center justify-between safe-top-padding">
         <button
           onClick={() => setActiveView('home')}
-          className="p-2 rounded-full hover:bg-slate-800 text-slate-300 transition-colors cursor-pointer"
+          className="p-2 rounded-full glass-pill hover:border-emerald-500/40 text-slate-300 dark:text-slate-300 light-mode:text-slate-700 transition-colors cursor-pointer"
+          title="Back to Home"
         >
-          <ArrowLeft className="w-5 h-5" />
+          <ArrowLeft className="w-4 h-4" />
         </button>
 
-        <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-2xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-lg shrink-0">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-sm shrink-0">
             {activeScenario.avatar}
           </div>
-          <div>
-            <h2 className="text-xs font-bold text-slate-100 flex items-center gap-1.5">
+          <div className="min-w-0">
+            <h2 className="text-xs font-bold text-slate-100 dark:text-slate-100 light-mode:text-slate-900 flex items-center gap-1.5 truncate">
               <span>{activeScenario.characterName}</span>
               <span className="px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-400 text-[9px] font-extrabold uppercase">
                 {activeScenario.cefrLevel}
               </span>
             </h2>
-            <p className="text-[10px] text-slate-400 truncate max-w-[160px]">
-              {activeScenario.title} • {activeScenario.location}
+            <p className="text-[10px] text-slate-400 dark:text-slate-400 light-mode:text-slate-500 truncate max-w-[150px]">
+              {activeScenario.title}
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-1.5">
-          {/* End & Review Session Button */}
           <button
             onClick={handleOpenSummary}
-            className="px-2.5 py-1 rounded-full bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/30 text-[11px] font-bold text-emerald-300 flex items-center gap-1 cursor-pointer transition-colors"
-            title="Finish session and view mistakes & vocabulary summary"
+            className="px-2.5 py-1 rounded-full bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/25 text-[10px] font-bold text-emerald-400 flex items-center gap-1 cursor-pointer transition-colors"
+            title="Complete and review session"
           >
-            <Award className="w-3.5 h-3.5 text-emerald-400" />
-            <span className="hidden sm:inline">Review</span>
+            <Award className="w-3.5 h-3.5" />
+            <span>Finish</span>
           </button>
 
-          {/* Missions Toggle Button */}
           <button
             onClick={() => setShowMissions(!showMissions)}
-            className="px-2.5 py-1 rounded-full bg-slate-800 border border-white/10 text-[11px] font-bold text-emerald-400 flex items-center gap-1 cursor-pointer"
+            className="px-2.5 py-1 rounded-full glass-pill text-[10px] font-bold text-emerald-400 flex items-center gap-1 cursor-pointer"
           >
-            <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Missions</span>
-            {showMissions ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+            <Sparkles className="w-3 h-3 text-emerald-400" />
+            <span>{completedCount}/{totalObjectives}</span>
+            {showMissions ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
           </button>
         </div>
       </div>
 
-      {/* Collapsible Missions Drawer */}
+      {/* Collapsible Mission Objectives Drawer */}
       {showMissions && (
-        <div className="bg-slate-900/95 border-b border-white/10 p-4 animate-in slide-in-from-top duration-200">
-          <h3 className="text-xs font-bold text-slate-200 uppercase tracking-wider mb-2 flex items-center justify-between">
-            <span>Scenario Objectives</span>
-            <span className="text-emerald-400 text-[11px]">
-              {Object.values(completedObjectives).filter(Boolean).length} / {activeScenario.objectives.length} completed
+        <div className="glass-nav border-b border-white/10 dark:border-white/10 light-mode:border-slate-200 p-4 animate-in slide-in-from-top duration-200 shadow-xl">
+          <h3 className="text-xs font-bold text-slate-200 dark:text-slate-200 light-mode:text-slate-800 uppercase tracking-wider mb-2 flex items-center justify-between">
+            <span>Scenario Missions</span>
+            <span className="text-emerald-400 text-[11px] font-extrabold">
+              {completedCount} of {totalObjectives} Completed
             </span>
           </h3>
           <div className="space-y-2">
             {activeScenario.objectives.map((obj) => {
               const isDone = completedObjectives[obj.id];
               return (
-                <div key={obj.id} className="flex items-start gap-2 text-xs">
+                <div
+                  key={obj.id}
+                  className={`p-2.5 rounded-xl border text-xs flex items-start gap-2.5 transition-colors ${
+                    isDone
+                      ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300 dark:text-emerald-300 light-mode:text-emerald-800'
+                      : 'bg-slate-950/40 dark:bg-slate-950/40 light-mode:bg-white border-white/5 dark:border-white/5 light-mode:border-slate-200 text-slate-300 dark:text-slate-300 light-mode:text-slate-700'
+                  }`}
+                >
                   {isDone ? (
                     <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
                   ) : (
-                    <Circle className="w-4 h-4 text-slate-600 shrink-0 mt-0.5" />
+                    <Circle className="w-4 h-4 text-slate-500 shrink-0 mt-0.5" />
                   )}
-                  <span className={isDone ? 'line-through text-slate-400' : 'text-slate-200 font-medium'}>
-                    {obj.text}
-                  </span>
+                  <div className="flex-1">
+                    <p className={`font-medium ${isDone ? 'line-through opacity-80' : ''}`}>{obj.text}</p>
+                    {obj.hint && !isDone && (
+                      <p className="text-[10px] text-slate-400 dark:text-slate-400 light-mode:text-slate-500 mt-1 flex items-center gap-1">
+                        <Lightbulb className="w-3 h-3 text-amber-400" />
+                        <span>Hint: {obj.hint}</span>
+                      </p>
+                    )}
+                  </div>
                 </div>
               );
             })}
@@ -264,238 +302,127 @@ export const ConversationView: React.FC = () => {
         </div>
       )}
 
-      {/* Messages Scroll Area */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        <AnimatePresence initial={false}>
-          {messages.map((msg, index) => {
-            const isTutor = msg.sender === 'tutor';
-            const isShowingTranslation = showTranslations[msg.id];
-            const hasCorrection = msg.correction;
-            const isCorrectionExpanded = expandedCorrections[msg.id];
+      {/* Main Conversation Messages Scroll Area */}
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+        {/* Subtle Reactive AI Visual Presence at top */}
+        <div className="py-2 flex justify-center">
+          <YoeOrb size="sm" state={getOrbState()} />
+        </div>
 
-            return (
-              <motion.div
-                key={msg.id}
-                initial={{
-                  opacity: 0,
-                  y: 16,
-                  scale: 0.94,
-                  x: isTutor ? -12 : 12
-                }}
-                animate={{
-                  opacity: 1,
-                  y: 0,
-                  scale: 1,
-                  x: 0
-                }}
-                transition={{
-                  type: 'spring',
-                  stiffness: 380,
-                  damping: 28,
-                  mass: 0.8
-                }}
-                className={`flex flex-col ${isTutor ? 'items-start' : 'items-end'} gap-1.5`}
+        {messages.map((msg) => {
+          const isUser = msg.sender === 'user';
+          return (
+            <div key={msg.id} className={`flex flex-col ${isUser ? 'items-end' : 'items-start'} space-y-1`}>
+              <div
+                className={`max-w-[85%] rounded-3xl p-4 text-xs shadow-md transition-all ${
+                  isUser
+                    ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 font-semibold rounded-br-sm'
+                    : 'glass-card text-slate-100 dark:text-slate-100 light-mode:text-slate-900 rounded-bl-sm'
+                }`}
               >
-                {/* Message Bubble */}
-                <div className="flex items-end gap-2 max-w-[85%]">
-                  {isTutor && (
-                    <motion.div
-                      initial={{ scale: 0, rotate: -20 }}
-                      animate={{ scale: 1, rotate: 0 }}
-                      transition={{ delay: 0.05, duration: 0.2 }}
-                      className="w-7 h-7 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-sm shrink-0 mb-1 shadow-sm"
+                <div className="flex items-center justify-between gap-3 mb-1">
+                  <span className={`text-[10px] font-extrabold uppercase tracking-wider ${isUser ? 'text-slate-900/70' : 'text-emerald-400'}`}>
+                    {isUser ? 'You' : activeScenario.characterName}
+                  </span>
+                  {!isUser && (
+                    <button
+                      onClick={() => speakText(msg.text, activeJourney?.targetLanguage)}
+                      className="text-slate-400 hover:text-emerald-400 transition-colors cursor-pointer"
+                      title="Listen"
                     >
-                      {activeScenario.avatar}
-                    </motion.div>
+                      <Volume2 className="w-3.5 h-3.5" />
+                    </button>
                   )}
-
-                  <motion.div
-                    whileHover={{ scale: 1.01 }}
-                    transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-                    className={`rounded-2xl p-3.5 text-xs leading-relaxed shadow-md relative ${
-                      isTutor
-                        ? 'bg-slate-900 border border-white/10 text-slate-100 rounded-bl-none'
-                        : 'bg-gradient-to-tr from-emerald-600 to-teal-500 text-white font-medium rounded-br-none'
-                    }`}
-                  >
-                    <p>{msg.text}</p>
-
-                    {/* Translation if available */}
-                    <AnimatePresence>
-                      {isTutor && msg.translation && isShowingTranslation && (
-                        <motion.p
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: 'auto' }}
-                          exit={{ opacity: 0, height: 0 }}
-                          transition={{ duration: 0.2 }}
-                          className="mt-2 pt-2 border-t border-white/10 text-[11px] text-teal-300 italic"
-                        >
-                          "{msg.translation}"
-                        </motion.p>
-                      )}
-                    </AnimatePresence>
-
-                    {/* Tutor Actions Bar */}
-                    {isTutor && (
-                      <div className="mt-2.5 pt-2 border-t border-white/10 flex items-center gap-3 text-[10px] text-slate-400">
-                        <button
-                          onClick={() => speakText(msg.text, activeJourney?.targetLanguage)}
-                          className={`flex items-center gap-1 hover:text-emerald-400 transition-colors cursor-pointer ${
-                            isSpeaking ? 'text-emerald-400 animate-pulse' : ''
-                          }`}
-                        >
-                          <Volume2 className="w-3.5 h-3.5" />
-                          <span>Listen</span>
-                        </button>
-
-                        {msg.translation && (
-                          <button
-                            onClick={() => toggleTranslation(msg.id)}
-                            className="hover:text-teal-300 transition-colors cursor-pointer"
-                          >
-                            {isShowingTranslation ? 'Hide Translation' : 'Translate'}
-                          </button>
-                        )}
-                      </div>
-                    )}
-                  </motion.div>
                 </div>
 
-                {/* Expandable Gentle Correction Card for User Messages */}
-                {!isTutor && hasCorrection && (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.9, y: 8 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    transition={{ delay: 0.15, duration: 0.25 }}
-                    className="max-w-[85%] mt-1 rounded-2xl bg-amber-500/10 border border-amber-500/20 p-2.5 text-xs shadow-sm"
-                  >
-                    <button
-                      onClick={() => toggleCorrection(msg.id)}
-                      className="w-full flex items-center justify-between text-amber-400 font-bold text-[11px] cursor-pointer"
-                    >
-                      <div className="flex items-center gap-1.5">
-                        <AlertCircle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                        <span>Gentle Correction Tip</span>
-                      </div>
-                      {isCorrectionExpanded ? (
-                        <ChevronUp className="w-3.5 h-3.5" />
-                      ) : (
-                        <ChevronDown className="w-3.5 h-3.5" />
-                      )}
-                    </button>
+                <p className="leading-relaxed text-[13px]">{msg.text}</p>
 
-                    <AnimatePresence>
-                      {isCorrectionExpanded && (
-                        <motion.div
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: 'auto' }}
-                          exit={{ opacity: 0, height: 0 }}
-                          transition={{ duration: 0.2 }}
-                          className="mt-2 pt-2 border-t border-amber-500/20 text-[11px] space-y-1.5 text-slate-200"
-                        >
-                          <div>
-                            <span className="text-red-400 line-through mr-1">
-                              {msg.correction?.original}
-                            </span>
-                            <span className="text-emerald-400 font-bold">
-                              → {msg.correction?.corrected}
-                            </span>
-                          </div>
-                          <p className="text-slate-300 italic">{msg.correction?.explanation}</p>
-                          {msg.correction?.grammarNote && (
-                            <div className="text-[10px] text-amber-300 font-mono bg-amber-500/10 p-1.5 rounded">
-                              💡 Note: {msg.correction.grammarNote}
-                            </div>
-                          )}
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </motion.div>
+                {/* Translation view for tutor messages */}
+                {!isUser && msg.translation && (
+                  <div className="mt-2 pt-2 border-t border-white/10 dark:border-white/10 light-mode:border-slate-200">
+                    {showTranslations[msg.id] ? (
+                      <p className="text-[11px] text-slate-400 dark:text-slate-400 light-mode:text-slate-600 italic">
+                        {msg.translation}
+                      </p>
+                    ) : (
+                      <button
+                        onClick={() => setShowTranslations(prev => ({ ...prev, [msg.id]: true }))}
+                        className="text-[10px] font-bold text-emerald-400 hover:underline cursor-pointer"
+                      >
+                        Show Translation
+                      </button>
+                    )}
+                  </div>
                 )}
-              </motion.div>
-            );
-          })}
-
-          {/* Loading / Typing Indicator */}
-          {isLoading && (
-            <motion.div
-              initial={{ opacity: 0, y: 12, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -6, scale: 0.95 }}
-              transition={{ duration: 0.25 }}
-              className="flex items-center gap-2.5 text-xs text-emerald-400 font-medium p-2.5 bg-slate-900/60 rounded-2xl w-fit border border-white/5"
-            >
-              <div className="flex items-center gap-1">
-                <motion.div
-                  animate={{ y: [0, -5, 0] }}
-                  transition={{ repeat: Infinity, duration: 0.6, ease: 'easeInOut' }}
-                  className="w-2 h-2 rounded-full bg-emerald-400"
-                />
-                <motion.div
-                  animate={{ y: [0, -5, 0] }}
-                  transition={{ repeat: Infinity, duration: 0.6, ease: 'easeInOut', delay: 0.15 }}
-                  className="w-2 h-2 rounded-full bg-emerald-400"
-                />
-                <motion.div
-                  animate={{ y: [0, -5, 0] }}
-                  transition={{ repeat: Infinity, duration: 0.6, ease: 'easeInOut', delay: 0.3 }}
-                  className="w-2 h-2 rounded-full bg-emerald-400"
-                />
               </div>
-              <span className="text-slate-300 text-[11px]">{activeScenario.characterName} is typing...</span>
-            </motion.div>
-          )}
-        </AnimatePresence>
+
+              {/* Gentle Structured Correction Note */}
+              {msg.correction && (
+                <div className="max-w-[85%] rounded-2xl bg-amber-500/10 border border-amber-500/25 p-3 text-xs space-y-1.5 animate-in fade-in">
+                  <div className="flex items-center gap-1.5 text-amber-400 font-bold text-[10px] uppercase">
+                    <Lightbulb className="w-3.5 h-3.5" />
+                    <span>Yoe Gentle Coaching</span>
+                  </div>
+                  <div className="text-[11px] text-slate-200 dark:text-slate-200 light-mode:text-slate-800">
+                    <span className="line-through text-red-300 opacity-70 mr-1.5">{msg.correction.original}</span>
+                    <span className="text-emerald-400 font-bold">→ {msg.correction.corrected}</span>
+                  </div>
+                  {msg.correction.explanation && (
+                    <p className="text-[10px] text-slate-400 dark:text-slate-400 light-mode:text-slate-600">
+                      {msg.correction.explanation}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+
+        {isLoading && (
+          <div className="flex items-center gap-2 p-3 rounded-2xl glass-card max-w-[160px]">
+            <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
+            <span className="text-xs text-slate-400">{activeScenario.characterName} is replying...</span>
+          </div>
+        )}
 
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Suggested Quick Replies Bar */}
+      {/* Suggested Quick Replies Carousel */}
       {suggestedReplies.length > 0 && !isLoading && (
-        <div className="px-4 py-2 bg-slate-950/80 border-t border-white/10 flex items-center gap-2 overflow-x-auto no-scrollbar">
-          <Lightbulb className="w-4 h-4 text-yellow-400 shrink-0" />
-          {suggestedReplies.map((sugg, idx) => (
+        <div className="px-4 py-2 flex gap-2 overflow-x-auto no-scrollbar">
+          {suggestedReplies.map((reply, idx) => (
             <button
               key={idx}
-              onClick={() => handleSendMessage(sugg.phrase)}
-              className="shrink-0 px-3 py-1.5 rounded-full bg-slate-800 hover:bg-slate-700 border border-white/10 text-xs font-medium text-emerald-300 transition-colors cursor-pointer text-left"
+              onClick={() => handleSendMessage(reply.phrase)}
+              className="glass-pill px-3 py-1.5 rounded-full text-xs text-emerald-400 hover:border-emerald-500/40 hover:bg-emerald-500/10 transition-colors whitespace-nowrap cursor-pointer shrink-0"
             >
-              <div>{sugg.phrase}</div>
-              <div className="text-[9px] text-slate-400">{sugg.translation}</div>
+              <span>{reply.phrase}</span>
+              <span className="text-[10px] text-slate-400 ml-1.5 opacity-80">({reply.translation})</span>
             </button>
           ))}
         </div>
       )}
 
-      {/* Bottom Input Controls */}
-      <div className="p-4 bg-slate-900 border-t border-white/10 pb-safe space-y-2">
-        {/* All objectives completed celebratory banner */}
-        {allObjectivesCompleted && (
-          <div className="p-2.5 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-between gap-2 text-xs animate-in slide-in-from-bottom-2">
-            <div className="flex items-center gap-2 text-emerald-300 font-bold">
-              <Award className="w-4 h-4 text-emerald-400 shrink-0" />
-              <span>All missions complete!</span>
-            </div>
-            <button
-              onClick={handleOpenSummary}
-              className="px-2.5 py-1 rounded-xl bg-emerald-500 text-slate-950 font-black text-[11px] shadow-sm hover:opacity-90 transition-opacity cursor-pointer"
-            >
-              View Debrief & Mistakes
-            </button>
-          </div>
-        )}
-
-        <div className="flex items-center gap-2">
-
-          {/* Voice Record Button */}
+      {/* Bottom Sticky Conversational Input Controls */}
+      <div className="sticky bottom-0 glass-nav p-3 safe-bottom-padding border-t border-white/10 dark:border-white/10 light-mode:border-slate-200">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleSendMessage();
+          }}
+          className="flex items-center gap-2"
+        >
+          {/* Speech Mic Button */}
           <button
-            onClick={() => isListening ? stopListening() : startListening(activeJourney?.targetLanguage)}
-            className={`w-11 h-11 rounded-2xl flex items-center justify-center transition-all cursor-pointer shrink-0 ${
+            type="button"
+            onClick={isListening ? () => stopListening() : () => startListening()}
+            className={`p-3 rounded-2xl transition-all cursor-pointer ${
               isListening
-                ? 'bg-red-500 text-white animate-pulse shadow-lg shadow-red-500/30'
-                : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/30'
+                ? 'bg-rose-500 text-white animate-pulse shadow-lg shadow-rose-500/40'
+                : 'glass-pill text-emerald-400 hover:border-emerald-500/40 hover:bg-emerald-500/10'
             }`}
-            title={isListening ? 'Stop recording' : 'Speak'}
+            title={isListening ? 'Stop recording' : 'Speak with microphone'}
           >
             {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
           </button>
@@ -505,38 +432,54 @@ export const ConversationView: React.FC = () => {
             type="text"
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-            placeholder={isListening ? 'Listening to your speech...' : `Reply in ${activeJourney?.targetLanguage.toUpperCase()}...`}
-            className="flex-1 bg-slate-950 border border-white/10 rounded-2xl px-4 py-2.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition-colors"
+            placeholder={isListening ? 'Listening to your voice...' : `Reply to ${activeScenario.characterName}...`}
+            className="flex-1 bg-slate-950/60 dark:bg-slate-950/60 light-mode:bg-white border border-white/10 dark:border-white/10 light-mode:border-slate-200 rounded-2xl px-4 py-3 text-xs text-slate-100 dark:text-slate-100 light-mode:text-slate-900 placeholder-slate-500 focus:outline-none focus:border-emerald-400 transition-colors"
           />
 
           {/* Send Button */}
           <button
-            onClick={() => handleSendMessage()}
+            type="submit"
             disabled={!inputText.trim() || isLoading}
-            className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center text-white disabled:opacity-40 transition-all cursor-pointer shrink-0 shadow-lg shadow-emerald-500/20"
+            className="p-3 rounded-2xl bg-gradient-to-r from-emerald-400 to-teal-400 text-slate-950 disabled:opacity-40 transition-all cursor-pointer shadow-md"
           >
             <Send className="w-4 h-4" />
           </button>
-
-        </div>
+        </form>
       </div>
 
-      {/* End-of-Session Debrief & Mistakes Summary Modal */}
-      {showSummaryModal && activeScenario && (
+      {/* Session Summary Modal on Finish */}
+      {showSummaryModal && (
         <SessionSummaryModal
           summary={{
             scenario: activeScenario,
             durationMinutes: Math.max(1, Math.round((Date.now() - sessionStartTime) / 60000)),
-            totalTurns: messages.filter(m => m.sender === 'user').length,
-            completedObjectives: completedObjsList,
+            totalTurns: messages.length,
+            completedObjectives: activeScenario.objectives.filter(o => completedObjectives[o.id]),
             mistakes: sessionMistakes,
             vocabularyLearned: sessionVocab
           }}
-          onClose={() => setShowSummaryModal(false)}
-          onRestart={handleRestartSession}
+          onClose={() => {
+            setShowSummaryModal(false);
+            refreshProgress();
+            setActiveView('home');
+          }}
+          onRestart={() => {
+            setShowSummaryModal(false);
+            setMessages([
+              {
+                id: `msg_init_${activeScenario.id}_${Date.now()}`,
+                sessionId: activeScenario.id,
+                sender: 'tutor',
+                text: activeScenario.initialGreeting,
+                translation: 'Greetings! Let us begin our scenario conversation.',
+                timestamp: new Date().toISOString()
+              }
+            ]);
+            setCompletedObjectives({});
+          }}
           onGoHome={() => {
             setShowSummaryModal(false);
+            refreshProgress();
             setActiveView('home');
           }}
         />

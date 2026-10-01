@@ -1,0 +1,330 @@
+// Prisma Schema for Yoe Language Learning Platform
+// Configured for PostgreSQL (Neon Serverless PostgreSQL)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum SubscriptionStatus {
+  FREE
+  TRIAL
+  PRO_MONTHLY
+  PRO_YEARLY
+  CANCELLED
+}
+
+enum CefrLevel {
+  A1
+  A2
+  B1
+  B2
+  C1
+  C2
+}
+
+enum MessageSender {
+  USER
+  AI
+  SYSTEM
+}
+
+enum CorrectionSeverity {
+  GENTLE
+  IMPORTANT
+}
+
+model User {
+  id                 String             @id @default(cuid())
+  email              String             @unique
+  passwordHash       String
+  name               String
+  avatarUrl          String?
+  uiLanguage         String             @default("en")
+  theme              String             @default("dark")
+  subscriptionStatus SubscriptionStatus @default(TRIAL)
+  trialEndsAt        DateTime?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  settings           UserSettings?
+  learnerProfile     LearnerProfile?
+  journeys           LearningJourney[]
+  sessions           LearningSession[]
+  subscriptions      Subscription[]
+  aiUsages           AIUsage[]
+
+  @@map("users")
+}
+
+model UserSettings {
+  id                       String   @id @default(cuid())
+  userId                   String   @unique
+  notificationSounds       Boolean  @default(true)
+  speechFeedback           Boolean  @default(true)
+  dailyReminderEnabled     Boolean  @default(true)
+  dailyReminderTime        String   @default("09:00")
+  hapticFeedback           Boolean  @default(true)
+  autoPlayAudio            Boolean  @default(true)
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+
+  user                     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_settings")
+}
+
+model Language {
+  code        String   @id // e.g. 'en', 'es', 'fr', 'ru', 'ar'
+  name        String
+  nativeName  String
+  flag        String
+  isRtl       Boolean  @default(false)
+  isActive    Boolean  @default(true)
+
+  journeysAsTarget  LearningJourney[] @relation("TargetLanguage")
+  journeysAsSupport LearningJourney[] @relation("SupportLanguage")
+
+  @@map("languages")
+}
+
+model LearningJourney {
+  id                 String    @id @default(cuid())
+  userId             String
+  targetLanguageCode String
+  supportLanguageCode String
+  cefrLevel          CefrLevel @default(A1)
+  streakDays         Int       @default(0)
+  lastPracticeDate   DateTime?
+  totalMinutesSpoken Int       @default(0)
+  points             Int       @default(0)
+  activeScenarioId   String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  user               User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  targetLanguage     Language        @relation("TargetLanguage", fields: [targetLanguageCode], references: [code])
+  supportLanguage    Language        @relation("SupportLanguage", fields: [supportLanguageCode], references: [code])
+  vocabularyItems    VocabularyItem[]
+  mistakes           Mistake[]
+  competencies       Competency[]
+  missionAttempts    MissionAttempt[]
+  sessions           LearningSession[]
+
+  @@unique([userId, targetLanguageCode])
+  @@map("learning_journeys")
+}
+
+model LearnerProfile {
+  id                 String   @id @default(cuid())
+  userId             String   @unique
+  motivation         String?
+  targetOutcome      String?
+  weeklyCommitmentMins Int   @default(60)
+  speakingConfidence Int      @default(1) // 1-5
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("learner_profiles")
+}
+
+model Competency {
+  id               String          @id @default(cuid())
+  journeyId        String
+  skillDomain      String          // 'greetings', 'ordering_food', 'asking_directions', etc.
+  masteryScore     Float           @default(0.0) // 0.0 to 1.0
+  lastPracticedAt  DateTime        @default(now())
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  journey          LearningJourney @relation(fields: [journeyId], references: [id], onDelete: Cascade)
+
+  @@unique([journeyId, skillDomain])
+  @@map("competencies")
+}
+
+model VocabularyItem {
+  id                  String          @id @default(cuid())
+  journeyId           String
+  word                String
+  translation         String
+  phonetic            String?
+  exampleSentence     String?
+  exampleTranslation  String?
+  cefrLevel           CefrLevel       @default(A1)
+  familiarityScore    Int             @default(10) // 0 to 100
+  exposureCount       Int             @default(1)
+  successfulCount     Int             @default(0)
+  lastSeenAt          DateTime        @default(now())
+  createdAt           DateTime        @default(now())
+
+  journey             LearningJourney @relation(fields: [journeyId], references: [id], onDelete: Cascade)
+
+  @@map("vocabulary_items")
+}
+
+model Mistake {
+  id               String             @id @default(cuid())
+  journeyId        String
+  category         String             // 'grammar', 'word_order', 'pronunciation', 'tense'
+  pattern          String
+  exampleUserSaid  String
+  correctedForm    String
+  explanation      String
+  severity         CorrectionSeverity @default(GENTLE)
+  occurrenceCount  Int                @default(1)
+  resolved         Boolean            @default(false)
+  lastOccurredAt   DateTime           @default(now())
+  createdAt        DateTime           @default(now())
+
+  journey          LearningJourney    @relation(fields: [journeyId], references: [id], onDelete: Cascade)
+
+  @@map("mistakes")
+}
+
+model Scenario {
+  id               String              @id
+  title            String
+  description      String
+  category         String              // 'travel', 'dining', 'shopping', 'social', 'business'
+  targetLanguage   String
+  cefrLevel        CefrLevel           @default(A1)
+  location         String
+  characterName    String
+  characterRole    String
+  avatar           String
+  imageUrl         String
+  vocabularyDomain String[]
+  initialGreeting  String
+  createdAt        DateTime            @default(now())
+
+  objectives       ScenarioObjective[]
+  sessions         LearningSession[]
+  missions         Mission[]
+
+  @@map("scenarios")
+}
+
+model ScenarioObjective {
+  id          String   @id @default(cuid())
+  scenarioId  String
+  orderIndex  Int      @default(0)
+  text        String
+  hint        String?
+
+  scenario    Scenario @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+
+  @@map("scenario_objectives")
+}
+
+model LearningSession {
+  id               String          @id @default(cuid())
+  userId           String
+  journeyId        String
+  scenarioId       String?
+  startedAt        DateTime        @default(now())
+  endedAt          DateTime?
+  durationSeconds  Int             @default(0)
+  xpEarned         Int             @default(0)
+
+  user             User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  journey          LearningJourney @relation(fields: [journeyId], references: [id], onDelete: Cascade)
+  scenario         Scenario?       @relation(fields: [scenarioId], references: [id])
+  messages         Message[]
+  assessments      Assessment[]
+
+  @@map("learning_sessions")
+}
+
+model Message {
+  id               String          @id @default(cuid())
+  sessionId        String
+  sender           MessageSender
+  text             String
+  translation      String?
+  audioUrl         String?
+  correctionJson   String?
+  timestamp        DateTime        @default(now())
+
+  session          LearningSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@map("messages")
+}
+
+model Assessment {
+  id               String          @id @default(cuid())
+  sessionId        String
+  fluencyScore     Float?
+  accuracyScore    Float?
+  vocabularyScore  Float?
+  summaryFeedback  String?
+  createdAt        DateTime        @default(now())
+
+  session          LearningSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@map("assessments")
+}
+
+model Mission {
+  id          String           @id @default(cuid())
+  scenarioId  String
+  title       String
+  description String
+  xpReward    Int              @default(50)
+
+  scenario    Scenario         @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+  attempts    MissionAttempt[]
+
+  @@map("missions")
+}
+
+model MissionAttempt {
+  id          String          @id @default(cuid())
+  journeyId   String
+  missionId   String
+  completed   Boolean         @default(false)
+  completedAt DateTime?
+
+  journey     LearningJourney @relation(fields: [journeyId], references: [id], onDelete: Cascade)
+  mission     Mission         @relation(fields: [missionId], references: [id], onDelete: Cascade)
+
+  @@map("mission_attempts")
+}
+
+model Subscription {
+  id                 String             @id @default(cuid())
+  userId             String
+  provider           String             // 'stripe', 'apple_pay', 'google_pay'
+  externalSubId      String?
+  plan               String             // 'monthly', 'yearly'
+  status             SubscriptionStatus @default(TRIAL)
+  currentPeriodStart DateTime           @default(now())
+  currentPeriodEnd   DateTime
+  cancelAtPeriodEnd  Boolean            @default(false)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("subscriptions")
+}
+
+model AIUsage {
+  id             String   @id @default(cuid())
+  userId         String
+  model          String
+  promptTokens   Int      @default(0)
+  responseTokens Int      @default(0)
+  turnCount      Int      @default(1)
+  createdAt      DateTime @default(now())
+
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("ai_usages")
+}

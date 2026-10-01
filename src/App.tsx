@@ -14,19 +14,27 @@ import { GrammarView } from './views/GrammarView';
 import { AuthView } from './views/AuthView';
 
 export default function App() {
-  const { activeView, showOnboarding, showAuthModal, setShowAuthModal } = useApp();
+  const { user, activeView, showOnboarding, showAuthModal, setShowAuthModal } = useApp();
 
-  const isChatView = activeView === 'chat';
-  const isAuthView = activeView === 'auth';
+  // If user is not authenticated or explicitly on auth view, render AuthView
+  if (!user || activeView === 'auth') {
+    return (
+      <div className="min-h-[100dvh] w-full bg-[var(--bg-primary)] text-[var(--text-primary)] font-sans antialiased transition-colors flex flex-col justify-center">
+        <AuthView />
+      </div>
+    );
+  }
+
+  const isDedicatedChat = activeView === 'chat';
 
   return (
-    <div className="min-h-screen bg-[#0b0f17] dark:bg-[#0b0f17] light-mode:bg-slate-50 text-slate-100 dark:text-slate-100 light-mode:text-slate-900 font-sans transition-colors">
+    <div className="min-h-[100dvh] max-w-lg mx-auto w-full bg-[var(--bg-primary)] text-[var(--text-primary)] font-sans antialiased transition-colors flex flex-col relative shadow-2xl overflow-x-hidden">
 
-      {/* Persistent Header (Hidden in dedicated chat view and auth view) */}
-      {!isChatView && !isAuthView && <Header />}
+      {/* Persistent Liquid Glass Header */}
+      {!isDedicatedChat && <Header />}
 
-      {/* Main View Area */}
-      <main className="w-full">
+      {/* Main Dynamic View Content Layer */}
+      <main className={`flex-1 w-full ${!isDedicatedChat ? 'pb-24 pt-2' : ''}`}>
         {activeView === 'home' && <HomeView />}
         {activeView === 'chat' && <ConversationView />}
         {activeView === 'learn' && <ProgressView />}
@@ -34,20 +42,19 @@ export default function App() {
         {activeView === 'profile' && <ProfileSettingsView />}
         {activeView === 'vocab' && <VocabularyView />}
         {activeView === 'grammar' && <GrammarView />}
-        {activeView === 'auth' && <AuthView />}
       </main>
 
-      {/* Bottom Sticky Navigation (Hidden in dedicated chat and auth view) */}
-      {!isChatView && !isAuthView && <BottomNav />}
+      {/* Persistent Liquid Glass Bottom Navigation */}
+      {!isDedicatedChat && <BottomNav />}
 
-      {/* Authentication Modal / Overlay */}
+      {/* Authentication Modal / Overlay if prompted */}
       {showAuthModal && (
-        <div className="fixed inset-0 z-50 overflow-y-auto">
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-md">
           <AuthView onComplete={() => setShowAuthModal(false)} />
         </div>
       )}
 
-      {/* Onboarding Flow Modal */}
+      {/* Onboarding Flow Modal for newly registered users */}
       {showOnboarding && <OnboardingModal />}
 
     </div>

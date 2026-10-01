@@ -8,13 +8,14 @@ export const apiRouter = Router();
 // Auth routes
 apiRouter.get('/auth/me', (req: Request, res: Response) => {
   const authHeader = req.headers.authorization;
-  let userId = 'usr_demo';
-  if (authHeader && authHeader.startsWith('Bearer usr_')) {
-    userId = authHeader.replace('Bearer ', '').trim();
+  if (!authHeader || !authHeader.startsWith('Bearer usr_')) {
+    res.json({ user: null });
+    return;
   }
-  const user = db.getUser(userId) || db.getUser('usr_demo');
+  const userId = authHeader.replace('Bearer ', '').trim();
+  const user = db.getUser(userId);
   if (!user) {
-    res.status(401).json({ error: 'User not authenticated' });
+    res.json({ user: null });
     return;
   }
   res.json({ user });
@@ -42,7 +43,7 @@ apiRouter.post('/auth/login', (req: Request, res: Response) => {
 });
 
 apiRouter.post('/auth/register', (req: Request, res: Response) => {
-  const { email, name, password, targetLanguage, supportLanguage } = req.body;
+  const { email, name, password, targetLanguage, supportLanguage, cefrLevel } = req.body;
   if (!email || !password) {
     res.status(400).json({ error: 'Email and password are required' });
     return;
@@ -56,18 +57,18 @@ apiRouter.post('/auth/register', (req: Request, res: Response) => {
 
   const user = db.createUser(name || 'Language Learner', email, password);
 
-  // Initialize their first journey
+  // Initialize their first real journey starting at 0 progress
   const startingTarget = targetLanguage || 'en';
-  const startingSupport = supportLanguage || 'es';
+  const startingSupport = supportLanguage || 'en';
   const journey: LearningJourney = {
     id: `jrn_${startingTarget}_${Date.now()}`,
     userId: user.id,
     targetLanguage: startingTarget,
     supportLanguage: startingSupport,
-    cefrLevel: 'A1',
-    streakDays: 1,
+    cefrLevel: cefrLevel || 'A1',
+    streakDays: 0,
     totalMinutesSpoken: 0,
-    points: 100,
+    points: 0,
     createdAt: new Date().toISOString()
   };
   db.saveJourney(journey);
@@ -75,7 +76,7 @@ apiRouter.post('/auth/register', (req: Request, res: Response) => {
   res.json({
     user,
     token: `Bearer ${user.id}`,
-    journey
+    journeys: [journey]
   });
 });
 
@@ -90,22 +91,34 @@ apiRouter.get('/languages', (req: Request, res: Response) => {
 
 // Journeys
 apiRouter.get('/journeys', (req: Request, res: Response) => {
-  const userId = (req.query.userId as string) || 'usr_demo';
+  const authHeader = req.headers.authorization;
+  let userId = req.query.userId as string;
+  if (!userId && authHeader && authHeader.startsWith('Bearer usr_')) {
+    userId = authHeader.replace('Bearer ', '').trim();
+  }
+  if (!userId) {
+    res.json({ journeys: [] });
+    return;
+  }
   const journeys = db.getJourneysForUser(userId);
   res.json({ journeys });
 });
 
 apiRouter.post('/journeys', (req: Request, res: Response) => {
   const { userId, targetLanguage, supportLanguage, cefrLevel } = req.body;
+  if (!userId) {
+    res.status(400).json({ error: 'User ID is required to create a journey' });
+    return;
+  }
   const newJourney: LearningJourney = {
     id: `jrn_${targetLanguage}_${Date.now()}`,
-    userId: userId || 'usr_demo',
-    targetLanguage,
+    userId,
+    targetLanguage: targetLanguage || 'en',
     supportLanguage: supportLanguage || 'en',
     cefrLevel: cefrLevel || 'A1',
-    streakDays: 1,
+    streakDays: 0,
     totalMinutesSpoken: 0,
-    points: 100,
+    points: 0,
     createdAt: new Date().toISOString()
   };
   db.saveJourney(newJourney);
@@ -144,9 +157,20 @@ apiRouter.post('/ai/chat', async (req: Request, res: Response) => {
   try {
     const { journeyId, scenarioId, userMessage, conversationHistory } = req.body;
 
-    const journey = db.getJourney(journeyId) || db.getJourneysForUser('usr_demo')[0];
+    const journey = db.getJourney(journeyId) || {
+      id: journeyId || 'temp_jrn',
+      userId: 'temp_user',
+      targetLanguage: 'en',
+      supportLanguage: 'en',
+      cefrLevel: 'A1',
+      streakDays: 0,
+      totalMinutesSpoken: 0,
+      points: 0,
+      createdAt: new Date().toISOString()
+    };
+
     const scenario = db.getScenarioById(scenarioId) || db.getScenarios()[0];
-    const recentMistakes = db.getMistakes(journey.id);
+    const recentMistakes = journey ? db.getMistakes(journey.id) : [];
 
     // Save user message
     db.saveChatMessage(scenarioId, {
@@ -180,7 +204,7 @@ apiRouter.post('/ai/chat', async (req: Request, res: Response) => {
     });
 
     // Save correction if present
-    if (aiResult.correction) {
+    if (aiResult.correction && journey.id) {
       db.addMistake(journey.id, {
         category: 'grammar',
         pattern: aiResult.correction.grammarNote || 'Language structure',
@@ -194,7 +218,7 @@ apiRouter.post('/ai/chat', async (req: Request, res: Response) => {
     }
 
     // Save vocabulary items if present
-    if (aiResult.vocabulary) {
+    if (aiResult.vocabulary && journey.id) {
       for (const item of aiResult.vocabulary) {
         db.addVocabulary(journey.id, {
           word: item.word,
@@ -212,19 +236,27 @@ apiRouter.post('/ai/chat', async (req: Request, res: Response) => {
       }
     }
 
-    // Award XP points for practice
-    journey.points += 15;
-    journey.totalMinutesSpoken += 1;
-    db.saveJourney(journey);
+    // Award real practice metrics
+    if (journey.id && db.getJourney(journey.id)) {
+      const liveJourney = db.getJourney(journey.id)!;
+      liveJourney.points = (liveJourney.points || 0) + 15;
+      liveJourney.totalMinutesSpoken = (liveJourney.totalMinutesSpoken || 0) + 1;
+      if (liveJourney.streakDays === 0) {
+        liveJourney.streakDays = 1;
+      }
+      db.saveJourney(liveJourney);
+    }
 
     res.json({
-      replyMessage: tutorMsg,
-      aiResult,
-      journey
+      message: tutorMsg,
+      aiResponse: aiResult
     });
-  } catch (error) {
-    console.error('Error in /api/ai/chat:', error);
-    res.status(500).json({ error: 'Failed to process AI conversation turn' });
+  } catch (err: any) {
+    console.error('Error handling AI chat route:', err);
+    res.status(500).json({
+      error: 'Failed to process AI chat message',
+      details: err.message
+    });
   }
 });
 
@@ -232,72 +264,69 @@ apiRouter.post('/ai/chat', async (req: Request, res: Response) => {
 apiRouter.post('/ai/calibrate', async (req: Request, res: Response) => {
   try {
     const result = await calibrateLearnerLevel(req.body);
-    res.json({ result });
-  } catch (error) {
-    res.status(500).json({ error: 'Calibration failed' });
+    res.json(result);
+  } catch (err: any) {
+    console.error('Calibration route error:', err);
+    res.status(500).json({ error: 'Failed to calibrate learner level' });
   }
 });
 
 // Vocabulary
 apiRouter.get('/vocabulary', (req: Request, res: Response) => {
-  const journeyId = (req.query.journeyId as string) || 'jrn_en_1';
+  const journeyId = req.query.journeyId as string;
+  if (!journeyId) {
+    res.json({ vocabulary: [] });
+    return;
+  }
   const vocabulary = db.getVocabulary(journeyId);
   res.json({ vocabulary });
 });
 
+apiRouter.post('/vocabulary', (req: Request, res: Response) => {
+  const { journeyId, ...item } = req.body;
+  if (!journeyId || !item.word) {
+    res.status(400).json({ error: 'journeyId and word are required' });
+    return;
+  }
+  const created = db.addVocabulary(journeyId, item);
+  res.json({ vocabulary: created });
+});
+
 // Mistakes
 apiRouter.get('/mistakes', (req: Request, res: Response) => {
-  const journeyId = (req.query.journeyId as string) || 'jrn_en_1';
+  const journeyId = req.query.journeyId as string;
+  if (!journeyId) {
+    res.json({ mistakes: [] });
+    return;
+  }
   const mistakes = db.getMistakes(journeyId);
   res.json({ mistakes });
 });
 
-// Progress overview
-apiRouter.get('/progress', (req: Request, res: Response) => {
-  const journeyId = (req.query.journeyId as string) || 'jrn_en_1';
-  const journey = db.getJourney(journeyId) || db.getJourneysForUser('usr_demo')[0];
-  const vocabulary = db.getVocabulary(journeyId);
-  const mistakes = db.getMistakes(journeyId);
-
-  res.json({
-    journey,
-    competencies: {
-      listening: 78,
-      speaking: 65,
-      vocabulary: Math.min(95, vocabulary.length * 15 + 40),
-      grammar: 62,
-      fluency: 58
-    },
-    vocabCount: vocabulary.length,
-    activeMistakesCount: mistakes.filter(m => !m.resolved).length,
-    dailyGoal: {
-      spokenMinutes: journey.totalMinutesSpoken % 10,
-      targetMinutes: 10,
-      completedGoals: 3,
-      totalGoals: 5
-    }
-  });
-});
-
-// Settings update
-apiRouter.put('/settings', (req: Request, res: Response) => {
-  const user = db.getUser('usr_demo');
-  if (user) {
-    Object.assign(user, req.body);
-    db.updateUser(user);
+apiRouter.post('/mistakes', (req: Request, res: Response) => {
+  const { journeyId, ...mistake } = req.body;
+  if (!journeyId || !mistake.pattern) {
+    res.status(400).json({ error: 'journeyId and pattern are required' });
+    return;
   }
-  res.json({ user });
+  const created = db.addMistake(journeyId, mistake);
+  res.json({ mistake: created });
 });
 
-// Subscription
-apiRouter.get('/subscription', (req: Request, res: Response) => {
-  const user = db.getUser('usr_demo');
-  res.json({
-    status: user?.subscriptionStatus || 'trial',
-    trialEndsAt: user?.trialEndsAt,
-    plans: [
-      { id: 'monthly', name: 'Monthly Pro', price: '$9.99/mo', period: 'monthly' },
-      { id: 'yearly', name: 'Yearly Pro', price: '$79.99/yr', period: 'yearly', badge: 'Save 33%' }
-    ]
-  });
+// Settings
+apiRouter.put('/settings', (req: Request, res: Response) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer usr_')) {
+    res.json({ success: true });
+    return;
+  }
+  const userId = authHeader.replace('Bearer ', '').trim();
+  const user = db.getUser(userId);
+  if (!user) {
+    res.status(404).json({ error: 'User not found' });
+    return;
+  }
+  Object.assign(user, req.body);
+  db.updateUser(user);
+  res.json({ user });
 });

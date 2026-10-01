@@ -14,9 +14,9 @@ export const BottomNav: React.FC = () => {
   ] as const;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-40 pb-safe">
-      <div className="max-w-md mx-auto px-4 pb-3 pt-1">
-        <nav className="flex items-center justify-around bg-slate-900/90 dark:bg-slate-900/90 light-mode:bg-white/95 backdrop-blur-2xl border border-white/10 dark:border-white/10 light-mode:border-slate-200 rounded-3xl p-1.5 shadow-2xl">
+    <div className="fixed bottom-0 left-0 right-0 z-40 pb-[max(env(safe-area-inset-bottom,0px),0.75rem)] pointer-events-none">
+      <div className="max-w-md mx-auto px-4 pointer-events-auto">
+        <nav className="flex items-center justify-around glass-nav rounded-3xl p-1.5 shadow-2xl transition-colors">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeView === item.id;
@@ -24,13 +24,17 @@ export const BottomNav: React.FC = () => {
               <button
                 key={item.id}
                 onClick={() => setActiveView(item.id)}
-                className={`flex flex-col items-center justify-center py-1.5 px-3 rounded-2xl transition-all cursor-pointer ${
+                className={`flex flex-col items-center justify-center py-2 px-3.5 rounded-2xl transition-all duration-200 cursor-pointer ${
                   isActive
-                    ? 'text-emerald-400 font-bold bg-emerald-500/10'
-                    : 'text-slate-400 dark:text-slate-400 light-mode:text-slate-500 hover:text-slate-200'
+                    ? 'text-emerald-400 font-bold bg-emerald-500/15 shadow-sm'
+                    : 'text-slate-400 dark:text-slate-400 light-mode:text-slate-500 hover:text-slate-200 dark:hover:text-slate-100 light-mode:hover:text-slate-900 hover:bg-white/5'
                 }`}
               >
-                <Icon className={`w-5 h-5 mb-0.5 transition-transform ${isActive ? 'scale-110' : ''}`} />
+                <Icon
+                  className={`w-5 h-5 mb-0.5 transition-transform duration-200 ${
+                    isActive ? 'scale-110 stroke-[2.5]' : 'stroke-[1.8]'
+                  }`}
+                />
                 <span className="text-[10px] tracking-tight">{item.label}</span>
               </button>
             );

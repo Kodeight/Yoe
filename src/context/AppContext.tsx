@@ -29,7 +29,7 @@ interface AppContextType {
   dismissOnboarding: () => void;
   setShowAuthModal: (show: boolean) => void;
   login: (email: string, password: string) => Promise<boolean>;
-  register: (name: string, email: string, password: string, targetLang?: LanguageCode, supportLang?: LanguageCode) => Promise<boolean>;
+  register: (name: string, email: string, password: string, targetLang?: LanguageCode, supportLang?: LanguageCode, level?: string) => Promise<boolean>;
   logout: () => Promise<void>;
   installPWA: () => void;
 }
@@ -44,7 +44,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [activeScenario, setActiveScenario] = useState<Scenario | null>(null);
   const [vocabulary, setVocabulary] = useState<VocabularyItem[]>([]);
   const [mistakes, setMistakes] = useState<MistakeRecord[]>([]);
-  const [activeView, setActiveView] = useState<'home' | 'chat' | 'learn' | 'explore' | 'profile' | 'vocab' | 'grammar' | 'auth'>('home');
+  const [activeView, setActiveView] = useState<'home' | 'chat' | 'learn' | 'explore' | 'profile' | 'vocab' | 'grammar' | 'auth'>('auth');
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('yoe_theme');
@@ -88,10 +88,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return token ? { Authorization: token } : {};
   };
 
-  // Fetch initial data
+  // Fetch initial scenarios and authenticate
   useEffect(() => {
     async function loadInitialData() {
       try {
+        // First load public scenarios for curriculum foundation
+        const scenRes = await fetch('/api/scenarios');
+        const scenData = await scenRes.json();
+        if (scenData.scenarios) {
+          setScenarios(scenData.scenarios);
+        }
+
+        const token = typeof window !== 'undefined' ? localStorage.getItem('yoe_auth_token') : null;
+        if (!token) {
+          setUser(null);
+          setActiveView('auth');
+          return;
+        }
+
         const userRes = await fetch('/api/auth/me', {
           headers: getAuthHeader()
         });
@@ -101,19 +115,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           const savedTheme = localStorage.getItem('yoe_theme') as 'dark' | 'light';
           setTheme(savedTheme || userData.user.theme || 'dark');
           setUiLanguageState(userData.user.uiLanguage || 'en');
-        }
 
-        const journeysRes = await fetch('/api/journeys', {
-          headers: getAuthHeader()
-        });
-        const journeysData = await journeysRes.json();
-        if (journeysData.journeys && journeysData.journeys.length > 0) {
-          setJourneys(journeysData.journeys);
-          const current = journeysData.journeys[0];
-          setActiveJourneyState(current);
-          loadScenariosAndData(current);
+          const journeysRes = await fetch('/api/journeys', {
+            headers: getAuthHeader()
+          });
+          const journeysData = await journeysRes.json();
+          if (journeysData.journeys && journeysData.journeys.length > 0) {
+            setJourneys(journeysData.journeys);
+            const current = journeysData.journeys[0];
+            setActiveJourneyState(current);
+            loadScenariosAndData(current);
+            setActiveView('home');
+          } else {
+            setShowOnboarding(true);
+            setActiveView('home');
+          }
         } else {
-          setShowOnboarding(true);
+          // Token expired or invalid
+          localStorage.removeItem('yoe_auth_token');
+          setUser(null);
+          setActiveView('auth');
         }
       } catch (err) {
         console.warn('Network offline or error loading initial data, trying offline fallback:', err);
@@ -297,17 +318,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ uiLanguage: lang })
-      });
+      }).catch(() => {});
     }
   };
 
   const createNewJourney = async (targetLang: LanguageCode, supportLang: LanguageCode, level: string = 'A1') => {
+    if (!user) return;
     try {
       const res = await fetch('/api/journeys', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeader()
+        },
         body: JSON.stringify({
-          userId: user?.id || 'usr_demo',
+          userId: user.id,
           targetLanguage: targetLang,
           supportLanguage: supportLang,
           cefrLevel: level
@@ -315,18 +340,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
       const data = await res.json();
       if (data.journey) {
-        setJourneys(prev => [...prev, data.journey]);
+        setJourneys(prev => [data.journey, ...prev]);
         setActiveJourney(data.journey);
       }
     } catch (err) {
-      console.error('Error creating journey:', err);
+      console.error('Failed to create new journey:', err);
     }
   };
 
   const refreshProgress = async () => {
     if (!activeJourney) return;
     try {
-      const res = await fetch(`/api/progress?journeyId=${activeJourney.id}`);
+      const res = await fetch(`/api/journeys/${activeJourney.id}`);
       const data = await res.json();
       if (data.journey) {
         setActiveJourneyState(data.journey);
@@ -361,8 +386,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (data.journeys && data.journeys.length > 0) {
         setJourneys(data.journeys);
         setActiveJourney(data.journeys[0]);
+      } else {
+        setShowOnboarding(true);
       }
       setShowAuthModal(false);
+      setActiveView('home');
       return true;
     } catch (err) {
       console.error('Login error:', err);
@@ -375,7 +403,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     email: string,
     password: string,
     targetLang?: LanguageCode,
-    supportLang?: LanguageCode
+    supportLang?: LanguageCode,
+    level?: string
   ): Promise<boolean> => {
     try {
       const res = await fetch('/api/auth/register', {
@@ -386,7 +415,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           email,
           password,
           targetLanguage: targetLang || 'en',
-          supportLanguage: supportLang || 'es'
+          supportLanguage: supportLang || 'en',
+          cefrLevel: level || 'A1'
         })
       });
       const data = await res.json();
@@ -395,11 +425,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
       localStorage.setItem('yoe_auth_token', data.token);
       setUser(data.user);
-      if (data.journey) {
-        setJourneys([data.journey]);
-        setActiveJourney(data.journey);
+      if (data.journeys && data.journeys.length > 0) {
+        setJourneys(data.journeys);
+        setActiveJourney(data.journeys[0]);
       }
       setShowAuthModal(false);
+      setShowOnboarding(false);
+      setActiveView('home');
       return true;
     } catch (err) {
       console.error('Registration error:', err);
@@ -411,11 +443,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       await fetch('/api/auth/logout', { method: 'POST' });
     } catch (e) {
-      // ignore
+      console.error('Logout error:', e);
     }
     localStorage.removeItem('yoe_auth_token');
-    // Return to demo guest or prompt login
-    setShowAuthModal(true);
+    localStorage.removeItem('yoe_cached_vocabulary');
+    localStorage.removeItem('yoe_cached_mistakes');
+    setUser(null);
+    setJourneys([]);
+    setActiveJourneyState(null);
+    setVocabulary([]);
+    setMistakes([]);
+    setActiveView('auth');
   };
 
   const installPWA = () => {

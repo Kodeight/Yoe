@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { Scenario } from '../types';
-import { Compass, Play, MapPin, Sparkles } from 'lucide-react';
+import { Compass, Play, MapPin, Sparkles, Filter } from 'lucide-react';
 
 export const ScenariosView: React.FC = () => {
   const { scenarios, setActiveScenarioId, setActiveView, activeJourney } = useApp();
@@ -28,24 +27,24 @@ export const ScenariosView: React.FC = () => {
         <div>
           <h1 className="text-xl font-bold text-slate-100 dark:text-slate-100 light-mode:text-slate-900 tracking-tight flex items-center gap-2">
             <Compass className="w-5 h-5 text-emerald-400" />
-            <span>Explore Scenarios</span>
+            <span>Scenario Worlds</span>
           </h1>
           <p className="text-xs text-slate-400 dark:text-slate-400 light-mode:text-slate-500 mt-0.5">
-            Real-world worlds to enter and practice in {activeJourney?.targetLanguage.toUpperCase()}
+            Interactive mission environments in {activeJourney?.targetLanguage.toUpperCase() || 'TARGET LANGUAGE'}
           </p>
         </div>
       </div>
 
       {/* Filter Pills */}
       <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
-        {['all', 'A1', 'A2', 'B1', 'travel', 'dining', 'shopping', 'social'].map((f) => (
+        {['all', 'A1', 'A2', 'B1', 'travel', 'dining', 'shopping', 'social', 'business'].map((f) => (
           <button
             key={f}
             onClick={() => setSelectedFilter(f)}
             className={`px-3 py-1.5 rounded-full text-xs font-bold capitalize transition-all cursor-pointer whitespace-nowrap ${
               selectedFilter === f
-                ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20'
-                : 'bg-slate-900 dark:bg-slate-900 light-mode:bg-white text-slate-300 dark:text-slate-300 light-mode:text-slate-700 border border-white/10 dark:border-white/10 light-mode:border-slate-200 hover:border-emerald-500/40'
+                ? 'bg-gradient-to-r from-emerald-400 to-teal-400 text-slate-950 font-black shadow-md shadow-emerald-500/20'
+                : 'glass-pill text-slate-300 dark:text-slate-300 light-mode:text-slate-700 hover:border-emerald-500/40'
             }`}
           >
             {f}
@@ -54,55 +53,70 @@ export const ScenariosView: React.FC = () => {
       </div>
 
       {/* Scenario Cards List */}
-      <div className="space-y-3.5">
-        {filteredScenarios.map((scen) => (
-          <div
-            key={scen.id}
-            onClick={() => handleStartScenario(scen.id)}
-            className="group relative overflow-hidden rounded-2xl bg-slate-900/80 dark:bg-slate-900/80 light-mode:bg-white border border-white/10 dark:border-white/10 light-mode:border-slate-200 p-4 transition-all hover:border-emerald-500/40 cursor-pointer shadow-lg"
+      {filteredScenarios.length === 0 ? (
+        <div className="rounded-3xl glass-card p-8 text-center space-y-3">
+          <Filter className="w-8 h-8 text-slate-500 mx-auto" />
+          <h3 className="text-sm font-bold text-slate-200">No Scenarios in this Category</h3>
+          <button
+            onClick={() => setSelectedFilter('all')}
+            className="px-4 py-2 rounded-xl bg-emerald-500/20 text-emerald-400 text-xs font-bold"
           >
-            {/* Top row */}
-            <div className="flex items-start justify-between gap-3 mb-2">
-              <div className="flex items-center gap-2.5">
-                <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-xl shrink-0">
-                  {scen.avatar}
+            Show All Scenarios
+          </button>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {filteredScenarios.map((scen) => (
+            <div
+              key={scen.id}
+              onClick={() => handleStartScenario(scen.id)}
+              className="group rounded-2xl glass-card p-3.5 transition-all hover:border-emerald-500/40 hover:shadow-lg cursor-pointer flex items-center gap-3.5"
+            >
+              {/* Image thumbnail with avatar badge */}
+              <div className="relative w-20 h-20 rounded-xl overflow-hidden shrink-0 bg-slate-800">
+                <img
+                  src={scen.imageUrl}
+                  alt={scen.title}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                <span className="absolute bottom-1 left-1.5 text-xs">{scen.avatar}</span>
+              </div>
+
+              {/* Scenario details */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <span className="px-1.5 py-0.2 rounded-full bg-emerald-500/15 text-[9px] font-black text-emerald-400 border border-emerald-500/20 uppercase">
+                    {scen.cefrLevel}
+                  </span>
+                  <span className="text-[10px] text-slate-400 dark:text-slate-400 light-mode:text-slate-500 truncate flex items-center gap-0.5">
+                    <MapPin className="w-2.5 h-2.5" />
+                    {scen.location}
+                  </span>
                 </div>
-                <div>
-                  <h3 className="text-sm font-bold text-slate-100 dark:text-slate-100 light-mode:text-slate-900 group-hover:text-emerald-400 transition-colors">
-                    {scen.title}
-                  </h3>
-                  <div className="flex items-center gap-1 text-[11px] text-slate-400 dark:text-slate-400 light-mode:text-slate-500">
-                    <MapPin className="w-3 h-3 text-emerald-400 shrink-0" />
-                    <span className="truncate max-w-[180px]">{scen.location}</span>
-                  </div>
+
+                <h3 className="text-sm font-bold text-slate-100 dark:text-slate-100 light-mode:text-slate-900 truncate">
+                  {scen.title}
+                </h3>
+
+                <p className="text-[11px] text-slate-400 dark:text-slate-400 light-mode:text-slate-500 truncate mb-1.5">
+                  {scen.characterName} ({scen.characterRole})
+                </p>
+
+                <div className="flex items-center gap-1.5 text-[10px] text-emerald-400 font-semibold">
+                  <Sparkles className="w-3 h-3" />
+                  <span>{scen.objectives.length} Missions</span>
                 </div>
               </div>
 
-              <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-extrabold uppercase shrink-0">
-                {scen.cefrLevel}
-              </span>
-            </div>
-
-            {/* Description */}
-            <p className="text-xs text-slate-400 dark:text-slate-400 light-mode:text-slate-600 line-clamp-2 mb-3">
-              {scen.description}
-            </p>
-
-            {/* Objectives summary */}
-            <div className="pt-3 border-t border-white/10 dark:border-white/10 light-mode:border-slate-200 flex items-center justify-between">
-              <div className="flex items-center gap-1.5 text-[11px] text-slate-300 dark:text-slate-300 light-mode:text-slate-700">
-                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                <span>{scen.objectives.length} Missions</span>
-              </div>
-
-              <div className="flex items-center gap-1 text-xs font-bold text-emerald-400 group-hover:translate-x-1 transition-transform">
-                <span>Enter Scenario</span>
-                <Play className="w-3.5 h-3.5 fill-emerald-400" />
+              {/* Enter Button */}
+              <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-emerald-400 to-teal-400 flex items-center justify-center text-slate-950 shadow-md group-hover:scale-110 transition-transform shrink-0">
+                <Play className="w-4 h-4 fill-slate-950 ml-0.5" />
               </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
     </div>
   );
