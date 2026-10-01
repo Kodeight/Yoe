@@ -1,0 +1,8 @@
+{
+  "name": "Yoe - Speak. Learn. Grow.",
+  "description": "An AI-powered language-learning companion with interactive scenario worlds, adaptive corrections, voice conversations, and CEFR progression.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

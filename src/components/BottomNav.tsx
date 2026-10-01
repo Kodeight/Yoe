@@ -1,0 +1,42 @@
+import React from 'react';
+import { useApp } from '../context/AppContext';
+import { Home, MessageCircle, BarChart2, Compass, User } from 'lucide-react';
+
+export const BottomNav: React.FC = () => {
+  const { activeView, setActiveView } = useApp();
+
+  const navItems = [
+    { id: 'home', label: 'Home', icon: Home },
+    { id: 'chat', label: 'Chat', icon: MessageCircle },
+    { id: 'learn', label: 'Learn', icon: BarChart2 },
+    { id: 'explore', label: 'Explore', icon: Compass },
+    { id: 'profile', label: 'Profile', icon: User }
+  ] as const;
+
+  return (
+    <div className="fixed bottom-0 left-0 right-0 z-40 pb-safe">
+      <div className="max-w-md mx-auto px-4 pb-3 pt-1">
+        <nav className="flex items-center justify-around bg-slate-900/90 dark:bg-slate-900/90 light-mode:bg-white/95 backdrop-blur-2xl border border-white/10 dark:border-white/10 light-mode:border-slate-200 rounded-3xl p-1.5 shadow-2xl">
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = activeView === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => setActiveView(item.id)}
+                className={`flex flex-col items-center justify-center py-1.5 px-3 rounded-2xl transition-all cursor-pointer ${
+                  isActive
+                    ? 'text-emerald-400 font-bold bg-emerald-500/10'
+                    : 'text-slate-400 dark:text-slate-400 light-mode:text-slate-500 hover:text-slate-200'
+                }`}
+              >
+                <Icon className={`w-5 h-5 mb-0.5 transition-transform ${isActive ? 'scale-110' : ''}`} />
+                <span className="text-[10px] tracking-tight">{item.label}</span>
+              </button>
+            );
+          })}
+        </nav>
+      </div>
+    </div>
+  );
+};
