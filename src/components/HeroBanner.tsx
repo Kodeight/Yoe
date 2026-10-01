@@ -1,6 +1,6 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
-import { YoeOrb } from './YoeOrb';
+import { VoiceBubble } from './VoiceBubble';
 import { Mic, ChevronRight, Sparkles } from 'lucide-react';
 import { SUPPORTED_LANGUAGES } from '../server/db';
 
@@ -31,13 +31,13 @@ export const HeroBanner: React.FC = () => {
 
         <div className="px-2.5 py-1 rounded-full glass-pill text-[10px] font-bold text-slate-300 dark:text-slate-300 light-mode:text-slate-700 flex items-center gap-1">
           <Sparkles className="w-3 h-3 text-emerald-400" />
-          <span>AI Active</span>
+          <span>Live Audio Active</span>
         </div>
       </div>
 
-      {/* Main Intelligent Yoe AI Presence Orb */}
-      <div className="my-5 cursor-pointer" onClick={() => setActiveView('chat')}>
-        <YoeOrb size="md" state="idle" interactive />
+      {/* Main Intelligent Yoe Voice Presence Bubble */}
+      <div className="my-2 flex justify-center cursor-pointer" onClick={() => setActiveView('chat')}>
+        <VoiceBubble size="md" state="idle" interactive />
       </div>
 
       {/* Headline Callout */}

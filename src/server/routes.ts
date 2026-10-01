@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { db, SUPPORTED_LANGUAGES } from './db';
-import { processScenarioTurn, calibrateLearnerLevel } from './aiService';
+import { processScenarioTurn, calibrateLearnerLevel, generateScenarioSpeech, getCharacterVoice } from './aiService';
 import { User, LearningJourney } from '../types';
 
 export const apiRouter = Router();
@@ -245,6 +245,38 @@ apiRouter.post('/ai/chat', async (req: Request, res: Response) => {
 });
 
 // Calibration
+apiRouter.post('/api/ai/tts', async (req: Request, res: Response) => {
+  try {
+    const { text, voiceName, characterName, role } = req.body;
+    const selectedVoice = voiceName || (characterName ? getCharacterVoice(characterName, role || '') : 'Kore');
+    const audioBase64 = await generateScenarioSpeech(text, selectedVoice);
+    if (!audioBase64) {
+      res.status(500).json({ error: 'Failed to synthesize speech' });
+      return;
+    }
+    res.json({ audioBase64, mimeType: 'audio/wav' });
+  } catch (err: any) {
+    console.error('TTS route error:', err);
+    res.status(500).json({ error: 'TTS synthesis error', details: err.message });
+  }
+});
+
+apiRouter.post('/ai/tts', async (req: Request, res: Response) => {
+  try {
+    const { text, voiceName, characterName, role } = req.body;
+    const selectedVoice = voiceName || (characterName ? getCharacterVoice(characterName, role || '') : 'Kore');
+    const audioBase64 = await generateScenarioSpeech(text, selectedVoice);
+    if (!audioBase64) {
+      res.status(500).json({ error: 'Failed to synthesize speech' });
+      return;
+    }
+    res.json({ audioBase64, mimeType: 'audio/wav' });
+  } catch (err: any) {
+    console.error('TTS route error:', err);
+    res.status(500).json({ error: 'TTS synthesis error', details: err.message });
+  }
+});
+
 apiRouter.post('/ai/calibrate', async (req: Request, res: Response) => {
   try {
     const result = await calibrateLearnerLevel(req.body);

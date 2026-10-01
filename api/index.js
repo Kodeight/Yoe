@@ -373,7 +373,8 @@ var db = new CleanMemoryDatabase();
 // src/server/aiService.ts
 import { GoogleGenAI, Type } from "@google/genai";
 var apiKey = process.env.GEMINI_API_KEY || "AQ.Ab8RN6JQUS-fp1GOZb_2wVDFraAO48nyMYnf4cwhvvkGVCqg-g";
-var defaultModel = process.env.GEMINI_MODEL || "gemini-flash-latest";
+var defaultModel = process.env.GEMINI_MODEL || "gemini-3.8-flash";
+var ttsModel = "gemini-3.8-flash-lite-tts";
 var ai = new GoogleGenAI({
   apiKey,
   httpOptions: {
@@ -382,76 +383,100 @@ var ai = new GoogleGenAI({
     }
   }
 });
-async function processScenarioTurn(req) {
-  const { scenario, journey, conversationHistory, userMessage, recentMistakes } = req;
-  const systemInstruction = `
-You are "Yoe", an empathetic, highly skilled AI language tutor playing a specific character in an interactive learning scenario.
-Your character: "${scenario.characterName}" (${scenario.characterRole}).
-Scenario setting: "${scenario.title}" in ${scenario.location}.
-
-TARGET LANGUAGE: ${journey.targetLanguage.toUpperCase()}
-SUPPORT / EXPLANATION LANGUAGE: ${journey.supportLanguage.toUpperCase()}
-LEARNER'S ESTIMATED CEFR LEVEL: ${journey.cefrLevel}
-
-CRITICAL PEDAGOGICAL RULES:
-1. Maintain character role immersion naturally in ${journey.targetLanguage.toUpperCase()}. Do not break character in your main response.
-2. STRICT ROLE FOCUS & NO OFF-TOPIC DRIFT:
-   - Your ONLY job is to be an empathetic LANGUAGE TUTOR and your assigned scenario character ("${scenario.characterName}" - ${scenario.characterRole}).
-   - You are NEVER a medical doctor, clinical practitioner, attorney, or financial advisor.
-   - NEVER diagnose illnesses, recommend medications, offer medical treatment protocols, or lecture on clinical topics.
-   - If the learner asks about health, sickness, or unrelated topics:
-     - Stay in character, acknowledge in 1 brief conversational sentence in ${journey.targetLanguage.toUpperCase()}, kindly suggest they see a qualified real-world doctor if they feel unwell, and IMMEDIATELY steer the conversation back to the active scenario setting (${scenario.title}) and target language practice.
-     - Always keep the primary focus on teaching and practicing ${journey.targetLanguage.toUpperCase()}!
-3. Adjust sentence structure, speed, and vocabulary strictly to level ${journey.cefrLevel}.
-4. CORRECTION PHILOSOPHY: Flow-preserving and gentle!
-   - DO NOT interrupt the scenario or give a huge lecture.
-   - If the user made a grammar, vocabulary, or agreement mistake, provide a structured correction in the JSON output, explaining clearly in ${journey.supportLanguage.toUpperCase()}.
-   - If the user made no significant mistake, set correction to null.
-5. Active Scenario Objectives:
-   ${scenario.objectives.map((o) => `- [ID: ${o.id}] ${o.text}`).join("\n")}
-   If the user's message successfully fulfills any objective, include its ID in "completedObjectiveIds".
-6. Provide 3 helpful "suggestedNextReplies" in ${journey.targetLanguage.toUpperCase()} with translations in ${journey.supportLanguage.toUpperCase()} so the user can keep communicating if stuck.
-7. Extract key vocabulary words practiced in this turn in "vocabulary".
-8. Explanations and translations MUST be in ${journey.supportLanguage.toUpperCase()}.
-  `.trim();
-  const formattedHistory = conversationHistory.slice(-10).map((m) => `${m.sender.toUpperCase()}: ${m.text}`).join("\n");
+function getCharacterVoice(characterName, role, genderPreference) {
+  const femaleRoles = ["receptionist", "barista", "waitress", "guide", "friend", "hostess", "doctor", "teacher", "clerk", "elena", "sofia", "clara", "sarah", "marie", "fatima"];
+  const nameOrRole = `${characterName} ${role}`.toLowerCase();
+  const isFemale = femaleRoles.some((r) => nameOrRole.includes(r)) || genderPreference === "female";
+  return isFemale ? "Kore" : "Puck";
+}
+function buildConversationSystemInstruction(scenario, journey, recentMistakes) {
   const mistakesContext = recentMistakes && recentMistakes.length > 0 ? `
-LEARNER'S RECENT KNOWN WEAKNESSES:
-${recentMistakes.map((m) => `- ${m.pattern}: "${m.exampleUserSaid}" -> "${m.correctedForm}"`).join("\n")}` : "";
-  const prompt = `
-Scenario: ${scenario.title} (${scenario.description})
+[KNOWN LEARNER WEAKNESSES TO GENTLY RECAST]:
+${recentMistakes.map((m) => `- ${m.pattern}: (e.g. said "${m.exampleUserSaid}", target: "${m.correctedForm}")`).join("\n")}` : "";
+  return `
+[ROLE & CONVERSATIONAL ENGINE IDENTITY]
+You are "${scenario.characterName}", a real human character in this living scenario.
+You are NOT a textbook, NOT a language exercise generator, NOT a robotic translator, and NOT an AI assistant.
+You are having a REAL, NATURAL, LIVE CONVERSATION with the learner in ${journey.targetLanguage.toUpperCase()}.
+
+[SCENARIO ENVIRONMENT]
+Title: "${scenario.title}"
+Location: ${scenario.location}
+Description: ${scenario.description}
+Your Role: ${scenario.characterRole}
+Your Initial Context: ${scenario.initialGreeting}
+
+[LEARNER PROFILE]
+Target Language: ${journey.targetLanguage.toUpperCase()}
+Support/Explanation Language: ${journey.supportLanguage.toUpperCase()}
+Estimated CEFR Working Level: ${journey.cefrLevel}
 ${mistakesContext}
 
-CONVERSATION HISTORY:
-${formattedHistory}
+[CORE CONVERSATION RULES - CRITICAL]
+1. RESPOND TO WHAT THE LEARNER ACTUALLY SAID:
+   - Listen attentively to their actual meaning, intent, and tone.
+   - If they ask an unexpected question, answer naturally in character.
+   - If they make a joke, react naturally.
+   - If they change their mind or correct themselves (e.g., "Wait, I meant 2 nights"), immediately acknowledge and adapt.
+2. ADAPTIVE NATURAL LENGTH:
+   - Do NOT produce fixed-length paragraph speeches.
+   - Speak like a real human: sometimes a short reaction ("\xA1Ah, perfecto!", "Claro, \xBFpara cu\xE1ntas noches?"), sometimes a quick question, sometimes a brief explanation.
+   - Keep the rhythm conversational and lively.
+3. LANGUAGE LOCK - TARGET LANGUAGE IMMERSION:
+   - Speak ONLY in natural, authentic ${journey.targetLanguage.toUpperCase()} in your character dialogue ("response").
+   - NEVER randomly speak English or support language in the character dialogue.
+   - The translation field is exclusively for the learner's comprehension aid.
+4. NATURAL SPEECH, NO TEXTBOOK SLOP:
+   - For Spanish: Use natural phrasing (e.g., "Buenas, \xBFtienes reserva?" or "\xA1Hola! Dime, \xBFqu\xE9 te pongo?"), NOT stiff translationese.
+   - Match the tone to your character's role and location.
+5. FLOW-PRESERVING MICRO-CORRECTIONS:
+   - DO NOT break character to give grammar lectures during the live dialogue.
+   - Use conversational recasting naturally in dialogue (e.g. User says "Yo querer habitaci\xF3n", you respond: "Claro, una habitaci\xF3n para usted. \xBFCu\xE1ntas noches?").
+   - Record any notable grammatical/lexical error in the "correction" JSON field for post-session learning, with clear explanation in ${journey.supportLanguage.toUpperCase()}.
+6. INVISIBLE SCENARIO OBJECTIVES:
+   - The scenario has goals, but do NOT announce them like test questions.
+   - Scenario Objectives:
+${scenario.objectives.map((o) => `     * [ID: ${o.id}] ${o.text}`).join("\n")}
+   - When the learner naturally covers an objective in conversation, include its ID in "completedObjectiveIds".
+7. MEDICAL & LEGAL SAFETY:
+   - You are exclusively a language practice companion and scenario character. You never give actual medical, clinical, or legal advice. If a health issue is mentioned, acknowledge briefly in character and advise seeing a local professional.
+`.trim();
+}
+async function processScenarioTurn(req) {
+  const { scenario, journey, conversationHistory, userMessage, recentMistakes } = req;
+  const systemInstruction = buildConversationSystemInstruction(scenario, journey, recentMistakes);
+  const formattedHistory = conversationHistory.slice(-12).map((m) => `${m.sender.toUpperCase()}: ${m.text}`).join("\n");
+  const userPrompt = `
+CONVERSATION SO FAR:
+${formattedHistory || "(Start of conversation)"}
 
-LATEST USER INPUT:
+LATEST LEARNER UTTERANCE:
 "${userMessage}"
 
-Respond as character "${scenario.characterName}" in ${journey.targetLanguage.toUpperCase()}, evaluate the user's message, and return JSON matching the specified schema.
-  `.trim();
+Respond naturally as ${scenario.characterName} in authentic ${journey.targetLanguage.toUpperCase()}. Return strictly JSON adhering to the schema.
+`.trim();
   try {
     const aiResult = await ai.models.generateContent({
       model: defaultModel,
-      contents: prompt,
+      contents: userPrompt,
       config: {
         systemInstruction,
-        temperature: 0.7,
+        temperature: 0.75,
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
           properties: {
             response: {
               type: Type.STRING,
-              description: `Character response in target language (${journey.targetLanguage})`
+              description: `Natural character dialogue in authentic ${journey.targetLanguage}`
             },
             translation: {
               type: Type.STRING,
-              description: `Translation in support language (${journey.supportLanguage})`
+              description: `Accurate translation in ${journey.supportLanguage}`
             },
             correction: {
               type: Type.OBJECT,
-              description: "Gentle correction if the user made an error",
+              description: "Gentle structured correction if learner made a notable mistake",
               properties: {
                 original: { type: Type.STRING },
                 corrected: { type: Type.STRING },
@@ -502,18 +527,61 @@ Respond as character "${scenario.characterName}" in ${journey.targetLanguage.toU
       throw new Error("Empty response received from AI model");
     }
     const parsed = JSON.parse(textOutput);
+    try {
+      const voiceName = getCharacterVoice(scenario.characterName, scenario.characterRole);
+      const audioBase64 = await generateScenarioSpeech(parsed.response, voiceName);
+      if (audioBase64) {
+        parsed.audioBase64 = audioBase64;
+      }
+    } catch (audioErr) {
+      console.warn("Native speech synthesis note (continuing with text):", audioErr);
+    }
     return parsed;
   } catch (error) {
     console.error("Error processing AI scenario turn:", error);
     return {
-      response: `I understood you! Let's continue practicing in ${journey.targetLanguage.toUpperCase()}.`,
-      translation: "I understood you! Let's continue practicing.",
+      response: `\xA1Entendido! Sigamos con nuestra conversaci\xF3n.`,
+      translation: "Understood! Let's continue our conversation.",
       suggestedNextReplies: [
-        { phrase: "Could you please repeat that?", translation: "Could you please repeat that?" },
-        { phrase: "Yes, that sounds great.", translation: "Yes, that sounds great." },
-        { phrase: "Thank you very much!", translation: "Thank you very much!" }
+        { phrase: "\xBFPodr\xEDas repetir eso, por favor?", translation: "Could you repeat that, please?" },
+        { phrase: "S\xED, me parece perfecto.", translation: "Yes, that sounds perfect." },
+        { phrase: "\xA1Muchas gracias por la ayuda!", translation: "Thank you very much for the help!" }
       ]
     };
+  }
+}
+async function generateScenarioSpeech(text, voiceName = "Kore") {
+  if (!text || !text.trim()) return null;
+  try {
+    const response = await ai.models.generateContent({
+      model: ttsModel,
+      contents: [
+        {
+          role: "user",
+          parts: [
+            {
+              text: text.trim(),
+              speechMetadata: {
+                style: "Natural, warm, engaging conversational speaker"
+              }
+            }
+          ]
+        }
+      ],
+      config: {
+        responseModalities: ["AUDIO"],
+        speechConfig: {
+          voiceConfig: {
+            prebuiltVoiceConfig: { voiceName }
+          }
+        }
+      }
+    });
+    const audioData = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+    return audioData || null;
+  } catch (err) {
+    console.error("Gemini TTS generation error:", err);
+    return null;
   }
 }
 async function calibrateLearnerLevel(req) {
@@ -559,9 +627,9 @@ Determine the learner's initial working CEFR level (A1, A2, B1, B2, C1, C2) and 
   }
   return {
     estimatedCefrLevel: experienceLevel || "A1",
-    strengths: ["Enthusiasm to learn", "Good basic comprehension"],
+    strengths: ["Enthusiasm to speak", "Good basic comprehension"],
     focusAreas: ["Vocabulary expansion", "Conversational confidence"],
-    welcomeMessage: `Welcome to Yoe! We've calibrated your journey. Let's start speaking ${targetLanguage.toUpperCase()} together!`
+    welcomeMessage: `\xA1Bienvenido a Yoe! We've calibrated your journey. Let's start speaking ${targetLanguage.toUpperCase()} together!`
   };
 }
 
@@ -768,6 +836,36 @@ apiRouter.post("/ai/chat", async (req, res) => {
       error: "Failed to process AI chat message",
       details: err.message
     });
+  }
+});
+apiRouter.post("/api/ai/tts", async (req, res) => {
+  try {
+    const { text, voiceName, characterName, role } = req.body;
+    const selectedVoice = voiceName || (characterName ? getCharacterVoice(characterName, role || "") : "Kore");
+    const audioBase64 = await generateScenarioSpeech(text, selectedVoice);
+    if (!audioBase64) {
+      res.status(500).json({ error: "Failed to synthesize speech" });
+      return;
+    }
+    res.json({ audioBase64, mimeType: "audio/wav" });
+  } catch (err) {
+    console.error("TTS route error:", err);
+    res.status(500).json({ error: "TTS synthesis error", details: err.message });
+  }
+});
+apiRouter.post("/ai/tts", async (req, res) => {
+  try {
+    const { text, voiceName, characterName, role } = req.body;
+    const selectedVoice = voiceName || (characterName ? getCharacterVoice(characterName, role || "") : "Kore");
+    const audioBase64 = await generateScenarioSpeech(text, selectedVoice);
+    if (!audioBase64) {
+      res.status(500).json({ error: "Failed to synthesize speech" });
+      return;
+    }
+    res.json({ audioBase64, mimeType: "audio/wav" });
+  } catch (err) {
+    console.error("TTS route error:", err);
+    res.status(500).json({ error: "TTS synthesis error", details: err.message });
   }
 });
 apiRouter.post("/ai/calibrate", async (req, res) => {
