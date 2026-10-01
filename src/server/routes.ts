@@ -43,7 +43,7 @@ apiRouter.post('/auth/login', (req: Request, res: Response) => {
 });
 
 apiRouter.post('/auth/register', (req: Request, res: Response) => {
-  const { email, name, password, targetLanguage, supportLanguage, cefrLevel } = req.body;
+  const { email, name, password } = req.body;
   if (!email || !password) {
     res.status(400).json({ error: 'Email and password are required' });
     return;
@@ -57,26 +57,10 @@ apiRouter.post('/auth/register', (req: Request, res: Response) => {
 
   const user = db.createUser(name || 'Language Learner', email, password);
 
-  // Initialize their first real journey starting at 0 progress
-  const startingTarget = targetLanguage || 'en';
-  const startingSupport = supportLanguage || 'en';
-  const journey: LearningJourney = {
-    id: `jrn_${startingTarget}_${Date.now()}`,
-    userId: user.id,
-    targetLanguage: startingTarget,
-    supportLanguage: startingSupport,
-    cefrLevel: cefrLevel || 'A1',
-    streakDays: 0,
-    totalMinutesSpoken: 0,
-    points: 0,
-    createdAt: new Date().toISOString()
-  };
-  db.saveJourney(journey);
-
   res.json({
     user,
     token: `Bearer ${user.id}`,
-    journeys: [journey]
+    journeys: []
   });
 });
 

@@ -1,10 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { YoeLogo } from '../components/YoeLogo';
-import { YoeOrb } from '../components/YoeOrb';
-import { SUPPORTED_LANGUAGES } from '../server/db';
-import { LanguageCode } from '../types';
-import { Mail, Lock, User, Eye, EyeOff, ArrowRight, Sparkles } from 'lucide-react';
+import { Mail, Lock, User, Eye, EyeOff, ArrowRight, ArrowLeft } from 'lucide-react';
 
 export const AuthView: React.FC<{ onComplete?: () => void }> = ({ onComplete }) => {
   const { login, register, setActiveView } = useApp();
@@ -14,14 +11,14 @@ export const AuthView: React.FC<{ onComplete?: () => void }> = ({ onComplete }) 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [targetLang, setTargetLang] = useState<LanguageCode>('en');
-  const [supportLang, setSupportLang] = useState<LanguageCode>('es');
   const [errorMsg, setErrorMsg] = useState('');
+  const [isDuplicateEmail, setIsDuplicateEmail] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
+    setIsDuplicateEmail(false);
 
     if (!email.trim() || !password.trim()) {
       setErrorMsg('Please enter both email and password.');
@@ -30,6 +27,11 @@ export const AuthView: React.FC<{ onComplete?: () => void }> = ({ onComplete }) 
 
     if (mode === 'signup' && !name.trim()) {
       setErrorMsg('Please enter your name.');
+      return;
+    }
+
+    if (password.length < 6) {
+      setErrorMsg('Password must be at least 6 characters.');
       return;
     }
 
@@ -45,12 +47,17 @@ export const AuthView: React.FC<{ onComplete?: () => void }> = ({ onComplete }) 
           setErrorMsg('Invalid email or password. Please verify your credentials.');
         }
       } else {
-        const success = await register(name.trim(), email.trim(), password.trim(), targetLang, supportLang);
-        if (success) {
+        const result = await register(name.trim(), email.trim(), password.trim());
+        if (result.success) {
           if (onComplete) onComplete();
-          else setActiveView('home');
+          // Registration will trigger onboarding automatically in AppContext
         } else {
-          setErrorMsg('An account with this email already exists.');
+          if (result.error && result.error.toLowerCase().includes('already exists')) {
+            setIsDuplicateEmail(true);
+            setErrorMsg('This email is already associated with an account.');
+          } else {
+            setErrorMsg(result.error || 'Failed to create account. Please try again.');
+          }
         }
       }
     } catch (err: any) {
@@ -60,32 +67,37 @@ export const AuthView: React.FC<{ onComplete?: () => void }> = ({ onComplete }) 
     }
   };
 
+  const handleSwitchToLoginWithEmail = () => {
+    setMode('login');
+    setErrorMsg('');
+    setIsDuplicateEmail(false);
+  };
+
   return (
     <div className="min-h-[100dvh] w-full flex flex-col justify-center items-center px-4 py-8 safe-top-padding safe-bottom-padding">
-      <div className="max-w-md w-full space-y-6 animate-in fade-in zoom-in-95 duration-300">
+      <div className="max-w-md w-full space-y-6 animate-in fade-in duration-300">
 
-        {/* Brand Header */}
-        <div className="text-center space-y-3">
-          <YoeOrb size="sm" className="mb-2" />
+        {/* Clean Brand Header — Logo + Tagline only (NO AI Orb) */}
+        <div className="text-center space-y-2">
           <YoeLogo size="lg" className="justify-center mx-auto" />
-          <p className="text-xs font-bold tracking-widest text-emerald-400 dark:text-emerald-400 light-mode:text-emerald-600 uppercase">
+          <p className="text-xs font-bold tracking-widest text-emerald-400 dark:text-emerald-400 light-mode:text-emerald-600 uppercase pt-1">
             Speak • Learn • Grow
           </p>
           <h1 className="text-2xl font-black text-slate-100 dark:text-slate-100 light-mode:text-slate-900 tracking-tight">
-            {mode === 'signup' ? 'Start Your Language Journey' : 'Welcome Back to Yoe'}
+            {mode === 'signup' ? 'Start Your Language Journey' : 'Welcome Back'}
           </h1>
           <p className="text-xs text-slate-400 dark:text-slate-400 light-mode:text-slate-600 max-w-xs mx-auto leading-relaxed">
             {mode === 'signup'
-              ? 'Enter realistic scenario worlds, speak naturally, and master conversational flow with Yoe.'
-              : 'Sign in to continue your personalized speaking journeys.'}
+              ? 'Create your account to start interactive scenario-based language practice.'
+              : 'Sign in to continue your personalized conversations.'}
           </p>
         </div>
 
-        {/* Auth Mode Toggle Pill (Liquid Glass Segmented Control) */}
+        {/* Mode Toggle (Liquid Glass Segmented Control) */}
         <div className="p-1 rounded-2xl glass-pill flex items-center shadow-md">
           <button
             type="button"
-            onClick={() => { setMode('signup'); setErrorMsg(''); }}
+            onClick={() => { setMode('signup'); setErrorMsg(''); setIsDuplicateEmail(false); }}
             className={`flex-1 py-2.5 text-xs font-bold rounded-xl transition-all cursor-pointer ${
               mode === 'signup'
                 ? 'bg-gradient-to-r from-emerald-400 to-teal-400 text-slate-950 font-black shadow-md'
@@ -96,7 +108,7 @@ export const AuthView: React.FC<{ onComplete?: () => void }> = ({ onComplete }) 
           </button>
           <button
             type="button"
-            onClick={() => { setMode('login'); setErrorMsg(''); }}
+            onClick={() => { setMode('login'); setErrorMsg(''); setIsDuplicateEmail(false); }}
             className={`flex-1 py-2.5 text-xs font-bold rounded-xl transition-all cursor-pointer ${
               mode === 'login'
                 ? 'bg-gradient-to-r from-emerald-400 to-teal-400 text-slate-950 font-black shadow-md'
@@ -107,14 +119,24 @@ export const AuthView: React.FC<{ onComplete?: () => void }> = ({ onComplete }) 
           </button>
         </div>
 
-        {/* Error Alert */}
+        {/* Error Alert with Smart Inline Action if Duplicate */}
         {errorMsg && (
-          <div className="p-3.5 rounded-2xl bg-red-500/15 border border-red-500/30 text-red-300 dark:text-red-300 light-mode:text-red-600 text-xs font-medium animate-in fade-in">
-            {errorMsg}
+          <div className="p-4 rounded-2xl bg-red-500/15 border border-red-500/30 text-red-300 dark:text-red-300 light-mode:text-red-700 text-xs font-medium space-y-2 animate-in fade-in">
+            <p>{errorMsg}</p>
+            {isDuplicateEmail && (
+              <button
+                type="button"
+                onClick={handleSwitchToLoginWithEmail}
+                className="px-3 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <span>Sign in with this email instead</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
         )}
 
-        {/* Main Glass Form Card */}
+        {/* Main Glass Form Card (ONLY Name, Email, Password) */}
         <form onSubmit={handleSubmit} className="glass-card rounded-3xl p-6 shadow-xl space-y-4">
 
           {/* Name Field (Sign up only) */}
@@ -130,8 +152,8 @@ export const AuthView: React.FC<{ onComplete?: () => void }> = ({ onComplete }) 
                   required
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="Enter your name"
-                  className="w-full bg-slate-950/60 dark:bg-slate-950/60 light-mode:bg-white border border-white/10 dark:border-white/10 light-mode:border-slate-200 rounded-2xl pl-10 pr-4 py-2.5 text-xs text-slate-100 dark:text-slate-100 light-mode:text-slate-900 placeholder-slate-500 focus:outline-none focus:border-emerald-400 transition-colors"
+                  placeholder="e.g. Maria"
+                  className="w-full bg-slate-950/60 dark:bg-slate-950/60 light-mode:bg-white border border-white/10 dark:border-white/10 light-mode:border-slate-200 rounded-2xl pl-10 pr-4 py-3 text-xs text-slate-100 dark:text-slate-100 light-mode:text-slate-900 placeholder-slate-500 focus:outline-none focus:border-emerald-400 transition-colors"
                 />
               </div>
             </div>
@@ -150,7 +172,7 @@ export const AuthView: React.FC<{ onComplete?: () => void }> = ({ onComplete }) 
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="name@example.com"
-                className="w-full bg-slate-950/60 dark:bg-slate-950/60 light-mode:bg-white border border-white/10 dark:border-white/10 light-mode:border-slate-200 rounded-2xl pl-10 pr-4 py-2.5 text-xs text-slate-100 dark:text-slate-100 light-mode:text-slate-900 placeholder-slate-500 focus:outline-none focus:border-emerald-400 transition-colors"
+                className="w-full bg-slate-950/60 dark:bg-slate-950/60 light-mode:bg-white border border-white/10 dark:border-white/10 light-mode:border-slate-200 rounded-2xl pl-10 pr-4 py-3 text-xs text-slate-100 dark:text-slate-100 light-mode:text-slate-900 placeholder-slate-500 focus:outline-none focus:border-emerald-400 transition-colors"
               />
             </div>
           </div>
@@ -167,8 +189,8 @@ export const AuthView: React.FC<{ onComplete?: () => void }> = ({ onComplete }) 
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full bg-slate-950/60 dark:bg-slate-950/60 light-mode:bg-white border border-white/10 dark:border-white/10 light-mode:border-slate-200 rounded-2xl pl-10 pr-10 py-2.5 text-xs text-slate-100 dark:text-slate-100 light-mode:text-slate-900 placeholder-slate-500 focus:outline-none focus:border-emerald-400 transition-colors"
+                placeholder="Minimum 6 characters"
+                className="w-full bg-slate-950/60 dark:bg-slate-950/60 light-mode:bg-white border border-white/10 dark:border-white/10 light-mode:border-slate-200 rounded-2xl pl-10 pr-10 py-3 text-xs text-slate-100 dark:text-slate-100 light-mode:text-slate-900 placeholder-slate-500 focus:outline-none focus:border-emerald-400 transition-colors"
               />
               <button
                 type="button"
@@ -180,56 +202,20 @@ export const AuthView: React.FC<{ onComplete?: () => void }> = ({ onComplete }) 
             </div>
           </div>
 
-          {/* Language Selection during Registration */}
-          {mode === 'signup' && (
-            <div className="pt-2 space-y-3 border-t border-white/10 dark:border-white/10 light-mode:border-slate-200">
-              <div>
-                <label className="text-xs font-bold text-slate-200 dark:text-slate-200 light-mode:text-slate-800 block mb-1">
-                  Language to learn:
-                </label>
-                <select
-                  value={targetLang}
-                  onChange={(e) => setTargetLang(e.target.value as LanguageCode)}
-                  className="w-full bg-slate-950/60 dark:bg-slate-950/60 light-mode:bg-white border border-white/10 dark:border-white/10 light-mode:border-slate-200 rounded-2xl px-3.5 py-2.5 text-xs text-slate-100 dark:text-slate-100 light-mode:text-slate-900 focus:outline-none focus:border-emerald-400"
-                >
-                  {SUPPORTED_LANGUAGES.map((l) => (
-                    <option key={l.code} value={l.code} className="bg-slate-900 text-white dark:bg-slate-900 light-mode:bg-white light-mode:text-slate-900">
-                      {l.flag} {l.name} ({l.nativeName})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-200 dark:text-slate-200 light-mode:text-slate-800 block mb-1">
-                  Explanation language:
-                </label>
-                <select
-                  value={supportLang}
-                  onChange={(e) => setSupportLang(e.target.value as LanguageCode)}
-                  className="w-full bg-slate-950/60 dark:bg-slate-950/60 light-mode:bg-white border border-white/10 dark:border-white/10 light-mode:border-slate-200 rounded-2xl px-3.5 py-2.5 text-xs text-slate-100 dark:text-slate-100 light-mode:text-slate-900 focus:outline-none focus:border-emerald-400"
-                >
-                  {SUPPORTED_LANGUAGES.map((l) => (
-                    <option key={l.code} value={l.code} className="bg-slate-900 text-white dark:bg-slate-900 light-mode:bg-white light-mode:text-slate-900">
-                      {l.flag} {l.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          )}
-
           {/* Submit Button */}
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full mt-3 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 text-slate-950 font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 hover:opacity-95 active:scale-98 transition-all cursor-pointer disabled:opacity-50"
+            className="w-full mt-3 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 text-slate-950 font-black text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 hover:opacity-95 active:scale-98 transition-all cursor-pointer disabled:opacity-50"
           >
             {isLoading ? (
-              <div className="w-5 h-5 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
+                <span>{mode === 'signup' ? 'Creating Account...' : 'Signing In...'}</span>
+              </div>
             ) : (
               <>
-                <span>{mode === 'signup' ? 'Create Account & Start' : 'Sign In'}</span>
+                <span>{mode === 'signup' ? 'Create Account' : 'Sign In'}</span>
                 <ArrowRight className="w-4 h-4" />
               </>
             )}

@@ -29,7 +29,7 @@ interface AppContextType {
   dismissOnboarding: () => void;
   setShowAuthModal: (show: boolean) => void;
   login: (email: string, password: string) => Promise<boolean>;
-  register: (name: string, email: string, password: string, targetLang?: LanguageCode, supportLang?: LanguageCode, level?: string) => Promise<boolean>;
+  register: (name: string, email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   installPWA: () => void;
 }
@@ -401,11 +401,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const register = async (
     name: string,
     email: string,
-    password: string,
-    targetLang?: LanguageCode,
-    supportLang?: LanguageCode,
-    level?: string
-  ): Promise<boolean> => {
+    password: string
+  ): Promise<{ success: boolean; error?: string }> => {
     try {
       const res = await fetch('/api/auth/register', {
         method: 'POST',
@@ -413,29 +410,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         body: JSON.stringify({
           name,
           email,
-          password,
-          targetLanguage: targetLang || 'en',
-          supportLanguage: supportLang || 'en',
-          cefrLevel: level || 'A1'
+          password
         })
       });
       const data = await res.json();
       if (!res.ok || !data.user) {
-        return false;
+        return { success: false, error: data.error || 'Failed to create account' };
       }
       localStorage.setItem('yoe_auth_token', data.token);
       setUser(data.user);
-      if (data.journeys && data.journeys.length > 0) {
-        setJourneys(data.journeys);
-        setActiveJourney(data.journeys[0]);
-      }
+      setJourneys([]);
+      setActiveJourneyState(null);
       setShowAuthModal(false);
-      setShowOnboarding(false);
+      setShowOnboarding(true); // Enters conversational onboarding immediately!
       setActiveView('home');
-      return true;
-    } catch (err) {
+      return { success: true };
+    } catch (err: any) {
       console.error('Registration error:', err);
-      return false;
+      return { success: false, error: err.message || 'Registration failed' };
     }
   };
 
