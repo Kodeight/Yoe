@@ -87,7 +87,41 @@ export async function requireAuth(req: AuthRequest, res: Response, next: NextFun
     return;
   }
 
-  const user = await db.findUserById(decoded.sub);
+  let user = await db.findUserById(decoded.sub);
+  if (!user && decoded.username) {
+    // Container restarted or scaled to zero: self-heal user record from cryptographically verified JWT
+    user = await db.createUser({
+      id: decoded.sub,
+      username: decoded.username,
+      email: decoded.email || `${decoded.username}@yoe.app`,
+      passwordHash: '',
+      name: decoded.name || decoded.username,
+      avatarUrl: undefined,
+      uiLanguage: 'en',
+      theme: 'dark',
+      subscriptionStatus: 'TRIAL',
+      emailVerified: true,
+      status: 'active',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    });
+
+    const userJourneys = await db.getJourneysForUser(user.id);
+    if (!userJourneys || userJourneys.length === 0) {
+      await db.saveJourney({
+        id: `jrn_${Date.now()}_es`,
+        userId: user.id,
+        targetLanguage: 'es',
+        supportLanguage: 'en',
+        cefrLevel: 'A1',
+        streakDays: 1,
+        totalMinutesSpoken: 0,
+        points: 50,
+        createdAt: new Date().toISOString()
+      });
+    }
+  }
+
   if (!user || user.status === 'disabled') {
     res.status(401).json({ error: 'Unauthorized: User account unavailable' });
     return;

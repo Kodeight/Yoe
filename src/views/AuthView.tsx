@@ -6,10 +6,11 @@ import { Mail, Lock, User, AtSign, Eye, EyeOff, ArrowRight } from 'lucide-react'
 export const AuthView: React.FC<{ onComplete?: () => void }> = ({ onComplete }) => {
   const { login, register, setActiveView } = useApp();
 
-  const [mode, setMode] = useState<'login' | 'signup'>('signup');
+  const savedIdentifier = typeof window !== 'undefined' ? localStorage.getItem('yoe_last_identifier') || '' : '';
+  const [mode, setMode] = useState<'login' | 'signup'>(savedIdentifier ? 'login' : 'login');
   const [name, setName] = useState('');
   const [username, setUsername] = useState('');
-  const [identifier, setIdentifier] = useState('');
+  const [identifier, setIdentifier] = useState(savedIdentifier);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -49,6 +50,9 @@ export const AuthView: React.FC<{ onComplete?: () => void }> = ({ onComplete }) 
       if (mode === 'login') {
         const success = await login(identifier.trim(), password.trim());
         if (success) {
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('yoe_last_identifier', identifier.trim());
+          }
           if (onComplete) onComplete();
           else setActiveView('home');
         } else {
@@ -57,6 +61,9 @@ export const AuthView: React.FC<{ onComplete?: () => void }> = ({ onComplete }) 
       } else {
         const result = await register(name.trim(), username.trim(), email.trim(), password.trim());
         if (result.success) {
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('yoe_last_identifier', username.trim());
+          }
           if (onComplete) onComplete();
         } else {
           if (result.error && (result.error.toLowerCase().includes('already taken') || result.error.toLowerCase().includes('already exists'))) {
@@ -79,8 +86,8 @@ export const AuthView: React.FC<{ onComplete?: () => void }> = ({ onComplete }) 
         {/* Clean Brand Header */}
         <div className="text-center space-y-2">
           <YoeLogo size="lg" className="justify-center mx-auto" />
-          <p className="font-brand text-xs uppercase tracking-widest font-extrabold text-emerald-400 dark:text-emerald-400 light-mode:text-emerald-600 pt-1">
-            Speak • Learn • Grow
+          <p className="font-signature text-2xl sm:text-3xl font-bold tracking-wide text-emerald-400 dark:text-emerald-400 light-mode:text-emerald-600 pt-1">
+            Speak. Learn. Grow.
           </p>
           <h1 className="text-2xl font-black text-slate-100 dark:text-slate-100 light-mode:text-slate-900 tracking-tight">
             {mode === 'signup' ? 'Start Your Language Journey' : 'Welcome Back'}

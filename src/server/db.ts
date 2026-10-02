@@ -145,7 +145,7 @@ class PersistentDatabase {
   }
 
   private async initPostgresConnection() {
-    if (!DATABASE_URL || DATABASE_URL.includes('username:password')) {
+    if (!DATABASE_URL || DATABASE_URL === 'null' || DATABASE_URL === 'undefined' || DATABASE_URL.includes('username:password')) {
       console.log('[DB] Using persistent file storage engine (DATABASE_URL not configured)');
       return;
     }

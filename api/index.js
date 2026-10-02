@@ -131,7 +131,7 @@ var PersistentDatabase = class {
     }
   }
   async initPostgresConnection() {
-    if (!DATABASE_URL || DATABASE_URL.includes("username:password")) {
+    if (!DATABASE_URL || DATABASE_URL === "null" || DATABASE_URL === "undefined" || DATABASE_URL.includes("username:password")) {
       console.log("[DB] Using persistent file storage engine (DATABASE_URL not configured)");
       return;
     }
@@ -832,7 +832,38 @@ async function requireAuth(req, res, next) {
     res.status(401).json({ error: "Unauthorized: Invalid or expired session token" });
     return;
   }
-  const user = await db.findUserById(decoded.sub);
+  let user = await db.findUserById(decoded.sub);
+  if (!user && decoded.username) {
+    user = await db.createUser({
+      id: decoded.sub,
+      username: decoded.username,
+      email: decoded.email || `${decoded.username}@yoe.app`,
+      passwordHash: "",
+      name: decoded.name || decoded.username,
+      avatarUrl: void 0,
+      uiLanguage: "en",
+      theme: "dark",
+      subscriptionStatus: "TRIAL",
+      emailVerified: true,
+      status: "active",
+      createdAt: (/* @__PURE__ */ new Date()).toISOString(),
+      updatedAt: (/* @__PURE__ */ new Date()).toISOString()
+    });
+    const userJourneys = await db.getJourneysForUser(user.id);
+    if (!userJourneys || userJourneys.length === 0) {
+      await db.saveJourney({
+        id: `jrn_${Date.now()}_es`,
+        userId: user.id,
+        targetLanguage: "es",
+        supportLanguage: "en",
+        cefrLevel: "A1",
+        streakDays: 1,
+        totalMinutesSpoken: 0,
+        points: 50,
+        createdAt: (/* @__PURE__ */ new Date()).toISOString()
+      });
+    }
+  }
   if (!user || user.status === "disabled") {
     res.status(401).json({ error: "Unauthorized: User account unavailable" });
     return;

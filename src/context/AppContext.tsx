@@ -110,6 +110,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           return;
         }
 
+        // Optimistically restore cached profile so returning learners never see an auth flash
+        const cachedUserRaw = typeof window !== 'undefined' ? localStorage.getItem('yoe_user_profile') : null;
+        const cachedJourneyRaw = typeof window !== 'undefined' ? localStorage.getItem('yoe_active_journey') : null;
+        if (cachedUserRaw) {
+          try {
+            const cachedUser = JSON.parse(cachedUserRaw);
+            setUser(cachedUser);
+            if (cachedJourneyRaw) {
+              const cachedJourney = JSON.parse(cachedJourneyRaw);
+              setActiveJourneyState(cachedJourney);
+              setJourneys([cachedJourney]);
+            }
+            setShowOnboarding(false);
+            setActiveView('home');
+          } catch (e) {}
+        }
+
         const userRes = await fetch('/api/auth/me', {
           headers: getAuthHeader(),
           credentials: 'include'
@@ -117,6 +134,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const userData = await userRes.json();
         if (userData.user) {
           setUser(userData.user);
+          localStorage.setItem('yoe_user_profile', JSON.stringify(userData.user));
           const savedTheme = localStorage.getItem('yoe_theme') as 'dark' | 'light';
           setTheme(savedTheme || userData.user.theme || 'dark');
           setUiLanguageState(userData.user.uiLanguage || 'en');
@@ -132,6 +150,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             setJourneys(loadedJourneys);
             const activeMatch = (userData.user.activeJourneyId && loadedJourneys.find((j: LearningJourney) => j.id === userData.user.activeJourneyId)) || loadedJourneys[0];
             setActiveJourneyState(activeMatch);
+            localStorage.setItem('yoe_active_journey', JSON.stringify(activeMatch));
             await loadScenariosAndData(activeMatch);
             setShowOnboarding(false);
             setActiveView('home');
@@ -142,9 +161,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             setShowOnboarding(true);
             setActiveView('home');
           }
-        } else {
-          // Token expired or invalid
+        } else if (userRes.status === 401 && userData.error?.toLowerCase().includes('expired')) {
+          // Token definitively expired
           localStorage.removeItem('yoe_auth_token');
+          localStorage.removeItem('yoe_user_profile');
+          localStorage.removeItem('yoe_active_journey');
           setUser(null);
           setActiveView('auth');
         }
@@ -453,11 +474,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (data.token) {
         localStorage.setItem('yoe_auth_token', data.token);
       }
+      if (data.user) {
+        localStorage.setItem('yoe_user_profile', JSON.stringify(data.user));
+      }
       setUser(data.user);
       if (data.journeys && data.journeys.length > 0) {
         setJourneys(data.journeys);
         const activeMatch = (data.user.activeJourneyId && data.journeys.find((j: LearningJourney) => j.id === data.user.activeJourneyId)) || data.journeys[0];
         setActiveJourneyState(activeMatch);
+        localStorage.setItem('yoe_active_journey', JSON.stringify(activeMatch));
         await loadScenariosAndData(activeMatch);
         setShowOnboarding(false);
       } else if (data.user.onboardingCompleted) {
@@ -499,10 +524,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (data.token) {
         localStorage.setItem('yoe_auth_token', data.token);
       }
+      if (data.user) {
+        localStorage.setItem('yoe_user_profile', JSON.stringify(data.user));
+      }
       setUser(data.user);
       if (data.journeys && data.journeys.length > 0) {
         setJourneys(data.journeys);
         setActiveJourneyState(data.journeys[0]);
+        localStorage.setItem('yoe_active_journey', JSON.stringify(data.journeys[0]));
         await loadScenariosAndData(data.journeys[0]);
         setShowOnboarding(false);
       } else {
