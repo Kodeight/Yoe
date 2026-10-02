@@ -14,6 +14,7 @@ interface AppContextType {
   uiLanguage: LanguageCode;
   isRtl: boolean;
   isOnline: boolean;
+  isBooting: boolean;
   showOnboarding: boolean;
   showAuthModal: boolean;
   pwaInstallPrompt: any;
@@ -60,6 +61,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
   const [showOnboarding, setShowOnboarding] = useState<boolean>(false);
   const [showAuthModal, setShowAuthModal] = useState<boolean>(false);
+  const [isBooting, setIsBooting] = useState<boolean>(true);
   const [pwaInstallPrompt, setPwaInstallPrompt] = useState<any>(null);
 
   // Monitor connectivity state
@@ -157,6 +159,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             if (sc.length > 0) setActiveScenario(sc[0]);
           }
         }
+      } finally {
+        setIsBooting(false);
       }
     }
     loadInitialData();
@@ -515,6 +519,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         uiLanguage,
         isRtl,
         isOnline,
+        isBooting,
         showOnboarding,
         showAuthModal,
         pwaInstallPrompt,

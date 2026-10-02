@@ -18,18 +18,25 @@
 /* Theme Tokens */
 .dark-mode, html:not(.light-mode) {
   color-scheme: dark;
+  --app-background: #070b12;
+  --topbar-background: rgba(8, 14, 25, 0.88);
+  --surface: #0d1422;
+  --surface-elevated: #131c31;
   --bg-primary: #070b12;
   --bg-elevated: #0d1422;
   --bg-glass: rgba(13, 20, 34, 0.75);
   --bg-glass-heavy: rgba(8, 14, 25, 0.88);
+  --border: rgba(255, 255, 255, 0.08);
   --border-glass: rgba(255, 255, 255, 0.08);
   --border-glass-highlight: rgba(255, 255, 255, 0.18);
   --text-primary: #f8fafc;
   --text-secondary: #94a3b8;
   --text-muted: #64748b;
+  --accent: #00f0b5;
   --accent-primary: #00f0b5;
   --accent-secondary: #00c2ff;
   --accent-soft: rgba(0, 240, 181, 0.15);
+  --accent-strong: #00c2ff;
   --error: #ef4444;
   --error-surface: rgba(239, 68, 68, 0.15);
   --error-border: rgba(239, 68, 68, 0.3);
@@ -40,18 +47,25 @@
 
 .light-mode {
   color-scheme: light;
+  --app-background: #f8fafc;
+  --topbar-background: rgba(255, 255, 255, 0.95);
+  --surface: #ffffff;
+  --surface-elevated: #f1f5f9;
   --bg-primary: #f8fafc;
   --bg-elevated: #ffffff;
   --bg-glass: rgba(255, 255, 255, 0.88);
   --bg-glass-heavy: rgba(255, 255, 255, 0.95);
+  --border: rgba(15, 23, 42, 0.1);
   --border-glass: rgba(15, 23, 42, 0.1);
   --border-glass-highlight: rgba(15, 23, 42, 0.18);
   --text-primary: #0f172a;
   --text-secondary: #475569;
   --text-muted: #64748b;
-  --accent-primary: #0f172a;
-  --accent-secondary: #1e293b;
-  --accent-soft: rgba(15, 23, 42, 0.08);
+  --accent: #059669;
+  --accent-primary: #059669;
+  --accent-secondary: #0d9488;
+  --accent-soft: rgba(16, 185, 129, 0.12);
+  --accent-strong: #047857;
   --error: #dc2626;
   --error-surface: #fef2f2;
   --error-border: #fca5a5;
@@ -227,13 +241,17 @@ input:-webkit-autofill:active {
   }
 }
 
-@keyframes floatGentle {
+@keyframes bounceSubtle {
   0%, 100% {
-    transform: translateY(0px);
+    transform: translateY(0px) scale(1);
   }
   50% {
-    transform: translateY(-5px);
+    transform: translateY(-4px) scale(1.02);
   }
+}
+
+.animate-bounce-subtle {
+  animation: bounceSubtle 3s ease-in-out infinite;
 }
 
 .animate-orb-idle {

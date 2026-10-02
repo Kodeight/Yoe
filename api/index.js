@@ -930,6 +930,7 @@ async function loginHandler(req, res) {
       return;
     }
     await db.updateLastLogin(user.id);
+    const journeys = await db.getJourneysForUser(user.id);
     const token = generateToken(user);
     res.cookie(COOKIE_NAME, token, {
       httpOnly: true,
@@ -940,6 +941,7 @@ async function loginHandler(req, res) {
     });
     res.json({
       user: sanitizeUser(user),
+      journeys,
       token
     });
   } catch (err) {

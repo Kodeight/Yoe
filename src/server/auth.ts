@@ -215,6 +215,7 @@ export async function loginHandler(req: Request, res: Response) {
 
     await db.updateLastLogin(user.id);
 
+    const journeys = await db.getJourneysForUser(user.id);
     const token = generateToken(user);
 
     // Set secure HTTP-only cookie
@@ -227,6 +228,7 @@ export async function loginHandler(req: Request, res: Response) {
 
     res.json({
       user: sanitizeUser(user),
+      journeys,
       token
     });
   } catch (err: any) {

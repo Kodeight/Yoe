@@ -3,6 +3,7 @@ import { useApp } from './context/AppContext';
 import { Header } from './components/Header';
 import { BottomNav } from './components/BottomNav';
 import { OnboardingModal } from './components/OnboardingModal';
+import { AppBootLoader } from './components/AppBootLoader';
 
 import { HomeView } from './views/HomeView';
 import { ConversationView } from './views/ConversationView';
@@ -14,12 +15,16 @@ import { GrammarView } from './views/GrammarView';
 import { AuthView } from './views/AuthView';
 
 export default function App() {
-  const { user, activeView, showOnboarding, showAuthModal, setShowAuthModal } = useApp();
+  const { user, isBooting, activeView, showOnboarding, showAuthModal, setShowAuthModal } = useApp();
+
+  if (isBooting) {
+    return <AppBootLoader />;
+  }
 
   // If user is not authenticated or explicitly on auth view, render AuthView
   if (!user || activeView === 'auth') {
     return (
-      <div className="min-h-[100dvh] w-full bg-[var(--bg-primary)] text-[var(--text-primary)] font-sans antialiased transition-colors flex flex-col justify-center">
+      <div className="min-h-[100dvh] w-full bg-[var(--app-background)] text-[var(--text-primary)] font-sans antialiased transition-colors flex flex-col justify-center">
         <AuthView />
       </div>
     );
@@ -28,7 +33,7 @@ export default function App() {
   const isDedicatedChat = activeView === 'chat';
 
   return (
-    <div className="min-h-[100dvh] max-w-lg mx-auto w-full bg-[var(--bg-primary)] text-[var(--text-primary)] font-sans antialiased transition-colors flex flex-col relative shadow-2xl overflow-x-hidden">
+    <div className="min-h-[100dvh] max-w-lg mx-auto w-full bg-[var(--app-background)] text-[var(--text-primary)] font-sans antialiased transition-colors flex flex-col relative shadow-2xl overflow-x-hidden">
 
       {/* Persistent Liquid Glass Header */}
       {!isDedicatedChat && <Header />}
