@@ -379,7 +379,7 @@ export const OnboardingModal: React.FC = () => {
                       </span>
                     </div>
 
-                    <p className="font-signature text-lg text-emerald-300 dark:text-emerald-300 light-mode:text-emerald-700 pt-2 border-t border-white/10 dark:border-white/10 light-mode:border-slate-200 leading-snug">
+                    <p className="font-brand font-semibold text-xs text-emerald-300 dark:text-emerald-300 light-mode:text-emerald-700 pt-2 border-t border-white/10 dark:border-white/10 light-mode:border-slate-200 leading-relaxed italic">
                       "{calibrationResult?.welcomeMessage || 'Welcome to Yoe! Let us begin our first scenario conversation.'}"
                     </p>
                   </div>

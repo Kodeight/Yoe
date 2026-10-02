@@ -36,8 +36,10 @@ export const ConversationView: React.FC = () => {
     isSpeaking,
     isInterrupted,
     audioEnergy,
+    micStatus,
     micPermissionDenied,
     audioError,
+    requestMicrophoneAccess,
     startListening,
     stopListening,
     playGeminiAudio,
@@ -453,23 +455,33 @@ export const ConversationView: React.FC = () => {
 
       {/* Microphone Permission / Audio Error Alert Banner */}
       {(micPermissionDenied || audioError) && (
-        <div className="mx-4 mt-2 p-3.5 rounded-2xl bg-[var(--error-surface)] border border-[var(--error-border)] text-[var(--error-text)] text-xs flex items-start gap-2.5 shrink-0 animate-in fade-in z-20 shadow-md">
-          <AlertCircle className="w-4 h-4 text-[var(--error)] shrink-0 mt-0.5" />
-          <div className="flex-1">
-            <p className="font-extrabold">{micPermissionDenied ? 'Microphone Permission Needed' : 'Audio Error'}</p>
-            <p className="text-[11px] text-[var(--error-text)] mt-0.5 leading-relaxed font-medium">
-              {audioError || 'Please allow microphone access in your browser or device settings so Yoe can hear your voice.'}
-            </p>
-            <button
-              onClick={async () => {
-                clearAudioError();
-                await startListening(activeJourney?.targetLanguage);
-              }}
-              className="mt-2.5 px-3.5 py-1.5 rounded-xl bg-[var(--error)] text-white text-[11px] font-bold flex items-center gap-1.5 cursor-pointer hover:opacity-90 transition-opacity shadow-sm"
-            >
-              <RefreshCw className="w-3.5 h-3.5 animate-spin-hover" />
-              <span>Retry Microphone</span>
-            </button>
+        <div className="mx-4 my-2 p-4 rounded-2xl bg-[var(--error-surface)] border border-[var(--error-border)] shrink-0 animate-in fade-in z-20 shadow-md">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-[var(--error)] shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <h4 className="text-xs font-bold text-[var(--error-text)] leading-snug">
+                {micPermissionDenied ? 'Microphone Permission Needed' : 'Audio Device Notice'}
+              </h4>
+              <p className="text-[11px] text-[var(--error-text)] opacity-95 mt-1 leading-relaxed font-normal break-words">
+                {audioError || 'Please allow microphone access in your browser or device settings so Yoe can hear your voice.'}
+              </p>
+              <div className="mt-3">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    clearAudioError();
+                    const granted = await requestMicrophoneAccess();
+                    if (granted) {
+                      await startListening(activeJourney?.targetLanguage);
+                    }
+                  }}
+                  className="px-3.5 py-2 rounded-xl bg-[var(--error)] text-white text-[11px] font-bold inline-flex items-center gap-2 cursor-pointer hover:opacity-95 active:scale-98 transition-all shadow-sm"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  <span>Retry Microphone</span>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -524,14 +536,14 @@ export const ConversationView: React.FC = () => {
             {!hasStartedConversation
               ? `Ready to speak with Yoe (${activeScenario.characterName})`
               : bubbleState === 'speaking'
-              ? `${activeScenario.characterName} is speaking`
+              ? `Yoe is speaking (${activeScenario.characterName})`
               : bubbleState === 'listening'
               ? 'Listening to your voice...'
               : bubbleState === 'thinking'
-              ? `${activeScenario.characterName} is thinking...`
+              ? 'Yoe is thinking...'
               : bubbleState === 'interrupted'
               ? 'Interrupted'
-              : 'Tap to speak'}
+              : 'Tap to speak with Yoe'}
           </span>
           {isLiveApiActive && (
             <span className="ml-1 px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-400 text-[9px] font-black uppercase flex items-center gap-0.5">
@@ -565,7 +577,7 @@ export const ConversationView: React.FC = () => {
       ) : (
         /* Main Conversation Messages Scroll Area after Start */
         showTranscript ? (
-          <div className="flex-1 overflow-y-auto px-4 py-2 space-y-3.5 no-scrollbar pb-[var(--conversation-bottom-inset)]">
+          <div className="flex-1 overflow-y-auto px-4 py-2 space-y-3.5 no-scrollbar pb-[var(--conversation-bottom-space)]">
             {messages.map((msg) => {
               const isUser = msg.sender === 'user';
               return (
@@ -646,10 +658,12 @@ export const ConversationView: React.FC = () => {
             {isLoading && (
               <div className="flex items-center gap-2 p-3 rounded-2xl glass-card max-w-[180px]">
                 <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
-                <span className="text-xs text-slate-400">{activeScenario.characterName} is replying...</span>
+                <span className="text-xs text-slate-400">Yoe is replying...</span>
               </div>
             )}
 
+            {/* Generous visual breathing spacer before bottom composer boundary */}
+            <div className="h-8 shrink-0 pointer-events-none" />
             <div ref={messagesEndRef} />
           </div>
         ) : (

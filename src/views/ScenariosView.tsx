@@ -100,7 +100,7 @@ export const ScenariosView: React.FC = () => {
                 </h3>
 
                 <p className="text-[11px] text-slate-400 dark:text-slate-400 light-mode:text-slate-500 truncate mb-1.5">
-                  {scen.characterName} ({scen.characterRole})
+                  Roleplay with Yoe as {scen.characterName} ({scen.characterRole})
                 </p>
 
                 <div className="flex items-center gap-1.5 text-[10px] text-emerald-400 font-semibold">

@@ -99,7 +99,7 @@ export class GeminiLiveSession {
               }
             },
             systemInstruction: {
-              parts: [{ text: systemInstruction || 'You are a warm, conversational scenario character.' }]
+              parts: [{ text: systemInstruction || 'You are Yoe, the language-learning tutor roleplaying a scenario character. Stay on topic and teach using the learner\'s support language whenever explanation is needed.' }]
             }
           }
         };

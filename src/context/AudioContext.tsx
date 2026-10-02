@@ -1,15 +1,19 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 
+export type MicStatus = 'idle' | 'requesting' | 'ready' | 'listening' | 'speaking' | 'denied' | 'unavailable' | 'error';
+
 export interface AudioContextType {
   isListening: boolean;
   transcript: string;
   isSpeaking: boolean;
   isInterrupted: boolean;
   audioEnergy: number; // 0.0 to 1.0 real-time normalized audio energy
+  micStatus: MicStatus;
   micPermissionDenied: boolean;
   audioError: string | null;
   notificationSoundsEnabled: boolean;
   speechFeedbackEnabled: boolean;
+  requestMicrophoneAccess: () => Promise<boolean>;
   startListening: (langCode?: string) => Promise<boolean>;
   stopListening: () => void;
   playGeminiAudio: (base64Wav: string) => Promise<void>;
@@ -33,6 +37,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [isInterrupted, setIsInterrupted] = useState(false);
   const [audioEnergy, setAudioEnergy] = useState<number>(0);
 
+  const [micStatus, setMicStatus] = useState<MicStatus>('idle');
   const [micPermissionDenied, setMicPermissionDenied] = useState(false);
   const [audioError, setAudioError] = useState<string | null>(null);
 
@@ -83,6 +88,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const clearAudioError = () => {
     setAudioError(null);
     setMicPermissionDenied(false);
+    setMicStatus(prev => (prev === 'denied' || prev === 'error' || prev === 'unavailable' ? 'idle' : prev));
   };
 
   // Ensure AudioContext is initialized/resumed on explicit user interaction
@@ -327,9 +333,11 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         reco.onerror = (err: any) => {
           console.warn('Speech recognition event:', err.error);
           setIsListening(false);
-          if (err.error === 'not-allowed' || err.error === 'service-not-allowed') {
+          // Only trigger permission error if we do not already have an active MediaStream
+          if (!micStreamRef.current && (err.error === 'not-allowed' || err.error === 'service-not-allowed')) {
+            setMicStatus('denied');
             setMicPermissionDenied(true);
-            setAudioError('Microphone permission was denied. Please allow microphone access in your browser settings.');
+            setAudioError('Microphone permission was denied. Please allow microphone access in your browser or device settings.');
           }
         };
 
@@ -337,6 +345,111 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
     }
   }, []);
+
+  // Authoritative Hardware Microphone Access Test & Stream Acquisition (Safari/iOS compatible)
+  const requestMicrophoneAccess = useCallback(async (): Promise<boolean> => {
+    // Safari / iOS & environment support check
+    if (typeof window === 'undefined' || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setMicStatus('unavailable');
+      setMicPermissionDenied(false);
+      setAudioError('Audio recording is not supported on this browser or environment.');
+      return false;
+    }
+
+    setMicStatus('requesting');
+    clearAudioError();
+
+    // Ensure AudioContext is unlocked during this user interaction (required for iOS Safari audio pipeline)
+    const ctx = getOrCreateAudioContext();
+    if (ctx && ctx.state === 'suspended') {
+      try {
+        await ctx.resume();
+      } catch (e) {
+        console.warn('AudioContext resume exception during microphone request:', e);
+      }
+    }
+
+    try {
+      // Authoritative access test: explicit getUserMedia request
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true
+          }
+        });
+      } catch (constrainedErr: any) {
+        // Fallback for Safari/iOS if specific audio constraints fail
+        if (constrainedErr?.name === 'OverconstrainedError' || constrainedErr?.name === 'TypeError') {
+          stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        } else {
+          throw constrainedErr;
+        }
+      }
+
+      // Cleanup prior tracks if any to prevent track leak
+      if (micStreamRef.current) {
+        micStreamRef.current.getTracks().forEach(t => t.stop());
+      }
+      micStreamRef.current = stream;
+
+      // Connect micSource exclusively to micAnalyser (NO destination connection!)
+      if (ctx && micAnalyserRef.current) {
+        if (micSourceRef.current) {
+          try { micSourceRef.current.disconnect(); } catch (e) {}
+        }
+        const micSource = ctx.createMediaStreamSource(stream);
+        micSource.connect(micAnalyserRef.current);
+        micSourceRef.current = micSource;
+      }
+
+      // Authoritative success: hardware microphone access is verified and ready
+      setMicStatus('ready');
+      setMicPermissionDenied(false);
+      setAudioError(null);
+      return true;
+    } catch (micErr: any) {
+      console.warn('Authoritative getUserMedia check failed:', micErr);
+      const errName = micErr?.name || '';
+
+      if (errName === 'NotAllowedError' || errName === 'PermissionDeniedError') {
+        setMicStatus('denied');
+        setMicPermissionDenied(true);
+        setAudioError('Microphone permission was denied. Please allow microphone access in your browser address bar or device settings.');
+      } else if (errName === 'SecurityError') {
+        setMicStatus('denied');
+        setMicPermissionDenied(true);
+        setAudioError('Microphone access is restricted by security policy or requires a secure HTTPS connection.');
+      } else if (errName === 'NotFoundError' || errName === 'DevicesNotFoundError') {
+        setMicStatus('unavailable');
+        setMicPermissionDenied(false);
+        setAudioError('No microphone input device was found connected to your system.');
+      } else if (errName === 'NotReadableError' || errName === 'TrackStartError') {
+        setMicStatus('error');
+        setMicPermissionDenied(false);
+        setAudioError('Microphone hardware is busy or locked by another application or browser tab.');
+      } else if (errName === 'OverconstrainedError') {
+        setMicStatus('error');
+        setMicPermissionDenied(false);
+        setAudioError('Requested audio constraints cannot be satisfied by your microphone hardware.');
+      } else if (errName === 'AbortError') {
+        setMicStatus('error');
+        setMicPermissionDenied(false);
+        setAudioError('Microphone hardware acquisition was interrupted.');
+      } else if (errName === 'TypeError') {
+        setMicStatus('error');
+        setMicPermissionDenied(false);
+        setAudioError('Audio device configuration parameter error.');
+      } else {
+        setMicStatus('error');
+        setMicPermissionDenied(false);
+        setAudioError(micErr?.message || 'Unable to access microphone device.');
+      }
+      return false;
+    }
+  }, [getOrCreateAudioContext]);
 
   // Start listening with instantaneous Barge-In (halts AI speech immediately)
   const startListening = useCallback(async (langCode?: string): Promise<boolean> => {
@@ -347,45 +460,14 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setTimeout(() => setIsInterrupted(false), 800);
     }
 
-    const ctx = getOrCreateAudioContext();
-    if (ctx && ctx.state === 'suspended') {
-      await ctx.resume().catch(() => {});
+    // Authoritative check & acquisition
+    const hasMicAccess = await requestMicrophoneAccess();
+    if (!hasMicAccess) {
+      return false;
     }
 
     setTranscript('');
-    clearAudioError();
-
-    // Connect real microphone to micAnalyser ONLY (NEVER connect mic to destination/speakers!)
-    if (navigator.mediaDevices && micAnalyserRef.current && ctx) {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        micStreamRef.current = stream;
-        const micSource = ctx.createMediaStreamSource(stream);
-        // Connect micSource exclusively to micAnalyser (NO destination connection!)
-        micSource.connect(micAnalyserRef.current);
-        micSourceRef.current = micSource;
-      } catch (micErr: any) {
-        console.warn('Microphone stream error:', micErr);
-        const errName = micErr.name || '';
-        if (errName === 'NotAllowedError' || errName === 'PermissionDeniedError') {
-          setMicPermissionDenied(true);
-          setAudioError('Microphone permission was denied. Please allow microphone access in your browser or device settings.');
-        } else if (errName === 'NotFoundError' || errName === 'DevicesNotFoundError') {
-          setMicPermissionDenied(false);
-          setAudioError('No microphone device was found connected to your device.');
-        } else if (errName === 'NotReadableError' || errName === 'TrackStartError') {
-          setMicPermissionDenied(false);
-          setAudioError('Microphone is already in use by another application or browser tab.');
-        } else if (errName === 'OverconstrainedError') {
-          setMicPermissionDenied(false);
-          setAudioError('Microphone constraints could not be satisfied by your hardware.');
-        } else {
-          setMicPermissionDenied(true);
-          setAudioError(`Microphone access error: ${micErr.message || 'Unable to access microphone'}`);
-        }
-        return false;
-      }
-    }
+    setMicStatus('listening');
 
     if (recognitionRef.current) {
       try {
@@ -403,7 +485,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setIsListening(true);
       return true;
     }
-  }, [isSpeaking, stopSpeaking, getOrCreateAudioContext]);
+  }, [isSpeaking, stopSpeaking, requestMicrophoneAccess]);
 
   const stopListening = useCallback(() => {
     if (recognitionRef.current) {
@@ -462,10 +544,12 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         isSpeaking,
         isInterrupted,
         audioEnergy,
+        micStatus,
         micPermissionDenied,
         audioError,
         notificationSoundsEnabled,
         speechFeedbackEnabled,
+        requestMicrophoneAccess,
         startListening,
         stopListening,
         playGeminiAudio,

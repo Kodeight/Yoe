@@ -79,7 +79,7 @@ export const AuthView: React.FC<{ onComplete?: () => void }> = ({ onComplete }) 
         {/* Clean Brand Header */}
         <div className="text-center space-y-2">
           <YoeLogo size="lg" className="justify-center mx-auto" />
-          <p className="font-signature text-xl font-bold tracking-wide text-emerald-400 dark:text-emerald-400 light-mode:text-emerald-600 pt-1">
+          <p className="font-brand text-xs uppercase tracking-widest font-extrabold text-emerald-400 dark:text-emerald-400 light-mode:text-emerald-600 pt-1">
             Speak • Learn • Grow
           </p>
           <h1 className="text-2xl font-black text-slate-100 dark:text-slate-100 light-mode:text-slate-900 tracking-tight">

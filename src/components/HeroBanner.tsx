@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { useAudio } from '../context/AudioContext';
 import { VoiceBubble } from './VoiceBubble';
 import { Mic, ChevronRight, Radio, Sparkles } from 'lucide-react';
 import { SUPPORTED_LANGUAGES } from '../constants/languages';
+
+let hasAnimatedGreetingThisSession = false;
 
 export const HeroBanner: React.FC = () => {
   const { user, activeJourney, activeScenario, setActiveView } = useApp();
@@ -11,7 +13,48 @@ export const HeroBanner: React.FC = () => {
 
   const currentLang = SUPPORTED_LANGUAGES.find(l => l.code === activeJourney?.targetLanguage) || SUPPORTED_LANGUAGES[0];
   const userName = user?.name ? user.name.split(' ')[0] : 'Learner';
+  const fullGreeting = `WELCOME, ${userName.toUpperCase()}`;
   const isAudioActive = isListening || isSpeaking;
+
+  const [displayedGreeting, setDisplayedGreeting] = useState(() => {
+    return hasAnimatedGreetingThisSession ? fullGreeting : '';
+  });
+  const [isTypingComplete, setIsTypingComplete] = useState(() => hasAnimatedGreetingThisSession);
+
+  useEffect(() => {
+    if (hasAnimatedGreetingThisSession) {
+      setDisplayedGreeting(fullGreeting);
+      setIsTypingComplete(true);
+      return;
+    }
+
+    const prefersReducedMotion =
+      typeof window !== 'undefined' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    if (prefersReducedMotion) {
+      setDisplayedGreeting(fullGreeting);
+      setIsTypingComplete(true);
+      hasAnimatedGreetingThisSession = true;
+      return;
+    }
+
+    let charIdx = 0;
+    const intervalTime = Math.max(35, Math.floor(800 / Math.max(1, fullGreeting.length)));
+
+    const interval = setInterval(() => {
+      charIdx += 1;
+      setDisplayedGreeting(fullGreeting.slice(0, charIdx));
+
+      if (charIdx >= fullGreeting.length) {
+        clearInterval(interval);
+        setIsTypingComplete(true);
+        hasAnimatedGreetingThisSession = true;
+      }
+    }, intervalTime);
+
+    return () => clearInterval(interval);
+  }, [fullGreeting]);
 
   return (
     <section className="relative overflow-hidden rounded-3xl glass-card p-6 text-center shadow-xl">
@@ -21,10 +64,13 @@ export const HeroBanner: React.FC = () => {
       {/* Greeting & Active Journey */}
       <div className="flex items-center justify-between mb-4">
         <div className="text-left">
-          <span className="text-[10px] font-extrabold uppercase tracking-widest text-emerald-400 dark:text-emerald-400 light-mode:text-emerald-600 block">
-            Welcome, {userName}
+          <span className="font-brand text-[10px] font-extrabold uppercase tracking-widest text-emerald-400 dark:text-emerald-400 light-mode:text-emerald-600 block min-h-[16px]">
+            {displayedGreeting}
+            {!isTypingComplete && (
+              <span className="inline-block w-1 h-2.5 ml-0.5 bg-emerald-400/80 rounded-sm animate-pulse align-middle" />
+            )}
           </span>
-          <h2 className="text-sm font-bold text-slate-200 dark:text-slate-200 light-mode:text-slate-800 flex items-center gap-1.5 mt-0.5">
+          <h2 className="font-brand text-sm font-bold text-slate-200 dark:text-slate-200 light-mode:text-slate-800 flex items-center gap-1.5 mt-0.5">
             <span>{currentLang.flag} Learning {currentLang.name}</span>
             <span className="px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 text-[9px] font-extrabold">
               {activeJourney?.cefrLevel || 'A1'}

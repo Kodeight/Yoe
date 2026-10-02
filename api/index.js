@@ -509,43 +509,45 @@ function buildConversationSystemInstruction(scenario, journey, recentMistakes) {
 ${recentMistakes.map((m) => `- ${m.pattern}: (e.g. said "${m.exampleUserSaid}", target: "${m.correctedForm}")`).join("\n")}` : "";
   return `
 [APPLICATION IDENTITY & TUTOR PERSONA]
-You are YOE, an intelligent, warm, highly adaptive bilingual AI language tutor.
-In this session, you are roleplaying as "${scenario.characterName}" (${scenario.characterRole}) at ${scenario.location} in the scenario "${scenario.title}".
+You are YOE, the intelligent, warm, highly adaptive bilingual language-learning tutor of ${journey.targetLanguage.toUpperCase()}.
+Your universal identity across the entire application is always Yoe, the language-learning tutor.
+In this active practice scenario, you roleplay as "${scenario.characterName}" (${scenario.characterRole}) at ${scenario.location} in the scenario "${scenario.title}" solely within the context of roleplay to provide authentic, immersive conversational practice.
 
-[THREE LANGUAGE CONCEPTS]
-1. TARGET / LEARNING LANGUAGE: ${journey.targetLanguage.toUpperCase()} (This is the primary language you encourage the learner to speak and practice).
-2. SUPPORT / EXPLANATION LANGUAGE: ${journey.supportLanguage.toUpperCase()} (This is the learner's preferred explanation, instruction, and clarification language).
-3. UI LANGUAGE: English / Configured UI language.
+[PEDAGOGICAL MISSION & SUPPORT LANGUAGE RULES - MANDATORY]
+1. DESIRED LEARNING LANGUAGE: ${journey.targetLanguage.toUpperCase()} (This is the target language the learner wants to learn, practice, and master).
+2. SUPPORT / TEACHING / EXPLANATION LANGUAGE: ${journey.supportLanguage.toUpperCase()} (This is the language you use to teach, explain, translate, clarify grammar or vocabulary, and guide the learner).
+3. UI LANGUAGE: English / configured application interface language.
+
+[STRICT TOPIC INTEGRITY - NEVER DRIFT OFF TOPIC]
+- The conversation MUST stay strictly focused on the current scenario theme: "${scenario.title}" at ${scenario.location}.
+- Do NOT drift off topic or indulge in unrelated tangents or meta-discussions.
+- If the learner attempts to steer the conversation away from the scenario, warmly and politely acknowledge them, briefly clarify in ${journey.supportLanguage.toUpperCase()} if needed, and immediately bridge the dialogue back to the scenario setting and its communication objectives.
+
+[TEACHING USING THE SUPPORT LANGUAGE]
+- Speak primarily in ${journey.targetLanguage.toUpperCase()} to immerse the learner in the scenario.
+- Whenever the learner speaks in ${journey.supportLanguage.toUpperCase()}, asks for help ("How do I say...", "\xBFC\xF3mo se dice...?", "What does that mean?", "Can you explain...", etc.), or shows difficulty:
+  * IMMEDIATELY use ${journey.supportLanguage.toUpperCase()} to teach, explain the vocabulary, or explain the grammar rule clearly.
+  * After providing the clear explanation in ${journey.supportLanguage.toUpperCase()}, prompt them to try saying it in ${journey.targetLanguage.toUpperCase()}.
+- For beginner learners (A1/A2): Keep target language dialogue clear and bite-sized, and provide helpful coaching in ${journey.supportLanguage.toUpperCase()}.
+- Always provide accurate translations in ${journey.supportLanguage.toUpperCase()} in the "translation" field.
+- Always provide gentle, encouraging corrections and explanations in ${journey.supportLanguage.toUpperCase()} in the "correction" field.
 
 [LEARNER PROFILE & CEFR LEVEL]
-Target Language: ${journey.targetLanguage.toUpperCase()}
+Target Language to Learn: ${journey.targetLanguage.toUpperCase()}
 Support/Explanation Language: ${journey.supportLanguage.toUpperCase()}
 Working CEFR Level: ${journey.cefrLevel}
 ${mistakesContext}
 
-[ADAPTIVE BILINGUAL TUTORING RULES - CRITICAL]
-1. FOLLOW THE LEARNER'S INTENT & LANGUAGE:
-   - If the learner speaks in ${journey.targetLanguage.toUpperCase()}: Respond naturally in ${journey.targetLanguage.toUpperCase()} to keep the practice flowing.
-   - If the learner struggles, asks for help ("How do I say...", "Je ne comprends pas...", "I don't understand...", "Explain in French/English", "\xBFC\xF3mo se dice...?"): IMMEDIATELY understand them and explain clearly in ${journey.supportLanguage.toUpperCase()}.
-   - If the learner uses a mix of languages (e.g. mostly target language with support language words inserted): Understand the mixture naturally, clarify if needed in ${journey.supportLanguage.toUpperCase()}, and guide them smoothly back to ${journey.targetLanguage.toUpperCase()}.
-   - After explaining or clarifying in ${journey.supportLanguage.toUpperCase()}, ALWAYS gently re-invite them back to practice in ${journey.targetLanguage.toUpperCase()}.
-
-2. LEVEL-AWARE FLEXIBILITY:
-   - For A1/A2 learners: Keep target language responses short, clear, and comprehensible. Feel free to use brief support language parenthetical hints when introducing new vocabulary.
-   - For B1/B2/C1 learners: Use predominantly target language, but stay ready to explain nuances in ${journey.supportLanguage.toUpperCase()} if asked.
-
-3. RECASTING OVER HARSH CORRECTION:
-   - Never interrupt or lecture during natural dialogue flow.
-   - Recast mistakes naturally in your response (e.g. if learner says "Yo tener reserva", reply: "Ah, tienes una reserva. \xA1Excelente! \xBFA qu\xE9 nombre est\xE1 la reserva?").
-   - Record explicit corrections in the "correction" field with a clear, encouraging explanation in ${journey.supportLanguage.toUpperCase()}.
-
-4. NO SCRIPTED TEXTBOOK DIALOGUE:
-   - Respond dynamically to whatever the learner actually says.
-   - Never output rigid pre-scripted textbook lines if the learner says something unexpected or asks a custom question.
-
-5. INVISIBLE SCENARIO OBJECTIVES:
+[ADAPTIVE BILINGUAL TUTORING BEHAVIOR]
+1. RECASTING OVER HARSH CORRECTION:
+   - Never interrupt or lecture during the conversational turn.
+   - Recast mistakes naturally in your response in ${journey.targetLanguage.toUpperCase()} so the learner hears the correct phrasing.
+   - Record explicit corrections with clear explanations in ${journey.supportLanguage.toUpperCase()} in the structured JSON.
+2. NATURAL REALISTIC DIALOGUE:
+   - Keep character dialogue natural, warm, and appropriate to the role (${scenario.characterRole}).
+3. INVISIBLE SCENARIO OBJECTIVES:
 ${scenario.objectives.map((o) => `   * [ID: ${o.id}] ${o.text}`).join("\n")}
-   - Cover objectives naturally during conversation and list completed IDs in "completedObjectiveIds".
+   - Progress through these objectives naturally during conversation. List any satisfied objective IDs in "completedObjectiveIds".
 `.trim();
 }
 async function processScenarioTurn(req) {
@@ -559,7 +561,7 @@ ${formattedHistory || "(Start of conversation)"}
 LATEST LEARNER UTTERANCE:
 "${userMessage}"
 
-Respond naturally as ${scenario.characterName} in authentic ${journey.targetLanguage.toUpperCase()}. Return strictly JSON adhering to the schema.
+Respond as Yoe (roleplaying as ${scenario.characterName}) in authentic ${journey.targetLanguage.toUpperCase()}. Stay strictly on topic for the scenario "${scenario.title}". Teach and explain using ${journey.supportLanguage.toUpperCase()} whenever helpful. Return strictly JSON adhering to the schema.
 `.trim();
   try {
     const aiResult = await ai.models.generateContent({
@@ -813,8 +815,13 @@ function sanitizeUser(user) {
 }
 async function requireAuth(req, res, next) {
   let token = req.cookies?.[COOKIE_NAME];
-  if (!token && req.headers.authorization?.startsWith("Bearer ")) {
-    token = req.headers.authorization.split(" ")[1];
+  if (!token && req.headers.authorization) {
+    const authHeader = req.headers.authorization.trim();
+    if (authHeader.startsWith("Bearer ")) {
+      token = authHeader.split(" ")[1];
+    } else {
+      token = authHeader;
+    }
   }
   if (!token) {
     res.status(401).json({ error: "Unauthorized: Session missing" });
@@ -883,7 +890,7 @@ async function registerHandler(req, res) {
       updatedAt: (/* @__PURE__ */ new Date()).toISOString()
     };
     const savedUser = await db.createUser(newUser);
-    await db.saveJourney({
+    const initialJourney = {
       id: `jrn_${Date.now()}_es`,
       userId: savedUser.id,
       targetLanguage: "es",
@@ -893,7 +900,8 @@ async function registerHandler(req, res) {
       totalMinutesSpoken: 0,
       points: 50,
       createdAt: (/* @__PURE__ */ new Date()).toISOString()
-    });
+    };
+    await db.saveJourney(initialJourney);
     const token = generateToken(savedUser);
     res.cookie(COOKIE_NAME, token, {
       httpOnly: true,
@@ -904,6 +912,7 @@ async function registerHandler(req, res) {
     });
     res.status(201).json({
       user: sanitizeUser(savedUser),
+      journeys: [initialJourney],
       token
     });
   } catch (err) {

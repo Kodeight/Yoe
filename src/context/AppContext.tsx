@@ -88,12 +88,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const getAuthHeader = (): Record<string, string> => {
     const token = typeof window !== 'undefined' ? localStorage.getItem('yoe_auth_token') : null;
-    return token ? { Authorization: token } : {};
+    return token ? { Authorization: `Bearer ${token}` } : {};
   };
 
   // Fetch initial scenarios and authenticate
   useEffect(() => {
     async function loadInitialData() {
+      const startTime = Date.now();
       try {
         // First load public scenarios for curriculum foundation
         const scenRes = await fetch('/api/scenarios');
@@ -110,7 +111,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
 
         const userRes = await fetch('/api/auth/me', {
-          headers: getAuthHeader()
+          headers: getAuthHeader(),
+          credentials: 'include'
         });
         const userData = await userRes.json();
         if (userData.user) {
@@ -120,7 +122,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           setUiLanguageState(userData.user.uiLanguage || 'en');
 
           const journeysRes = await fetch('/api/journeys', {
-            headers: getAuthHeader()
+            headers: getAuthHeader(),
+            credentials: 'include'
           });
           const journeysData = await journeysRes.json();
           const loadedJourneys: LearningJourney[] = journeysData.journeys || [];
@@ -160,6 +163,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           }
         }
       } finally {
+        const elapsed = Date.now() - startTime;
+        const MIN_VISUAL_BOOT_MS = 1800; // 1.8s minimum visual duration for floating logo + slogan
+        if (elapsed < MIN_VISUAL_BOOT_MS) {
+          await new Promise((r) => setTimeout(r, MIN_VISUAL_BOOT_MS - elapsed));
+        }
         setIsBooting(false);
       }
     }
@@ -418,6 +426,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ identifier, password })
       });
       const data = await res.json();
@@ -430,7 +439,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setUser(data.user);
       if (data.journeys && data.journeys.length > 0) {
         setJourneys(data.journeys);
-        setActiveJourney(data.journeys[0]);
+        const activeMatch = (data.user.activeJourneyId && data.journeys.find((j: LearningJourney) => j.id === data.user.activeJourneyId)) || data.journeys[0];
+        setActiveJourneyState(activeMatch);
+        await loadScenariosAndData(activeMatch);
+        setShowOnboarding(false);
+      } else if (data.user.onboardingCompleted) {
+        setShowOnboarding(false);
       } else {
         setShowOnboarding(true);
       }
@@ -453,6 +467,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const res = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           name,
           username,
@@ -468,10 +483,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         localStorage.setItem('yoe_auth_token', data.token);
       }
       setUser(data.user);
-      setJourneys([]);
-      setActiveJourneyState(null);
+      if (data.journeys && data.journeys.length > 0) {
+        setJourneys(data.journeys);
+        setActiveJourneyState(data.journeys[0]);
+        await loadScenariosAndData(data.journeys[0]);
+        setShowOnboarding(false);
+      } else {
+        setShowOnboarding(true);
+      }
       setShowAuthModal(false);
-      setShowOnboarding(true); // Enters conversational onboarding immediately
       setActiveView('home');
       return { success: true };
     } catch (err: any) {

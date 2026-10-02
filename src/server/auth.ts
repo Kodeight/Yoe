@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { db, DatabaseUser } from './db';
+import { LearningJourney } from '../types';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'yoe_prod_jwt_secret_998877_secure_key_3321';
 const COOKIE_NAME = 'yoe_session';
@@ -66,8 +67,13 @@ export function sanitizeUser(user: DatabaseUser) {
 export async function requireAuth(req: AuthRequest, res: Response, next: NextFunction) {
   let token = req.cookies?.[COOKIE_NAME];
 
-  if (!token && req.headers.authorization?.startsWith('Bearer ')) {
-    token = req.headers.authorization.split(' ')[1];
+  if (!token && req.headers.authorization) {
+    const authHeader = req.headers.authorization.trim();
+    if (authHeader.startsWith('Bearer ')) {
+      token = authHeader.split(' ')[1];
+    } else {
+      token = authHeader;
+    }
   }
 
   if (!token) {
@@ -158,7 +164,7 @@ export async function registerHandler(req: Request, res: Response) {
     const savedUser = await db.createUser(newUser);
 
     // Initialize default Spanish learning journey in database
-    await db.saveJourney({
+    const initialJourney: LearningJourney = {
       id: `jrn_${Date.now()}_es`,
       userId: savedUser.id,
       targetLanguage: 'es',
@@ -168,7 +174,8 @@ export async function registerHandler(req: Request, res: Response) {
       totalMinutesSpoken: 0,
       points: 50,
       createdAt: new Date().toISOString()
-    });
+    };
+    await db.saveJourney(initialJourney);
 
     const token = generateToken(savedUser);
 
@@ -182,6 +189,7 @@ export async function registerHandler(req: Request, res: Response) {
 
     res.status(201).json({
       user: sanitizeUser(savedUser),
+      journeys: [initialJourney],
       token
     });
   } catch (err: any) {
