@@ -7,6 +7,7 @@ import { AppBootLoader } from './components/AppBootLoader';
 
 import { HomeView } from './views/HomeView';
 import { ConversationView } from './views/ConversationView';
+import { LearnView } from './views/LearnView';
 import { ProgressView } from './views/ProgressView';
 import { ScenariosView } from './views/ScenariosView';
 import { ProfileSettingsView } from './views/ProfileSettingsView';
@@ -42,7 +43,7 @@ export default function App() {
       <main className={`flex-1 w-full ${isDedicatedChat ? 'pb-0 pt-0 flex flex-col min-h-0 h-[100dvh]' : 'pb-28 pt-1'}`}>
         {activeView === 'home' && <HomeView />}
         {activeView === 'chat' && <ConversationView />}
-        {activeView === 'learn' && <ProgressView />}
+        {activeView === 'learn' && <LearnView />}
         {activeView === 'explore' && <ScenariosView />}
         {activeView === 'profile' && <ProfileSettingsView />}
         {activeView === 'vocab' && <VocabularyView />}

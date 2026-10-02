@@ -14,9 +14,10 @@
   --yoe-cyan: #00c2ff;
   --yoe-emerald: #10b981;
   --navbar-height: 4.25rem;
-  --composer-height: 4rem;
-  --comfortable-gap: 2rem;
-  --conversation-bottom-space: calc(var(--navbar-height) + var(--composer-height) + env(safe-area-inset-bottom, 0px) + var(--comfortable-gap));
+  --composer-height: 3.75rem;
+  --chat-bottom-gap: 1rem;
+  --comfortable-gap: 1rem;
+  --conversation-bottom-space: calc(var(--navbar-height) + var(--composer-height) + var(--chat-bottom-gap) + env(safe-area-inset-bottom, 0px));
   --conversation-bottom-inset: var(--conversation-bottom-space);
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);

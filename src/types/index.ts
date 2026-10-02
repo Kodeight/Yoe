@@ -137,3 +137,61 @@ export interface DailyGoalProgress {
   completedGoals: number;
   totalGoals: number;
 }
+
+export type LessonType = 'theory' | 'vocabulary' | 'grammar' | 'listening' | 'quiz' | 'speaking' | 'mini_game' | 'review';
+
+export interface QuizQuestion {
+  id: string;
+  type: 'multiple_choice' | 'fill_blank' | 'sentence_order' | 'vocab_match' | 'true_false' | 'listening';
+  question: string;
+  audioText?: string;
+  options?: string[];
+  correctOptionIndex?: number;
+  correctPhrase?: string;
+  explanation: string;
+  pairs?: Array<{ left: string; right: string }>;
+}
+
+export interface LessonTheory {
+  concept: string;
+  explanation: string;
+  examples: Array<{ original: string; translation: string; phonetic?: string }>;
+  keyTakeaway: string;
+}
+
+export interface LessonMiniGame {
+  type: 'word_match' | 'sentence_builder';
+  items?: Array<{ target: string; match: string }>;
+  wordsPool?: string[];
+  targetSentence?: string;
+  sentenceTranslation?: string;
+}
+
+export interface Lesson {
+  id: string;
+  unitId: string;
+  title: string;
+  description: string;
+  type: LessonType;
+  durationMin: number;
+  xpReward: number;
+  theoryContent?: LessonTheory;
+  quizQuestions?: QuizQuestion[];
+  miniGameData?: LessonMiniGame;
+  speakingScenarioId?: string;
+  isCompleted?: boolean;
+  isLocked?: boolean;
+}
+
+export interface CourseUnit {
+  id: string;
+  unitNumber: number;
+  title: string;
+  subtitle: string;
+  cefrLevel: CEFRLevel;
+  targetLanguage: LanguageCode;
+  icon: string;
+  lessons: Lesson[];
+  isCompleted?: boolean;
+  isLocked?: boolean;
+}

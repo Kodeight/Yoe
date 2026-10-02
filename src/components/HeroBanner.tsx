@@ -64,15 +64,15 @@ export const HeroBanner: React.FC = () => {
       {/* Greeting & Active Journey */}
       <div className="flex items-center justify-between mb-4">
         <div className="text-left">
-          <span className="font-brand text-[10px] font-extrabold uppercase tracking-widest text-emerald-400 dark:text-emerald-400 light-mode:text-emerald-600 block min-h-[16px]">
-            {displayedGreeting}
-            {!isTypingComplete && (
-              <span className="inline-block w-1 h-2.5 ml-0.5 bg-emerald-400/80 rounded-sm animate-pulse align-middle" />
-            )}
-          </span>
-          <h2 className="font-brand text-sm font-bold text-slate-200 dark:text-slate-200 light-mode:text-slate-800 flex items-center gap-1.5 mt-0.5">
+          <div className="text-xs font-bold text-slate-300 dark:text-slate-300 light-mode:text-slate-600 flex items-center gap-1.5 min-h-[20px]">
+            <span>Welcome,</span>
+            <span className="font-signature text-lg font-bold text-emerald-400 dark:text-emerald-400 light-mode:text-emerald-600">
+              {userName}
+            </span>
+          </div>
+          <h2 className="font-brand text-xs font-bold text-slate-400 dark:text-slate-400 light-mode:text-slate-500 flex items-center gap-1.5 mt-0.5">
             <span>{currentLang.flag} Learning {currentLang.name}</span>
-            <span className="px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 text-[9px] font-extrabold">
+            <span className="px-1.5 py-0.2 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 text-[9px] font-extrabold">
               {activeJourney?.cefrLevel || 'A1'}
             </span>
           </h2>
@@ -82,13 +82,10 @@ export const HeroBanner: React.FC = () => {
           {isAudioActive ? (
             <>
               <Radio className="w-3 h-3 text-emerald-400 animate-pulse" />
-              <span className="text-emerald-400">Live Audio Active</span>
+              <span className="text-emerald-400">Live Audio</span>
             </>
           ) : (
-            <>
-              <Sparkles className="w-3 h-3 text-cyan-400" />
-              <span>Yoe Voice Ready</span>
-            </>
+            <span className="text-slate-400">Ready to speak</span>
           )}
         </div>
       </div>
@@ -99,37 +96,37 @@ export const HeroBanner: React.FC = () => {
       </div>
 
       {/* Headline Callout */}
-      <h1 className="text-2xl font-black tracking-tight text-slate-100 dark:text-slate-100 light-mode:text-slate-900 mb-1.5">
+      <h1 className="text-2xl font-black tracking-tight text-slate-100 dark:text-slate-100 light-mode:text-slate-900 mb-1">
         Ready to Speak Today?
       </h1>
-      <p className="text-xs text-slate-400 dark:text-slate-400 light-mode:text-slate-600 max-w-xs mx-auto mb-5 leading-relaxed">
+      <p className="text-xs text-slate-400 dark:text-slate-400 light-mode:text-slate-600 max-w-xs mx-auto mb-4 leading-relaxed">
         {activeScenario
           ? `Step into "${activeScenario.title}" with Yoe`
           : `Practice conversational ${currentLang.name} with Yoe`}
       </p>
 
-      {/* Primary Glowing Conversational Action Button */}
+      {/* Clean Premium White Surface Conversational Action Button */}
       <button
         onClick={() => setActiveView('chat')}
-        className="w-full relative group overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 p-[1px] shadow-xl shadow-emerald-500/20 hover:shadow-emerald-500/35 transition-all cursor-pointer transform hover:-translate-y-0.5 active:translate-y-0"
+        className="w-full relative group overflow-hidden rounded-2xl bg-white text-slate-950 p-4 shadow-xl hover:shadow-2xl transition-all cursor-pointer transform hover:-translate-y-0.5 active:translate-y-0 border border-white/40"
       >
-        <div className="w-full h-full bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 rounded-[15px] px-5 py-3.5 flex items-center justify-between">
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-slate-950/20 backdrop-blur-md flex items-center justify-center border border-white/30 group-hover:scale-110 transition-transform">
-              <Mic className="w-5 h-5 text-slate-950" />
+            <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-600 group-hover:scale-105 transition-transform">
+              <Mic className="w-5 h-5 text-emerald-600" />
             </div>
             <div className="text-left">
               <div className="text-sm font-black text-slate-950 tracking-tight">
                 {activeScenario ? `Enter: ${activeScenario.title}` : 'Start Conversation'}
               </div>
-              <div className="text-[11px] text-slate-900/80 font-semibold">
-                {activeScenario ? `Live Voice Roleplay with Yoe` : 'Begin interactive speaking session'}
+              <div className="text-[11px] text-slate-600 font-medium">
+                {activeScenario ? `Live Voice Practice with Yoe` : 'Begin interactive speaking session'}
               </div>
             </div>
           </div>
 
-          <div className="w-8 h-8 rounded-full bg-slate-950/20 flex items-center justify-center text-slate-950 group-hover:translate-x-1 transition-transform">
-            <ChevronRight className="w-5 h-5 stroke-[2.5]" />
+          <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-950 group-hover:translate-x-1 group-hover:bg-emerald-50 transition-all">
+            <ChevronRight className="w-4 h-4 text-slate-800" />
           </div>
         </div>
       </button>

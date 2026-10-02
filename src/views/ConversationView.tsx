@@ -73,6 +73,34 @@ export const ConversationView: React.FC = () => {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const liveSessionRef = useRef<GeminiLiveSession | null>(null);
+  const [playingMsgId, setPlayingMsgId] = useState<string | null>(null);
+
+  // Sync playingMsgId with audioContext isSpeaking
+  useEffect(() => {
+    if (!isSpeaking) {
+      setPlayingMsgId(null);
+    }
+  }, [isSpeaking]);
+
+  const handlePlayMessageAudio = async (msg: ChatMessage) => {
+    if (playingMsgId === msg.id && isSpeaking) {
+      stopSpeaking();
+      setPlayingMsgId(null);
+      return;
+    }
+
+    setPlayingMsgId(msg.id);
+    if (msg.audioUrl) {
+      await playGeminiAudio(msg.audioUrl);
+    } else {
+      await speakText(
+        msg.text,
+        activeJourney?.targetLanguage,
+        activeScenario?.characterName,
+        activeScenario?.characterRole
+      );
+    }
+  };
 
   // Prepare initial scenario state on mount WITHOUT autostarting audio/mic
   useEffect(() => {
@@ -577,9 +605,16 @@ export const ConversationView: React.FC = () => {
       ) : (
         /* Main Conversation Messages Scroll Area after Start */
         showTranscript ? (
-          <div className="flex-1 overflow-y-auto px-4 py-2 space-y-3.5 no-scrollbar pb-[var(--conversation-bottom-space)]">
+          <div
+            className="flex-1 overflow-y-auto px-4 py-2 space-y-3.5 no-scrollbar"
+            style={{
+              paddingBottom: 'calc(var(--composer-height, 58px) + var(--navbar-height, 64px) + var(--chat-bottom-gap, 16px) + env(safe-area-inset-bottom, 0px))'
+            }}
+          >
             {messages.map((msg) => {
               const isUser = msg.sender === 'user';
+              const isCurrentlyPlaying = playingMsgId === msg.id && isSpeaking;
+
               return (
                 <div key={msg.id} className={`flex flex-col ${isUser ? 'items-end' : 'items-start'} space-y-1`}>
                   <div
@@ -595,18 +630,16 @@ export const ConversationView: React.FC = () => {
                       </span>
                       {!isUser && (
                         <button
-                          onClick={() =>
-                            speakText(
-                              msg.text,
-                              activeJourney?.targetLanguage,
-                              activeScenario.characterName,
-                              activeScenario.characterRole
-                            )
-                          }
-                          className="text-slate-400 hover:text-emerald-400 transition-colors cursor-pointer"
-                          title="Listen"
+                          type="button"
+                          onClick={() => handlePlayMessageAudio(msg)}
+                          className={`p-1 rounded-lg transition-colors cursor-pointer ${
+                            isCurrentlyPlaying
+                              ? 'text-emerald-400 bg-emerald-500/20 animate-pulse'
+                              : 'text-slate-400 hover:text-emerald-400 hover:bg-white/5'
+                          }`}
+                          title={isCurrentlyPlaying ? 'Stop playback' : 'Listen to Yoe'}
                         >
-                          <Volume2 className="w-3.5 h-3.5" />
+                          <Volume2 className={`w-3.5 h-3.5 ${isCurrentlyPlaying ? 'stroke-[2.5]' : ''}`} />
                         </button>
                       )}
                     </div>
@@ -622,6 +655,7 @@ export const ConversationView: React.FC = () => {
                           </p>
                         ) : (
                           <button
+                            type="button"
                             onClick={() => setShowTranslations(prev => ({ ...prev, [msg.id]: true }))}
                             className="text-[10px] font-bold text-emerald-400 hover:underline cursor-pointer flex items-center gap-1"
                           >
@@ -662,8 +696,28 @@ export const ConversationView: React.FC = () => {
               </div>
             )}
 
-            {/* Generous visual breathing spacer before bottom composer boundary */}
-            <div className="h-8 shrink-0 pointer-events-none" />
+            {/* Suggestions belong naturally to conversation flow right after messages */}
+            {suggestedReplies.length > 0 && !isLoading && (
+              <div className="pt-2 pb-1 space-y-1.5">
+                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-400 light-mode:text-slate-500 uppercase tracking-wider block">
+                  Suggested Responses:
+                </span>
+                <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+                  {suggestedReplies.map((reply, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => handleSendMessage(reply.phrase)}
+                      className="glass-pill px-3 py-1.5 rounded-full text-xs text-emerald-400 hover:border-emerald-500/40 hover:bg-emerald-500/10 transition-colors whitespace-nowrap cursor-pointer shrink-0"
+                    >
+                      <span>{reply.phrase}</span>
+                      <span className="text-[10px] text-slate-400 ml-1.5 opacity-80">({reply.translation})</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div ref={messagesEndRef} />
           </div>
         ) : (
@@ -678,32 +732,16 @@ export const ConversationView: React.FC = () => {
         )
       )}
 
-      {/* Suggested Quick Replies Carousel */}
-      {hasStartedConversation && suggestedReplies.length > 0 && !isLoading && (
-        <div className="px-4 py-1.5 flex gap-2 overflow-x-auto no-scrollbar shrink-0 z-20">
-          {suggestedReplies.map((reply, idx) => (
-            <button
-              key={idx}
-              onClick={() => handleSendMessage(reply.phrase)}
-              className="glass-pill px-3 py-1.5 rounded-full text-xs text-emerald-400 hover:border-emerald-500/40 hover:bg-emerald-500/10 transition-colors whitespace-nowrap cursor-pointer shrink-0"
-            >
-              <span>{reply.phrase}</span>
-              <span className="text-[10px] text-slate-400 ml-1.5 opacity-80">({reply.translation})</span>
-            </button>
-          ))}
-        </div>
-      )}
-
       {/* Fixed Conversational Input Controls Floating Above Floating Bottom Navbar */}
       {hasStartedConversation && (
         <div className="fixed bottom-0 left-0 right-0 z-30 pointer-events-none">
-          <div className="max-w-md mx-auto px-4 pb-[calc(4.2rem+max(env(safe-area-inset-bottom,0px),0.5rem))] pointer-events-auto">
+          <div className="max-w-md mx-auto px-4 pb-[calc(var(--navbar-height,64px)+max(env(safe-area-inset-bottom,0px),0.5rem))] pointer-events-auto">
             <form
               onSubmit={(e) => {
                 e.preventDefault();
                 handleSendMessage();
               }}
-              className="glass-nav p-2.5 rounded-3xl flex items-center gap-2 shadow-2xl border border-white/10 dark:border-white/10 light-mode:border-slate-200"
+              className="glass-nav p-2 rounded-3xl flex items-center gap-2 shadow-2xl border border-white/10 dark:border-white/10 light-mode:border-slate-200"
             >
               {/* Main Barge-In / Interruption Speech Mic Button */}
               <button

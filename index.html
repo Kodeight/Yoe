@@ -22,6 +22,28 @@
     <!-- Web App Manifest (PWA) -->
     <link rel="manifest" href="/site.webmanifest" />
 
+    <!-- Instant Pre-Render Theme Resolution (Zero Flash) -->
+    <script>
+      (function() {
+        try {
+          var saved = localStorage.getItem('yoe_theme');
+          var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+          var theme = saved || (prefersDark ? 'dark' : 'dark');
+          if (theme === 'light') {
+            document.documentElement.classList.add('light-mode');
+            document.documentElement.classList.remove('dark');
+            var meta = document.querySelector('meta[name="theme-color"]');
+            if (meta) meta.setAttribute('content', '#f8fafc');
+          } else {
+            document.documentElement.classList.add('dark');
+            document.documentElement.classList.remove('light-mode');
+            var meta = document.querySelector('meta[name="theme-color"]');
+            if (meta) meta.setAttribute('content', '#070b12');
+          }
+        } catch(e) {}
+      })();
+    </script>
+
     <!-- Centralized Typography System: Manrope (Universal Primary) & Caveat (Loader Slogan Signature) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

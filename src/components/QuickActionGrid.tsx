@@ -10,29 +10,25 @@ export const QuickActionGrid: React.FC = () => {
       id: 'chat',
       title: 'Practice Speaking',
       subtitle: 'Live conversation with Yoe',
-      icon: MessageSquare,
-      iconBg: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20'
+      icon: MessageSquare
     },
     {
       id: 'explore',
       title: 'Scenario Worlds',
       subtitle: 'Explore real-world missions',
-      icon: Compass,
-      iconBg: 'bg-cyan-500/15 text-cyan-400 border-cyan-500/20'
+      icon: Compass
     },
     {
       id: 'vocab',
       title: 'Vocabulary Bank',
       subtitle: `${vocabulary.length} words acquired`,
-      icon: Layers,
-      iconBg: 'bg-purple-500/15 text-purple-400 border-purple-500/20'
+      icon: Layers
     },
     {
       id: 'grammar',
       title: 'Grammar & Memory',
       subtitle: `${mistakes.length} recurring patterns`,
-      icon: Target,
-      iconBg: 'bg-amber-500/15 text-amber-400 border-amber-500/20'
+      icon: Target
     }
   ] as const;
 
@@ -44,10 +40,10 @@ export const QuickActionGrid: React.FC = () => {
           <button
             key={act.id}
             onClick={() => setActiveView(act.id as any)}
-            className="group relative text-left rounded-2xl glass-card p-3.5 transition-all hover:border-emerald-500/40 cursor-pointer shadow-md"
+            className="group relative text-left rounded-2xl glass-card p-3.5 transition-all hover:border-emerald-500/40 cursor-pointer shadow-md hover:bg-white/5"
           >
             <div className="flex items-start justify-between mb-2.5">
-              <div className={`p-2 rounded-xl border ${act.iconBg}`}>
+              <div className="w-8 h-8 rounded-full glass-pill flex items-center justify-center text-emerald-400 group-hover:scale-105 transition-transform">
                 <Icon className="w-4 h-4" />
               </div>
               <ChevronRight className="w-4 h-4 text-slate-500 group-hover:text-emerald-400 group-hover:translate-x-0.5 transition-all" />

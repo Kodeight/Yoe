@@ -486,8 +486,9 @@ var db = new PersistentDatabase();
 // src/server/aiService.ts
 import { GoogleGenAI, Type } from "@google/genai";
 var apiKey = process.env.GEMINI_API_KEY || "AQ.Ab8RN6JQUS-fp1GOZb_2wVDFraAO48nyMYnf4cwhvvkGVCqg-g";
-var defaultModel = process.env.GEMINI_MODEL || "gemini-3.8-flash";
+var CANDIDATE_CHAT_MODELS = ["gemini-flash-latest", "gemini-3.1-flash-lite", "gemini-3.8-flash", "gemini-2.0-flash"];
 var ttsModel = "gemini-3.8-flash-lite-tts";
+var LIVE_MODEL = "gemini-3.8-live";
 var ai = new GoogleGenAI({
   apiKey,
   httpOptions: {
@@ -496,7 +497,6 @@ var ai = new GoogleGenAI({
     }
   }
 });
-var LIVE_MODEL = "gemini-3.8-live";
 function getCharacterVoice(characterName, role, genderPreference) {
   const femaleRoles = ["receptionist", "barista", "waitress", "guide", "friend", "hostess", "doctor", "teacher", "clerk", "elena", "sofia", "clara", "sarah", "marie", "fatima"];
   const nameOrRole = `${characterName} ${role}`.toLowerCase();
@@ -563,100 +563,134 @@ LATEST LEARNER UTTERANCE:
 
 Respond as Yoe (roleplaying as ${scenario.characterName}) in authentic ${journey.targetLanguage.toUpperCase()}. Stay strictly on topic for the scenario "${scenario.title}". Teach and explain using ${journey.supportLanguage.toUpperCase()} whenever helpful. Return strictly JSON adhering to the schema.
 `.trim();
-  try {
-    const aiResult = await ai.models.generateContent({
-      model: defaultModel,
-      contents: userPrompt,
-      config: {
-        systemInstruction,
-        temperature: 0.75,
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            response: {
-              type: Type.STRING,
-              description: `Natural character dialogue in authentic ${journey.targetLanguage}`
-            },
-            translation: {
-              type: Type.STRING,
-              description: `Accurate translation in ${journey.supportLanguage}`
-            },
-            correction: {
-              type: Type.OBJECT,
-              description: "Gentle structured correction if learner made a notable mistake",
-              properties: {
-                original: { type: Type.STRING },
-                corrected: { type: Type.STRING },
-                explanation: { type: Type.STRING },
-                grammarNote: { type: Type.STRING },
-                severity: { type: Type.STRING, enum: ["gentle", "important"] }
-              }
-            },
-            learningSignals: {
-              type: Type.ARRAY,
-              items: { type: Type.STRING }
-            },
-            vocabulary: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  word: { type: Type.STRING },
-                  translation: { type: Type.STRING },
-                  phonetic: { type: Type.STRING },
-                  example: { type: Type.STRING }
-                },
-                required: ["word", "translation"]
-              }
-            },
-            completedObjectiveIds: {
-              type: Type.ARRAY,
-              items: { type: Type.STRING }
-            },
-            suggestedNextReplies: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  phrase: { type: Type.STRING },
-                  translation: { type: Type.STRING }
-                },
-                required: ["phrase", "translation"]
-              }
-            }
-          },
-          required: ["response", "translation"]
-        }
-      }
-    });
-    const textOutput = aiResult.text;
-    if (!textOutput) {
-      throw new Error("Empty response received from AI model");
-    }
-    const parsed = JSON.parse(textOutput);
+  for (const modelCandidate of CANDIDATE_CHAT_MODELS) {
     try {
-      const voiceName = getCharacterVoice(scenario.characterName, scenario.characterRole);
-      const audioBase64 = await generateScenarioSpeech(parsed.response, voiceName);
-      if (audioBase64) {
-        parsed.audioBase64 = audioBase64;
+      const aiResult = await ai.models.generateContent({
+        model: modelCandidate,
+        contents: userPrompt,
+        config: {
+          systemInstruction,
+          temperature: 0.7,
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              response: {
+                type: Type.STRING,
+                description: `Natural character dialogue in authentic ${journey.targetLanguage}`
+              },
+              translation: {
+                type: Type.STRING,
+                description: `Accurate translation in ${journey.supportLanguage}`
+              },
+              correction: {
+                type: Type.OBJECT,
+                description: "Gentle structured correction if learner made a notable mistake",
+                properties: {
+                  original: { type: Type.STRING },
+                  corrected: { type: Type.STRING },
+                  explanation: { type: Type.STRING },
+                  grammarNote: { type: Type.STRING },
+                  severity: { type: Type.STRING, enum: ["gentle", "important"] }
+                }
+              },
+              learningSignals: {
+                type: Type.ARRAY,
+                items: { type: Type.STRING }
+              },
+              vocabulary: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    word: { type: Type.STRING },
+                    translation: { type: Type.STRING },
+                    phonetic: { type: Type.STRING },
+                    example: { type: Type.STRING }
+                  },
+                  required: ["word", "translation"]
+                }
+              },
+              completedObjectiveIds: {
+                type: Type.ARRAY,
+                items: { type: Type.STRING }
+              },
+              suggestedNextReplies: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    phrase: { type: Type.STRING },
+                    translation: { type: Type.STRING }
+                  },
+                  required: ["phrase", "translation"]
+                }
+              }
+            },
+            required: ["response", "translation"]
+          }
+        }
+      });
+      const textOutput = aiResult.text;
+      if (textOutput) {
+        const parsed = JSON.parse(textOutput);
+        try {
+          const voiceName = getCharacterVoice(scenario.characterName, scenario.characterRole);
+          const audioBase64 = await generateScenarioSpeech(parsed.response, voiceName);
+          if (audioBase64) {
+            parsed.audioBase64 = audioBase64;
+          }
+        } catch (audioErr) {
+          console.warn("Native speech synthesis note (continuing with text):", audioErr);
+        }
+        return parsed;
       }
-    } catch (audioErr) {
-      console.warn("Native speech synthesis note (continuing with text):", audioErr);
+    } catch (modelErr) {
+      console.warn(`Model ${modelCandidate} note (${modelErr?.message || modelErr}), trying next candidate...`);
     }
-    return parsed;
-  } catch (error) {
-    console.error("Error processing AI scenario turn:", error);
-    return {
-      response: `\xA1Entendido! Sigamos con nuestra conversaci\xF3n.`,
-      translation: "Understood! Let's continue our conversation.",
-      suggestedNextReplies: [
-        { phrase: "\xBFPodr\xEDas repetir eso, por favor?", translation: "Could you repeat that, please?" },
-        { phrase: "S\xED, me parece perfecto.", translation: "Yes, that sounds perfect." },
-        { phrase: "\xA1Muchas gracias por la ayuda!", translation: "Thank you very much for the help!" }
-      ]
-    };
   }
+  const lowerMsg = userMessage.toLowerCase().trim();
+  let dynamicResponse = "";
+  let dynamicTranslation = "";
+  if (journey.targetLanguage === "es") {
+    if (lowerMsg.includes("hola") || lowerMsg.includes("me llamo") || lowerMsg.includes("soy") || lowerMsg.includes("name") || lowerMsg.includes("hello")) {
+      dynamicResponse = `\xA1Hola! Mucho gusto en conocerte. Yo soy ${scenario.characterName}, ${scenario.characterRole} aqu\xED en ${scenario.location}. \xBFEn qu\xE9 te puedo ayudar hoy?`;
+      dynamicTranslation = `Hello! Nice to meet you. I am ${scenario.characterName}, the ${scenario.characterRole} here at ${scenario.location}. How can I help you today?`;
+    } else if (lowerMsg.includes("reserva") || lowerMsg.includes("hotel") || lowerMsg.includes("habitaci\xF3n") || lowerMsg.includes("room")) {
+      dynamicResponse = `\xA1Excelente! D\xE9jame revisar nuestro sistema para tu estad\xEDa. \xBFA qu\xE9 nombre est\xE1 tu reserva?`;
+      dynamicTranslation = `Excellent! Let me check our system for your stay. Under what name is your reservation?`;
+    } else if (lowerMsg.includes("caf\xE9") || lowerMsg.includes("cuenta") || lowerMsg.includes("mesa") || lowerMsg.includes("order")) {
+      dynamicResponse = `\xA1Por supuesto! Tenemos caf\xE9 reci\xE9n hecho y delicias tradicionales. \xBFTe gustar\xEDa algo para acompa\xF1ar?`;
+      dynamicTranslation = `Of course! We have fresh coffee and traditional treats. Would you like something to accompany it?`;
+    } else {
+      dynamicResponse = `\xA1Muy bien! Te escucho con atenci\xF3n en ${scenario.location}. Cu\xE9ntame, \xBFqu\xE9 te gustar\xEDa hacer a continuaci\xF3n?`;
+      dynamicTranslation = `Very well! I am listening attentively here at ${scenario.location}. Tell me, what would you like to do next?`;
+    }
+  } else {
+    dynamicResponse = `Hello! It is wonderful to speak with you at ${scenario.location}. Tell me more about what you would like to explore today!`;
+    dynamicTranslation = `Hello! It is wonderful to speak with you at ${scenario.location}. Tell me more about what you would like to explore today!`;
+  }
+  const fallbackResult = {
+    response: dynamicResponse,
+    translation: dynamicTranslation,
+    suggestedNextReplies: journey.targetLanguage === "es" ? [
+      { phrase: "\xBFPodr\xEDas darme una recomendaci\xF3n?", translation: "Could you give me a recommendation?" },
+      { phrase: "S\xED, me gustar\xEDa saber m\xE1s detalles.", translation: "Yes, I would like to know more details." },
+      { phrase: "\xA1Muchas gracias por la atenci\xF3n!", translation: "Thank you very much for the attention!" }
+    ] : [
+      { phrase: "Could you recommend something?", translation: "Could you recommend something?" },
+      { phrase: "Yes, that sounds great.", translation: "Yes, that sounds great." }
+    ]
+  };
+  try {
+    const voiceName = getCharacterVoice(scenario.characterName, scenario.characterRole);
+    const audioBase64 = await generateScenarioSpeech(fallbackResult.response, voiceName);
+    if (audioBase64) {
+      fallbackResult.audioBase64 = audioBase64;
+    }
+  } catch (e) {
+  }
+  return fallbackResult;
 }
 async function generateScenarioSpeech(text, voiceName = "Kore") {
   if (!text || !text.trim()) return null;
@@ -708,7 +742,7 @@ Determine the learner's initial working CEFR level (A1, A2, B1, B2, C1, C2) and 
   `.trim();
   try {
     const res = await ai.models.generateContent({
-      model: defaultModel,
+      model: CANDIDATE_CHAT_MODELS[0],
       contents: prompt,
       config: {
         responseMimeType: "application/json",
