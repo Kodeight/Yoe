@@ -11,10 +11,8 @@ import rateLimit from "express-rate-limit";
 import pg from "pg";
 import fs from "fs";
 import path from "path";
-var { Pool } = pg;
-var DATABASE_URL = process.env.DATABASE_URL;
-var DATA_DIR = path.join(process.cwd(), "data");
-var DB_FILE = path.join(DATA_DIR, "yoe_store.json");
+
+// src/constants/languages.ts
 var SUPPORTED_LANGUAGES = [
   { code: "en", name: "English", nativeName: "English", flag: "\u{1F1EC}\u{1F1E7}" },
   { code: "fr", name: "French", nativeName: "Fran\xE7ais", flag: "\u{1F1EB}\u{1F1F7}" },
@@ -25,6 +23,12 @@ var SUPPORTED_LANGUAGES = [
   { code: "tr", name: "Turkish", nativeName: "T\xFCrk\xE7e", flag: "\u{1F1F9}\u{1F1F7}" },
   { code: "pt", name: "Portuguese", nativeName: "Portugu\xEAs", flag: "\u{1F1F5}\u{1F1F9}" }
 ];
+
+// src/server/db.ts
+var { Pool } = pg;
+var DATABASE_URL = process.env.DATABASE_URL;
+var DATA_DIR = path.join(process.cwd(), "data");
+var DB_FILE = path.join(DATA_DIR, "yoe_store.json");
 var STARTER_SCENARIOS = [
   {
     id: "scen_a1_intro_maya",

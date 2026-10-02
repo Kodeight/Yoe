@@ -22,7 +22,7 @@ import {
   Database
 } from 'lucide-react';
 import { LanguageCode } from '../types';
-import { SUPPORTED_LANGUAGES } from '../server/db';
+import { SUPPORTED_LANGUAGES } from '../constants/languages';
 
 export const ProfileSettingsView: React.FC = () => {
   const {

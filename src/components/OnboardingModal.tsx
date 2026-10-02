@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { SUPPORTED_LANGUAGES } from '../server/db';
+import { SUPPORTED_LANGUAGES } from '../constants/languages';
 import { LanguageCode } from '../types';
 import { YoeLogo } from './YoeLogo';
 import { ArrowRight, Check, Sparkles, CheckCircle2 } from 'lucide-react';

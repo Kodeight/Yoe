@@ -27,16 +27,8 @@ export interface DatabaseUser {
   updatedAt: string;
 }
 
-export const SUPPORTED_LANGUAGES: Language[] = [
-  { code: 'en', name: 'English', nativeName: 'English', flag: '🇬🇧' },
-  { code: 'fr', name: 'French', nativeName: 'Français', flag: '🇫🇷' },
-  { code: 'es', name: 'Spanish', nativeName: 'Español', flag: '🇪🇸' },
-  { code: 'ru', name: 'Russian', nativeName: 'Русский', flag: '🇷🇺' },
-  { code: 'ar', name: 'Arabic', nativeName: 'العربية', flag: '🇸🇦', rtl: true },
-  { code: 'it', name: 'Italian', nativeName: 'Italiano', flag: '🇮🇹' },
-  { code: 'tr', name: 'Turkish', nativeName: 'Türkçe', flag: '🇹🇷' },
-  { code: 'pt', name: 'Portuguese', nativeName: 'Português', flag: '🇵🇹' }
-];
+import { SUPPORTED_LANGUAGES } from '../constants/languages';
+export { SUPPORTED_LANGUAGES };
 
 export const STARTER_SCENARIOS: Scenario[] = [
   {

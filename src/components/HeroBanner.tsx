@@ -2,7 +2,7 @@ import React from 'react';
 import { useApp } from '../context/AppContext';
 import { VoiceBubble } from './VoiceBubble';
 import { Mic, ChevronRight, Radio } from 'lucide-react';
-import { SUPPORTED_LANGUAGES } from '../server/db';
+import { SUPPORTED_LANGUAGES } from '../constants/languages';
 
 export const HeroBanner: React.FC = () => {
   const { user, activeJourney, activeScenario, setActiveView } = useApp();
