@@ -15,11 +15,20 @@ export const BottomNav: React.FC = () => {
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-40 pointer-events-none">
-      {/* Mobile Navbar Gradient Blur Container - smooth visual separation for underlying content */}
-      <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#070b12] via-[#070b12]/85 to-transparent backdrop-blur-md pointer-events-none" />
+      {/* Pure Fade-in-Blur Zone: Spatial progressive blur without ANY color tint, black/white gradient or colored shadow */}
+      <div
+        className="absolute inset-x-0 bottom-0 h-32 pointer-events-none"
+        style={{
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          maskImage: 'linear-gradient(to top, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 0.6) 40%, rgba(0, 0, 0, 0) 100%)',
+          WebkitMaskImage: 'linear-gradient(to top, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 0.6) 40%, rgba(0, 0, 0, 0) 100%)'
+        }}
+      />
 
+      {/* Floating Liquid Glass Navigation Bar */}
       <div className="max-w-md mx-auto px-4 pb-[max(env(safe-area-inset-bottom,0px),0.75rem)] relative z-10 pointer-events-auto">
-        <nav className="flex items-center justify-around glass-nav rounded-3xl p-1.5 shadow-2xl transition-colors">
+        <nav className="flex items-center justify-around glass-nav rounded-3xl p-1.5 transition-all">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeView === item.id;
@@ -47,3 +56,4 @@ export const BottomNav: React.FC = () => {
     </div>
   );
 };
+

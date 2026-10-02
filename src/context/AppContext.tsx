@@ -24,6 +24,7 @@ interface AppContextType {
   setThemeMode: (mode: 'dark' | 'light') => void;
   setUiLanguage: (lang: LanguageCode) => void;
   createNewJourney: (targetLang: LanguageCode, supportLang: LanguageCode, level?: string) => Promise<void>;
+  updateActiveJourney: (updates: Partial<LearningJourney>) => Promise<void>;
   refreshProgress: () => Promise<void>;
   cacheLearnedLessonsForOffline: () => void;
   dismissOnboarding: () => void;
@@ -120,11 +121,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             headers: getAuthHeader()
           });
           const journeysData = await journeysRes.json();
-          if (journeysData.journeys && journeysData.journeys.length > 0) {
-            setJourneys(journeysData.journeys);
-            const current = journeysData.journeys[0];
-            setActiveJourneyState(current);
-            loadScenariosAndData(current);
+          const loadedJourneys: LearningJourney[] = journeysData.journeys || [];
+
+          if (loadedJourneys.length > 0) {
+            setJourneys(loadedJourneys);
+            const activeMatch = (userData.user.activeJourneyId && loadedJourneys.find((j: LearningJourney) => j.id === userData.user.activeJourneyId)) || loadedJourneys[0];
+            setActiveJourneyState(activeMatch);
+            await loadScenariosAndData(activeMatch);
+            setShowOnboarding(false);
+            setActiveView('home');
+          } else if (userData.user.onboardingCompleted) {
+            setShowOnboarding(false);
             setActiveView('home');
           } else {
             setShowOnboarding(true);
@@ -264,6 +271,38 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const setActiveJourney = (journey: LearningJourney) => {
     setActiveJourneyState(journey);
     loadScenariosAndData(journey);
+    if (user) {
+      fetch('/api/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+        body: JSON.stringify({ activeJourneyId: journey.id })
+      }).catch(() => {});
+    }
+  };
+
+  const updateActiveJourney = async (updates: Partial<LearningJourney>) => {
+    if (!activeJourney) return;
+    try {
+      const updated = { ...activeJourney, ...updates };
+      setActiveJourneyState(updated);
+      setJourneys(prev => prev.map(j => j.id === activeJourney.id ? updated : j));
+
+      const res = await fetch(`/api/journeys/${activeJourney.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeader()
+        },
+        body: JSON.stringify(updates)
+      });
+      const data = await res.json();
+      if (data.journey) {
+        setActiveJourneyState(data.journey);
+        setJourneys(prev => prev.map(j => j.id === data.journey.id ? data.journey : j));
+      }
+    } catch (err) {
+      console.error('Failed to update active journey:', err);
+    }
   };
 
   const setActiveScenarioId = (scenarioId: string) => {
@@ -486,6 +525,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setThemeMode,
         setUiLanguage,
         createNewJourney,
+        updateActiveJourney,
         refreshProgress,
         cacheLearnedLessonsForOffline,
         dismissOnboarding,

@@ -1,14 +1,17 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
+import { useAudio } from '../context/AudioContext';
 import { VoiceBubble } from './VoiceBubble';
-import { Mic, ChevronRight, Radio } from 'lucide-react';
+import { Mic, ChevronRight, Radio, Sparkles } from 'lucide-react';
 import { SUPPORTED_LANGUAGES } from '../constants/languages';
 
 export const HeroBanner: React.FC = () => {
   const { user, activeJourney, activeScenario, setActiveView } = useApp();
+  const { isListening, isSpeaking } = useAudio();
 
   const currentLang = SUPPORTED_LANGUAGES.find(l => l.code === activeJourney?.targetLanguage) || SUPPORTED_LANGUAGES[0];
   const userName = user?.name ? user.name.split(' ')[0] : 'Learner';
+  const isAudioActive = isListening || isSpeaking;
 
   return (
     <section className="relative overflow-hidden rounded-3xl glass-card p-6 text-center shadow-xl">
@@ -30,14 +33,23 @@ export const HeroBanner: React.FC = () => {
         </div>
 
         <div className="px-2.5 py-1 rounded-full glass-pill text-[10px] font-bold text-slate-300 dark:text-slate-300 light-mode:text-slate-700 flex items-center gap-1">
-          <Radio className="w-3 h-3 text-emerald-400" />
-          <span>Live Audio Active</span>
+          {isAudioActive ? (
+            <>
+              <Radio className="w-3 h-3 text-emerald-400 animate-pulse" />
+              <span className="text-emerald-400">Live Audio Active</span>
+            </>
+          ) : (
+            <>
+              <Sparkles className="w-3 h-3 text-cyan-400" />
+              <span>Yoe Voice Ready</span>
+            </>
+          )}
         </div>
       </div>
 
       {/* Main Intelligent Yoe Voice Presence Bubble */}
       <div className="my-2 flex justify-center cursor-pointer" onClick={() => setActiveView('chat')}>
-        <VoiceBubble size="md" state="idle" interactive />
+        <VoiceBubble size="md" state={isSpeaking ? 'speaking' : isListening ? 'listening' : 'idle'} interactive />
       </div>
 
       {/* Headline Callout */}
@@ -46,7 +58,7 @@ export const HeroBanner: React.FC = () => {
       </h1>
       <p className="text-xs text-slate-400 dark:text-slate-400 light-mode:text-slate-600 max-w-xs mx-auto mb-5 leading-relaxed">
         {activeScenario
-          ? `Step into "${activeScenario.title}" with ${activeScenario.characterName}`
+          ? `Step into "${activeScenario.title}" with Yoe`
           : `Practice conversational ${currentLang.name} with Yoe`}
       </p>
 
@@ -65,7 +77,7 @@ export const HeroBanner: React.FC = () => {
                 {activeScenario ? `Enter: ${activeScenario.title}` : 'Start Conversation'}
               </div>
               <div className="text-[11px] text-slate-900/80 font-semibold">
-                {activeScenario ? `Roleplay with ${activeScenario.characterName}` : 'Begin interactive speaking session'}
+                {activeScenario ? `Live Voice Roleplay with Yoe` : 'Begin interactive speaking session'}
               </div>
             </div>
           </div>
@@ -78,3 +90,4 @@ export const HeroBanner: React.FC = () => {
     </section>
   );
 };
+

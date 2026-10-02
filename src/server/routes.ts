@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import rateLimit from 'express-rate-limit';
 import { db, SUPPORTED_LANGUAGES } from './db';
 import { processScenarioTurn, calibrateLearnerLevel, generateScenarioSpeech, getCharacterVoice, createEphemeralLiveToken, LIVE_MODEL } from './aiService';
-import { registerHandler, loginHandler, meHandler, logoutHandler, requireAuth, AuthRequest } from './auth';
+import { registerHandler, loginHandler, meHandler, logoutHandler, requireAuth, AuthRequest, sanitizeUser } from './auth';
 import { User, LearningJourney } from '../types';
 
 export const apiRouter = Router();
@@ -34,49 +34,67 @@ apiRouter.get('/languages', (req: Request, res: Response) => {
 });
 
 // Journeys
-apiRouter.get('/journeys', (req: Request, res: Response) => {
-  const authHeader = req.headers.authorization;
-  let userId = req.query.userId as string;
-  if (!userId && authHeader && authHeader.startsWith('Bearer usr_')) {
-    userId = authHeader.replace('Bearer ', '').trim();
-  }
-  if (!userId) {
-    res.json({ journeys: [] });
+apiRouter.get('/journeys', requireAuth, async (req: AuthRequest, res: Response) => {
+  if (!req.user) {
+    res.status(401).json({ error: 'Unauthorized' });
     return;
   }
-  const journeys = db.getJourneysForUser(userId);
+  const journeys = await db.getJourneysForUser(req.user.id);
   res.json({ journeys });
 });
 
-apiRouter.post('/journeys', (req: Request, res: Response) => {
-  const { userId, targetLanguage, supportLanguage, cefrLevel } = req.body;
-  if (!userId) {
-    res.status(400).json({ error: 'User ID is required to create a journey' });
+apiRouter.post('/journeys', requireAuth, async (req: AuthRequest, res: Response) => {
+  if (!req.user) {
+    res.status(401).json({ error: 'Unauthorized' });
     return;
   }
+
+  const { targetLanguage, supportLanguage, cefrLevel, goals } = req.body;
   const newJourney: LearningJourney = {
-    id: `jrn_${targetLanguage}_${Date.now()}`,
-    userId,
-    targetLanguage: targetLanguage || 'en',
+    id: `jrn_${targetLanguage || 'es'}_${Date.now()}`,
+    userId: req.user.id,
+    targetLanguage: targetLanguage || 'es',
     supportLanguage: supportLanguage || 'en',
     cefrLevel: cefrLevel || 'A1',
-    streakDays: 0,
+    streakDays: 1,
     totalMinutesSpoken: 0,
-    points: 0,
+    points: 50,
     createdAt: new Date().toISOString()
   };
-  db.saveJourney(newJourney);
-  res.json({ journey: newJourney });
+
+  await db.saveJourney(newJourney);
+
+  // Set as user's active journey and mark onboarding completed
+  const updatedUser = db.updateUser(req.user.id, {
+    activeJourneyId: newJourney.id,
+    onboardingCompleted: true
+  });
+
+  res.json({
+    journey: newJourney,
+    user: updatedUser ? sanitizeUser(updatedUser) : sanitizeUser(req.user)
+  });
 });
 
-apiRouter.put('/journeys/:id', (req: Request, res: Response) => {
+apiRouter.put('/journeys/:id', requireAuth, async (req: AuthRequest, res: Response) => {
+  if (!req.user) {
+    res.status(401).json({ error: 'Unauthorized' });
+    return;
+  }
+
   const journey = db.getJourney(req.params.id);
   if (!journey) {
     res.status(404).json({ error: 'Journey not found' });
     return;
   }
+
+  if (journey.userId !== req.user.id) {
+    res.status(403).json({ error: 'Forbidden: Cannot edit another user\'s journey' });
+    return;
+  }
+
   Object.assign(journey, req.body);
-  db.saveJourney(journey);
+  await db.saveJourney(journey);
   res.json({ journey });
 });
 
@@ -338,19 +356,11 @@ apiRouter.post('/mistakes', (req: Request, res: Response) => {
 });
 
 // Settings
-apiRouter.put('/settings', (req: Request, res: Response) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer usr_')) {
-    res.json({ success: true });
+apiRouter.put('/settings', requireAuth, async (req: AuthRequest, res: Response) => {
+  if (!req.user) {
+    res.status(401).json({ error: 'Unauthorized' });
     return;
   }
-  const userId = authHeader.replace('Bearer ', '').trim();
-  const user = db.getUser(userId);
-  if (!user) {
-    res.status(404).json({ error: 'User not found' });
-    return;
-  }
-  Object.assign(user, req.body);
-  db.updateUser(user.id, req.body);
-  res.json({ user });
+  const updatedUser = db.updateUser(req.user.id, req.body);
+  res.json({ user: updatedUser ? sanitizeUser(updatedUser) : sanitizeUser(req.user) });
 });

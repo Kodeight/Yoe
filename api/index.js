@@ -160,6 +160,8 @@ var PersistentDatabase = class {
           subscription_status VARCHAR(32) DEFAULT 'TRIAL',
           email_verified BOOLEAN DEFAULT false,
           status VARCHAR(32) DEFAULT 'active',
+          active_journey_id VARCHAR(64),
+          onboarding_completed BOOLEAN DEFAULT false,
           last_login_at TIMESTAMP,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -174,9 +176,11 @@ var PersistentDatabase = class {
           target_language_code VARCHAR(16) NOT NULL,
           support_language_code VARCHAR(16) NOT NULL,
           cefr_level VARCHAR(16) DEFAULT 'A1',
+          goals TEXT,
           streak_days INT DEFAULT 0,
           total_minutes_spoken INT DEFAULT 0,
           points INT DEFAULT 0,
+          active_scenario_id VARCHAR(64),
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
@@ -273,7 +277,8 @@ var PersistentDatabase = class {
         const res = await this.pool.query(
           `SELECT id, username, email, password_hash as "passwordHash", name, avatar_url as "avatarUrl",
                   ui_language as "uiLanguage", theme, subscription_status as "subscriptionStatus",
-                  email_verified as "emailVerified", status, last_login_at as "lastLoginAt",
+                  email_verified as "emailVerified", status, active_journey_id as "activeJourneyId",
+                  onboarding_completed as "onboardingCompleted", last_login_at as "lastLoginAt",
                   created_at as "createdAt", updated_at as "updatedAt"
            FROM users
            WHERE LOWER(username) = $1 OR LOWER(email) = $1 LIMIT 1`,
@@ -297,7 +302,8 @@ var PersistentDatabase = class {
         const res = await this.pool.query(
           `SELECT id, username, email, password_hash as "passwordHash", name, avatar_url as "avatarUrl",
                   ui_language as "uiLanguage", theme, subscription_status as "subscriptionStatus",
-                  email_verified as "emailVerified", status, last_login_at as "lastLoginAt",
+                  email_verified as "emailVerified", status, active_journey_id as "activeJourneyId",
+                  onboarding_completed as "onboardingCompleted", last_login_at as "lastLoginAt",
                   created_at as "createdAt", updated_at as "updatedAt"
            FROM users WHERE id = $1 LIMIT 1`,
           [id]
@@ -333,8 +339,8 @@ var PersistentDatabase = class {
           `SELECT id, user_id as "userId", target_language_code as "targetLanguage",
                   support_language_code as "supportLanguage", cefr_level as "cefrLevel",
                   streak_days as "streakDays", total_minutes_spoken as "totalMinutesSpoken",
-                  points, created_at as "createdAt"
-           FROM learning_journeys WHERE user_id = $1`,
+                  points, active_scenario_id as "activeScenarioId", created_at as "createdAt"
+           FROM learning_journeys WHERE user_id = $1 ORDER BY updated_at DESC`,
           [userId]
         );
         if (res.rows.length > 0) {
@@ -353,13 +359,16 @@ var PersistentDatabase = class {
     if (this.isPostgresConnected && this.pool) {
       try {
         await this.pool.query(
-          `INSERT INTO learning_journeys (id, user_id, target_language_code, support_language_code, cefr_level, streak_days, total_minutes_spoken, points, updated_at)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+          `INSERT INTO learning_journeys (id, user_id, target_language_code, support_language_code, cefr_level, streak_days, total_minutes_spoken, points, active_scenario_id, updated_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
            ON CONFLICT (id) DO UPDATE SET
+             target_language_code = EXCLUDED.target_language_code,
+             support_language_code = EXCLUDED.support_language_code,
              cefr_level = EXCLUDED.cefr_level,
              streak_days = EXCLUDED.streak_days,
              total_minutes_spoken = EXCLUDED.total_minutes_spoken,
              points = EXCLUDED.points,
+             active_scenario_id = EXCLUDED.active_scenario_id,
              updated_at = NOW()`,
           [
             journey.id,
@@ -369,7 +378,8 @@ var PersistentDatabase = class {
             journey.cefrLevel,
             journey.streakDays,
             journey.totalMinutesSpoken,
-            journey.points
+            journey.points,
+            journey.activeScenarioId || null
           ]
         );
       } catch (err) {
@@ -498,52 +508,44 @@ function buildConversationSystemInstruction(scenario, journey, recentMistakes) {
 [KNOWN LEARNER WEAKNESSES TO GENTLY RECAST]:
 ${recentMistakes.map((m) => `- ${m.pattern}: (e.g. said "${m.exampleUserSaid}", target: "${m.correctedForm}")`).join("\n")}` : "";
   return `
-[ROLE & CONVERSATIONAL ENGINE IDENTITY]
-You are "${scenario.characterName}", a real human character in this living scenario.
-You are NOT a textbook, NOT a language exercise generator, NOT a robotic translator, and NOT an AI assistant.
-You are having a REAL, NATURAL, LIVE CONVERSATION with the learner in ${journey.targetLanguage.toUpperCase()}.
+[APPLICATION IDENTITY & TUTOR PERSONA]
+You are YOE, an intelligent, warm, highly adaptive bilingual AI language tutor.
+In this session, you are roleplaying as "${scenario.characterName}" (${scenario.characterRole}) at ${scenario.location} in the scenario "${scenario.title}".
 
-[SCENARIO ENVIRONMENT]
-Title: "${scenario.title}"
-Location: ${scenario.location}
-Description: ${scenario.description}
-Your Role: ${scenario.characterRole}
-Your Initial Context: ${scenario.initialGreeting}
+[THREE LANGUAGE CONCEPTS]
+1. TARGET / LEARNING LANGUAGE: ${journey.targetLanguage.toUpperCase()} (This is the primary language you encourage the learner to speak and practice).
+2. SUPPORT / EXPLANATION LANGUAGE: ${journey.supportLanguage.toUpperCase()} (This is the learner's preferred explanation, instruction, and clarification language).
+3. UI LANGUAGE: English / Configured UI language.
 
-[LEARNER PROFILE]
+[LEARNER PROFILE & CEFR LEVEL]
 Target Language: ${journey.targetLanguage.toUpperCase()}
 Support/Explanation Language: ${journey.supportLanguage.toUpperCase()}
-Estimated CEFR Working Level: ${journey.cefrLevel}
+Working CEFR Level: ${journey.cefrLevel}
 ${mistakesContext}
 
-[CORE CONVERSATION RULES - CRITICAL]
-1. RESPOND TO WHAT THE LEARNER ACTUALLY SAID:
-   - Listen attentively to their actual meaning, intent, and tone.
-   - If they ask an unexpected question, answer naturally in character.
-   - If they make a joke, react naturally.
-   - If they change their mind or correct themselves (e.g., "Wait, I meant 2 nights"), immediately acknowledge and adapt.
-2. ADAPTIVE NATURAL LENGTH:
-   - Do NOT produce fixed-length paragraph speeches.
-   - Speak like a real human: sometimes a short reaction ("\xA1Ah, perfecto!", "Claro, \xBFpara cu\xE1ntas noches?"), sometimes a quick question, sometimes a brief explanation.
-   - Keep the rhythm conversational and lively.
-3. LANGUAGE LOCK - TARGET LANGUAGE IMMERSION:
-   - Speak ONLY in natural, authentic ${journey.targetLanguage.toUpperCase()} in your character dialogue ("response").
-   - NEVER randomly speak English or support language in the character dialogue.
-   - The translation field is exclusively for the learner's comprehension aid.
-4. NATURAL SPEECH, NO TEXTBOOK SLOP:
-   - For Spanish: Use natural phrasing (e.g., "Buenas, \xBFtienes reserva?" or "\xA1Hola! Dime, \xBFqu\xE9 te pongo?"), NOT stiff translationese.
-   - Match the tone to your character's role and location.
-5. FLOW-PRESERVING MICRO-CORRECTIONS:
-   - DO NOT break character to give grammar lectures during the live dialogue.
-   - Use conversational recasting naturally in dialogue (e.g. User says "Yo querer habitaci\xF3n", you respond: "Claro, una habitaci\xF3n para usted. \xBFCu\xE1ntas noches?").
-   - Record any notable grammatical/lexical error in the "correction" JSON field for post-session learning, with clear explanation in ${journey.supportLanguage.toUpperCase()}.
-6. INVISIBLE SCENARIO OBJECTIVES:
-   - The scenario has goals, but do NOT announce them like test questions.
-   - Scenario Objectives:
-${scenario.objectives.map((o) => `     * [ID: ${o.id}] ${o.text}`).join("\n")}
-   - When the learner naturally covers an objective in conversation, include its ID in "completedObjectiveIds".
-7. MEDICAL & LEGAL SAFETY:
-   - You are exclusively a language practice companion and scenario character. You never give actual medical, clinical, or legal advice. If a health issue is mentioned, acknowledge briefly in character and advise seeing a local professional.
+[ADAPTIVE BILINGUAL TUTORING RULES - CRITICAL]
+1. FOLLOW THE LEARNER'S INTENT & LANGUAGE:
+   - If the learner speaks in ${journey.targetLanguage.toUpperCase()}: Respond naturally in ${journey.targetLanguage.toUpperCase()} to keep the practice flowing.
+   - If the learner struggles, asks for help ("How do I say...", "Je ne comprends pas...", "I don't understand...", "Explain in French/English", "\xBFC\xF3mo se dice...?"): IMMEDIATELY understand them and explain clearly in ${journey.supportLanguage.toUpperCase()}.
+   - If the learner uses a mix of languages (e.g. mostly target language with support language words inserted): Understand the mixture naturally, clarify if needed in ${journey.supportLanguage.toUpperCase()}, and guide them smoothly back to ${journey.targetLanguage.toUpperCase()}.
+   - After explaining or clarifying in ${journey.supportLanguage.toUpperCase()}, ALWAYS gently re-invite them back to practice in ${journey.targetLanguage.toUpperCase()}.
+
+2. LEVEL-AWARE FLEXIBILITY:
+   - For A1/A2 learners: Keep target language responses short, clear, and comprehensible. Feel free to use brief support language parenthetical hints when introducing new vocabulary.
+   - For B1/B2/C1 learners: Use predominantly target language, but stay ready to explain nuances in ${journey.supportLanguage.toUpperCase()} if asked.
+
+3. RECASTING OVER HARSH CORRECTION:
+   - Never interrupt or lecture during natural dialogue flow.
+   - Recast mistakes naturally in your response (e.g. if learner says "Yo tener reserva", reply: "Ah, tienes una reserva. \xA1Excelente! \xBFA qu\xE9 nombre est\xE1 la reserva?").
+   - Record explicit corrections in the "correction" field with a clear, encouraging explanation in ${journey.supportLanguage.toUpperCase()}.
+
+4. NO SCRIPTED TEXTBOOK DIALOGUE:
+   - Respond dynamically to whatever the learner actually says.
+   - Never output rigid pre-scripted textbook lines if the learner says something unexpected or asks a custom question.
+
+5. INVISIBLE SCENARIO OBJECTIVES:
+${scenario.objectives.map((o) => `   * [ID: ${o.id}] ${o.text}`).join("\n")}
+   - Cover objectives naturally during conversation and list completed IDs in "completedObjectiveIds".
 `.trim();
 }
 async function processScenarioTurn(req) {
@@ -803,6 +805,8 @@ function sanitizeUser(user) {
     subscriptionStatus: user.subscriptionStatus,
     emailVerified: user.emailVerified,
     status: user.status,
+    activeJourneyId: user.activeJourneyId,
+    onboardingCompleted: user.onboardingCompleted,
     createdAt: user.createdAt,
     lastLoginAt: user.lastLoginAt
   };
@@ -979,47 +983,57 @@ apiRouter.post("/auth/logout", logoutHandler);
 apiRouter.get("/languages", (req, res) => {
   res.json({ languages: SUPPORTED_LANGUAGES });
 });
-apiRouter.get("/journeys", (req, res) => {
-  const authHeader = req.headers.authorization;
-  let userId = req.query.userId;
-  if (!userId && authHeader && authHeader.startsWith("Bearer usr_")) {
-    userId = authHeader.replace("Bearer ", "").trim();
-  }
-  if (!userId) {
-    res.json({ journeys: [] });
+apiRouter.get("/journeys", requireAuth, async (req, res) => {
+  if (!req.user) {
+    res.status(401).json({ error: "Unauthorized" });
     return;
   }
-  const journeys = db.getJourneysForUser(userId);
+  const journeys = await db.getJourneysForUser(req.user.id);
   res.json({ journeys });
 });
-apiRouter.post("/journeys", (req, res) => {
-  const { userId, targetLanguage, supportLanguage, cefrLevel } = req.body;
-  if (!userId) {
-    res.status(400).json({ error: "User ID is required to create a journey" });
+apiRouter.post("/journeys", requireAuth, async (req, res) => {
+  if (!req.user) {
+    res.status(401).json({ error: "Unauthorized" });
     return;
   }
+  const { targetLanguage, supportLanguage, cefrLevel, goals } = req.body;
   const newJourney = {
-    id: `jrn_${targetLanguage}_${Date.now()}`,
-    userId,
-    targetLanguage: targetLanguage || "en",
+    id: `jrn_${targetLanguage || "es"}_${Date.now()}`,
+    userId: req.user.id,
+    targetLanguage: targetLanguage || "es",
     supportLanguage: supportLanguage || "en",
     cefrLevel: cefrLevel || "A1",
-    streakDays: 0,
+    streakDays: 1,
     totalMinutesSpoken: 0,
-    points: 0,
+    points: 50,
     createdAt: (/* @__PURE__ */ new Date()).toISOString()
   };
-  db.saveJourney(newJourney);
-  res.json({ journey: newJourney });
+  await db.saveJourney(newJourney);
+  const updatedUser = db.updateUser(req.user.id, {
+    activeJourneyId: newJourney.id,
+    onboardingCompleted: true
+  });
+  res.json({
+    journey: newJourney,
+    user: updatedUser ? sanitizeUser(updatedUser) : sanitizeUser(req.user)
+  });
 });
-apiRouter.put("/journeys/:id", (req, res) => {
+apiRouter.put("/journeys/:id", requireAuth, async (req, res) => {
+  if (!req.user) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
   const journey = db.getJourney(req.params.id);
   if (!journey) {
     res.status(404).json({ error: "Journey not found" });
     return;
   }
+  if (journey.userId !== req.user.id) {
+    res.status(403).json({ error: "Forbidden: Cannot edit another user's journey" });
+    return;
+  }
   Object.assign(journey, req.body);
-  db.saveJourney(journey);
+  await db.saveJourney(journey);
   res.json({ journey });
 });
 apiRouter.get("/scenarios", (req, res) => {
@@ -1245,21 +1259,13 @@ apiRouter.post("/mistakes", (req, res) => {
   const created = db.addMistake(journeyId, mistake);
   res.json({ mistake: created });
 });
-apiRouter.put("/settings", (req, res) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith("Bearer usr_")) {
-    res.json({ success: true });
+apiRouter.put("/settings", requireAuth, async (req, res) => {
+  if (!req.user) {
+    res.status(401).json({ error: "Unauthorized" });
     return;
   }
-  const userId = authHeader.replace("Bearer ", "").trim();
-  const user = db.getUser(userId);
-  if (!user) {
-    res.status(404).json({ error: "User not found" });
-    return;
-  }
-  Object.assign(user, req.body);
-  db.updateUser(user.id, req.body);
-  res.json({ user });
+  const updatedUser = db.updateUser(req.user.id, req.body);
+  res.json({ user: updatedUser ? sanitizeUser(updatedUser) : sanitizeUser(req.user) });
 });
 
 // src/server/app.ts

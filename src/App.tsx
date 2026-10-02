@@ -34,7 +34,7 @@ export default function App() {
       {!isDedicatedChat && <Header />}
 
       {/* Main Dynamic View Content Layer */}
-      <main className="flex-1 w-full pb-28 pt-1">
+      <main className={`flex-1 w-full ${isDedicatedChat ? 'pb-0 pt-0 flex flex-col min-h-0 h-[100dvh]' : 'pb-28 pt-1'}`}>
         {activeView === 'home' && <HomeView />}
         {activeView === 'chat' && <ConversationView />}
         {activeView === 'learn' && <ProgressView />}

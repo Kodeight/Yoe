@@ -22,6 +22,8 @@ export interface DatabaseUser {
   subscriptionStatus: string;
   emailVerified: boolean;
   status: string;
+  activeJourneyId?: string;
+  onboardingCompleted?: boolean;
   lastLoginAt?: string;
   createdAt: string;
   updatedAt: string;
@@ -177,6 +179,8 @@ class PersistentDatabase {
           subscription_status VARCHAR(32) DEFAULT 'TRIAL',
           email_verified BOOLEAN DEFAULT false,
           status VARCHAR(32) DEFAULT 'active',
+          active_journey_id VARCHAR(64),
+          onboarding_completed BOOLEAN DEFAULT false,
           last_login_at TIMESTAMP,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -191,9 +195,11 @@ class PersistentDatabase {
           target_language_code VARCHAR(16) NOT NULL,
           support_language_code VARCHAR(16) NOT NULL,
           cefr_level VARCHAR(16) DEFAULT 'A1',
+          goals TEXT,
           streak_days INT DEFAULT 0,
           total_minutes_spoken INT DEFAULT 0,
           points INT DEFAULT 0,
+          active_scenario_id VARCHAR(64),
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
@@ -299,7 +305,8 @@ class PersistentDatabase {
         const res = await this.pool.query(
           `SELECT id, username, email, password_hash as "passwordHash", name, avatar_url as "avatarUrl",
                   ui_language as "uiLanguage", theme, subscription_status as "subscriptionStatus",
-                  email_verified as "emailVerified", status, last_login_at as "lastLoginAt",
+                  email_verified as "emailVerified", status, active_journey_id as "activeJourneyId",
+                  onboarding_completed as "onboardingCompleted", last_login_at as "lastLoginAt",
                   created_at as "createdAt", updated_at as "updatedAt"
            FROM users
            WHERE LOWER(username) = $1 OR LOWER(email) = $1 LIMIT 1`,
@@ -325,7 +332,8 @@ class PersistentDatabase {
         const res = await this.pool.query(
           `SELECT id, username, email, password_hash as "passwordHash", name, avatar_url as "avatarUrl",
                   ui_language as "uiLanguage", theme, subscription_status as "subscriptionStatus",
-                  email_verified as "emailVerified", status, last_login_at as "lastLoginAt",
+                  email_verified as "emailVerified", status, active_journey_id as "activeJourneyId",
+                  onboarding_completed as "onboardingCompleted", last_login_at as "lastLoginAt",
                   created_at as "createdAt", updated_at as "updatedAt"
            FROM users WHERE id = $1 LIMIT 1`,
           [id]
@@ -363,8 +371,8 @@ class PersistentDatabase {
           `SELECT id, user_id as "userId", target_language_code as "targetLanguage",
                   support_language_code as "supportLanguage", cefr_level as "cefrLevel",
                   streak_days as "streakDays", total_minutes_spoken as "totalMinutesSpoken",
-                  points, created_at as "createdAt"
-           FROM learning_journeys WHERE user_id = $1`,
+                  points, active_scenario_id as "activeScenarioId", created_at as "createdAt"
+           FROM learning_journeys WHERE user_id = $1 ORDER BY updated_at DESC`,
           [userId]
         );
         if (res.rows.length > 0) {
@@ -385,13 +393,16 @@ class PersistentDatabase {
     if (this.isPostgresConnected && this.pool) {
       try {
         await this.pool.query(
-          `INSERT INTO learning_journeys (id, user_id, target_language_code, support_language_code, cefr_level, streak_days, total_minutes_spoken, points, updated_at)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+          `INSERT INTO learning_journeys (id, user_id, target_language_code, support_language_code, cefr_level, streak_days, total_minutes_spoken, points, active_scenario_id, updated_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
            ON CONFLICT (id) DO UPDATE SET
+             target_language_code = EXCLUDED.target_language_code,
+             support_language_code = EXCLUDED.support_language_code,
              cefr_level = EXCLUDED.cefr_level,
              streak_days = EXCLUDED.streak_days,
              total_minutes_spoken = EXCLUDED.total_minutes_spoken,
              points = EXCLUDED.points,
+             active_scenario_id = EXCLUDED.active_scenario_id,
              updated_at = NOW()`,
           [
             journey.id,
@@ -401,7 +412,8 @@ class PersistentDatabase {
             journey.cefrLevel,
             journey.streakDays,
             journey.totalMinutesSpoken,
-            journey.points
+            journey.points,
+            journey.activeScenarioId || null
           ]
         );
       } catch (err) {

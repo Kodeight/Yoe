@@ -55,6 +55,8 @@ export function sanitizeUser(user: DatabaseUser) {
     subscriptionStatus: user.subscriptionStatus,
     emailVerified: user.emailVerified,
     status: user.status,
+    activeJourneyId: user.activeJourneyId,
+    onboardingCompleted: user.onboardingCompleted,
     createdAt: user.createdAt,
     lastLoginAt: user.lastLoginAt
   };

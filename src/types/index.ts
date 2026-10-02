@@ -13,11 +13,14 @@ export type CEFRLevel = 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
 export interface User {
   id: string;
   email: string;
+  username?: string;
   name: string;
   uiLanguage: LanguageCode;
   theme: 'dark' | 'light';
   subscriptionStatus: 'trial' | 'active' | 'expired';
-  trialEndsAt: string;
+  activeJourneyId?: string;
+  onboardingCompleted?: boolean;
+  trialEndsAt?: string;
 }
 
 export interface LearnerProfile {

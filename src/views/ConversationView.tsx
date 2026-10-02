@@ -22,7 +22,9 @@ import {
   Radio,
   Play,
   Languages,
-  Target
+  Target,
+  AlertCircle,
+  RefreshCw
 } from 'lucide-react';
 import { SessionSummaryModal } from '../components/SessionSummaryModal';
 
@@ -34,12 +36,16 @@ export const ConversationView: React.FC = () => {
     isSpeaking,
     isInterrupted,
     audioEnergy,
+    micPermissionDenied,
+    audioError,
     startListening,
     stopListening,
     playGeminiAudio,
     speakText,
     stopSpeaking,
-    playNotificationSound
+    playNotificationSound,
+    resumeAudioContext,
+    clearAudioError
   } = useAudio();
 
   // Conversation state
@@ -55,6 +61,7 @@ export const ConversationView: React.FC = () => {
   const [isLiveApiActive, setIsLiveApiActive] = useState(false);
   const [liveState, setLiveState] = useState<VoiceBubbleState>('idle');
   const [liveEnergy, setLiveEnergy] = useState<number>(0);
+  const [liveError, setLiveError] = useState<string | null>(null);
 
   // Session metrics tracking
   const [sessionStartTime] = useState<number>(() => Date.now());
@@ -71,6 +78,8 @@ export const ConversationView: React.FC = () => {
       setHasStartedConversation(false);
       setIsLiveApiActive(false);
       setCompletedObjectives({});
+      setLiveError(null);
+      clearAudioError();
 
       const initialGreetingMsg: ChatMessage = {
         id: `msg_init_${activeScenario.id}`,
@@ -93,7 +102,7 @@ export const ConversationView: React.FC = () => {
     };
   }, [activeScenario]);
 
-  // Sync speech recognition transcript
+  // Sync speech recognition transcript into text input
   useEffect(() => {
     if (transcript) {
       setInputText(transcript);
@@ -111,6 +120,9 @@ export const ConversationView: React.FC = () => {
   const handleStartConversation = async () => {
     if (!activeScenario || !activeJourney) return;
 
+    await resumeAudioContext();
+    clearAudioError();
+    setLiveError(null);
     setHasStartedConversation(true);
     playNotificationSound();
 
@@ -119,14 +131,14 @@ export const ConversationView: React.FC = () => {
       journeyId: activeJourney.id,
       scenarioId: activeScenario.id,
       onStateChange: (st) => {
-        if (st === 'connecting' || st === 'listening' || st === 'speaking' || st === 'thinking' || st === 'interrupted' || st === 'idle') {
+        if (st === 'connecting' || st === 'listening' || st === 'speaking' || st === 'thinking' || st === 'interrupted' || st === 'idle' || st === 'error') {
           setLiveState(st as VoiceBubbleState);
         }
       },
       onAudioEnergy: (energy) => {
         setLiveEnergy(energy);
       },
-      onTranscriptChunk: (sender, chunkText, isFinal) => {
+      onTranscriptChunk: (sender, chunkText) => {
         if (chunkText) {
           setMessages(prev => {
             const last = prev[prev.length - 1];
@@ -145,6 +157,11 @@ export const ConversationView: React.FC = () => {
             ];
           });
         }
+      },
+      onError: (err) => {
+        console.warn('Live API connection note:', err);
+        setLiveError('Live streaming note: using standard audio mode.');
+        setIsLiveApiActive(false);
       }
     });
 
@@ -153,6 +170,7 @@ export const ConversationView: React.FC = () => {
       setIsLiveApiActive(true);
       liveSessionRef.current = live;
     } else {
+      setIsLiveApiActive(false);
       // Speak initial greeting via fallback mode
       speakText(
         activeScenario.initialGreeting,
@@ -165,6 +183,7 @@ export const ConversationView: React.FC = () => {
 
   // Calculate current dynamic voice bubble state
   const getBubbleState = (): VoiceBubbleState => {
+    if (micPermissionDenied || audioError) return 'error';
     if (!hasStartedConversation) return 'idle';
     if (isLiveApiActive) return liveState;
     if (isInterrupted) return 'interrupted';
@@ -237,7 +256,7 @@ export const ConversationView: React.FC = () => {
           setSuggestedReplies(data.aiResponse.suggestedNextReplies);
         }
 
-        // Track mistakes silently
+        // Track mistakes
         if (data.aiResponse?.correction) {
           setSessionMistakes(prev => [...prev, data.aiResponse.correction]);
         }
@@ -325,8 +344,8 @@ export const ConversationView: React.FC = () => {
   return (
     <div className="flex flex-col h-[100dvh] max-w-md mx-auto bg-[var(--bg-primary)] text-slate-100 relative overflow-hidden">
 
-      {/* Top Scenario Glass Header Bar */}
-      <div className="sticky top-0 z-30 glass-header px-4 py-2.5 flex items-center justify-between safe-top-padding">
+      {/* Top Compact Scenario Glass Header Bar */}
+      <div className="shrink-0 z-30 glass-header px-4 py-2.5 flex items-center justify-between safe-top-padding">
         <button
           onClick={() => {
             if (liveSessionRef.current) {
@@ -353,13 +372,13 @@ export const ConversationView: React.FC = () => {
                 {activeScenario.cefrLevel}
               </span>
             </h2>
-            <p className="text-[10px] text-slate-400 dark:text-slate-400 light-mode:text-slate-500 truncate max-w-[140px]">
+            <p className="text-[10px] text-slate-400 dark:text-slate-400 light-mode:text-slate-500 truncate max-w-[130px]">
               {activeScenario.title}
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 shrink-0">
           <button
             onClick={() => setShowTranscript(!showTranscript)}
             className={`p-1.5 rounded-full transition-colors cursor-pointer ${
@@ -432,8 +451,31 @@ export const ConversationView: React.FC = () => {
         </div>
       )}
 
+      {/* Microphone Permission / Audio Error Alert Banner */}
+      {(micPermissionDenied || audioError) && (
+        <div className="mx-4 mt-2 p-3 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs flex items-start gap-2.5 shrink-0 animate-in fade-in z-20">
+          <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="font-bold">{micPermissionDenied ? 'Microphone Permission Needed' : 'Audio Error'}</p>
+            <p className="text-[11px] text-slate-300 mt-0.5 leading-relaxed">
+              {audioError || 'Please allow microphone access in your browser settings so Yoe can hear your voice.'}
+            </p>
+            <button
+              onClick={() => {
+                clearAudioError();
+                startListening(activeJourney?.targetLanguage);
+              }}
+              className="mt-2 px-3 py-1 rounded-xl bg-rose-500 text-white text-[10px] font-bold flex items-center gap-1 cursor-pointer hover:bg-rose-400 transition-colors"
+            >
+              <RefreshCw className="w-3 h-3" />
+              <span>Retry Microphone</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Centerpiece: Living Yoe Voice Bubble Presence */}
-      <div className="shrink-0 flex flex-col items-center justify-center pt-3 pb-2 select-none relative">
+      <div className="shrink-0 flex flex-col items-center justify-center pt-2 pb-1 select-none relative">
         <div
           onClick={() => {
             if (!hasStartedConversation) {
@@ -454,7 +496,7 @@ export const ConversationView: React.FC = () => {
           title={!hasStartedConversation ? 'Start Conversation' : isSpeaking || liveState === 'speaking' ? 'Tap to interrupt' : isListening ? 'Tap to finish' : 'Tap to speak'}
         >
           <VoiceBubble
-            size="lg"
+            size="md"
             state={bubbleState}
             audioEnergy={currentEnergy}
             interactive
@@ -462,7 +504,7 @@ export const ConversationView: React.FC = () => {
         </div>
 
         {/* Dynamic Voice State Badge */}
-        <div className="mt-1 flex items-center gap-1.5 px-3 py-1 rounded-full glass-pill text-[11px] font-semibold text-slate-300 dark:text-slate-300 light-mode:text-slate-700">
+        <div className="mt-0.5 flex items-center gap-1.5 px-3 py-0.5 rounded-full glass-pill text-[10px] font-semibold text-slate-300 dark:text-slate-300 light-mode:text-slate-700">
           <span
             className={`w-2 h-2 rounded-full ${
               !hasStartedConversation
@@ -480,7 +522,7 @@ export const ConversationView: React.FC = () => {
           />
           <span>
             {!hasStartedConversation
-              ? `Ready to talk with ${activeScenario.characterName}`
+              ? `Ready to speak with Yoe (${activeScenario.characterName})`
               : bubbleState === 'speaking'
               ? `${activeScenario.characterName} is speaking`
               : bubbleState === 'listening'
@@ -508,7 +550,7 @@ export const ConversationView: React.FC = () => {
               {activeScenario.title}
             </h3>
             <p className="text-xs text-slate-400 dark:text-slate-400 light-mode:text-slate-600 leading-relaxed">
-              You are meeting <span className="text-emerald-400 font-bold">{activeScenario.characterName}</span> ({activeScenario.characterRole}). Press Start to begin your live voice roleplay.
+              You are meeting <span className="text-emerald-400 font-bold">{activeScenario.characterName}</span> ({activeScenario.characterRole}). Press Start to begin your live voice roleplay with Yoe.
             </p>
           </div>
 
@@ -523,7 +565,7 @@ export const ConversationView: React.FC = () => {
       ) : (
         /* Main Conversation Messages Scroll Area after Start */
         showTranscript ? (
-          <div className="flex-1 overflow-y-auto px-4 py-2 space-y-3.5 no-scrollbar">
+          <div className="flex-1 overflow-y-auto px-4 py-2 space-y-3.5 no-scrollbar pb-36">
             {messages.map((msg) => {
               const isUser = msg.sender === 'user';
               return (
@@ -537,7 +579,7 @@ export const ConversationView: React.FC = () => {
                   >
                     <div className="flex items-center justify-between gap-3 mb-1">
                       <span className={`text-[10px] font-extrabold uppercase tracking-wider ${isUser ? 'text-slate-900/70' : 'text-emerald-400'}`}>
-                        {isUser ? 'You' : activeScenario.characterName}
+                        {isUser ? 'You' : `${activeScenario.characterName} (Yoe)`}
                       </span>
                       {!isUser && (
                         <button
@@ -624,7 +666,7 @@ export const ConversationView: React.FC = () => {
 
       {/* Suggested Quick Replies Carousel */}
       {hasStartedConversation && suggestedReplies.length > 0 && !isLoading && (
-        <div className="px-4 py-1.5 flex gap-2 overflow-x-auto no-scrollbar shrink-0">
+        <div className="px-4 py-1.5 flex gap-2 overflow-x-auto no-scrollbar shrink-0 z-20">
           {suggestedReplies.map((reply, idx) => (
             <button
               key={idx}
@@ -638,78 +680,80 @@ export const ConversationView: React.FC = () => {
         </div>
       )}
 
-      {/* Bottom Sticky Conversational Input Controls */}
+      {/* Fixed Conversational Input Controls Floating Above Floating Bottom Navbar */}
       {hasStartedConversation && (
-        <div className="sticky bottom-0 glass-nav p-3 safe-bottom-padding border-t border-white/10 dark:border-white/10 light-mode:border-slate-200 shrink-0 mb-16">
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              handleSendMessage();
-            }}
-            className="flex items-center gap-2"
-          >
-            {/* Main Barge-In / Interruption Speech Mic Button */}
-            <button
-              type="button"
-              onClick={() => {
-                if (isLiveApiActive && liveSessionRef.current) {
-                  if (liveState === 'speaking') {
-                    liveSessionRef.current.handleInterruption();
-                  }
-                } else if (isSpeaking) {
-                  stopSpeaking();
-                  startListening(activeJourney?.targetLanguage);
-                } else if (isListening) {
-                  stopListening();
-                  if (inputText.trim()) {
-                    handleSendMessage();
-                  }
-                } else {
-                  startListening(activeJourney?.targetLanguage);
-                }
+        <div className="fixed bottom-0 left-0 right-0 z-30 pointer-events-none">
+          <div className="max-w-md mx-auto px-4 pb-[calc(4.2rem+max(env(safe-area-inset-bottom,0px),0.5rem))] pointer-events-auto">
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleSendMessage();
               }}
-              className={`p-3.5 rounded-2xl transition-all cursor-pointer shadow-lg ${
-                isSpeaking || liveState === 'speaking'
-                  ? 'bg-amber-500 text-slate-950 font-bold hover:bg-amber-400 animate-pulse'
-                  : isListening || liveState === 'listening'
-                  ? 'bg-rose-500 text-white animate-pulse shadow-rose-500/40'
-                  : 'glass-pill text-emerald-400 hover:border-emerald-500/40 hover:bg-emerald-500/10'
-              }`}
-              title={isSpeaking || liveState === 'speaking' ? 'Tap to interrupt' : isListening ? 'Stop & Send' : 'Speak with microphone'}
+              className="glass-nav p-2.5 rounded-3xl flex items-center gap-2 shadow-2xl border border-white/10 dark:border-white/10 light-mode:border-slate-200"
             >
-              {isSpeaking || liveState === 'speaking' ? (
-                <Square className="w-5 h-5 fill-current" />
-              ) : isListening || liveState === 'listening' ? (
-                <MicOff className="w-5 h-5" />
-              ) : (
-                <Mic className="w-5 h-5" />
-              )}
-            </button>
+              {/* Main Barge-In / Interruption Speech Mic Button */}
+              <button
+                type="button"
+                onClick={() => {
+                  if (isLiveApiActive && liveSessionRef.current) {
+                    if (liveState === 'speaking') {
+                      liveSessionRef.current.handleInterruption();
+                    }
+                  } else if (isSpeaking) {
+                    stopSpeaking();
+                    startListening(activeJourney?.targetLanguage);
+                  } else if (isListening) {
+                    stopListening();
+                    if (inputText.trim()) {
+                      handleSendMessage();
+                    }
+                  } else {
+                    startListening(activeJourney?.targetLanguage);
+                  }
+                }}
+                className={`p-3 rounded-2xl transition-all cursor-pointer shadow-lg shrink-0 ${
+                  isSpeaking || liveState === 'speaking'
+                    ? 'bg-amber-500 text-slate-950 font-bold hover:bg-amber-400 animate-pulse'
+                    : isListening || liveState === 'listening'
+                    ? 'bg-rose-500 text-white animate-pulse shadow-rose-500/40'
+                    : 'glass-pill text-emerald-400 hover:border-emerald-500/40 hover:bg-emerald-500/10'
+                }`}
+                title={isSpeaking || liveState === 'speaking' ? 'Tap to interrupt' : isListening ? 'Stop & Send' : 'Speak with microphone'}
+              >
+                {isSpeaking || liveState === 'speaking' ? (
+                  <Square className="w-5 h-5 fill-current" />
+                ) : isListening || liveState === 'listening' ? (
+                  <MicOff className="w-5 h-5" />
+                ) : (
+                  <Mic className="w-5 h-5" />
+                )}
+              </button>
 
-            {/* Text Input */}
-            <input
-              type="text"
-              value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
-              placeholder={
-                isListening || liveState === 'listening'
-                  ? 'Listening to your voice...'
-                  : isSpeaking || liveState === 'speaking'
-                  ? 'Tap mic to interrupt and speak...'
-                  : `Reply to ${activeScenario.characterName}...`
-              }
-              className="flex-1 bg-slate-950/60 dark:bg-slate-950/60 light-mode:bg-white border border-white/10 dark:border-white/10 light-mode:border-slate-200 rounded-2xl px-4 py-3 text-xs text-slate-100 dark:text-slate-100 light-mode:text-slate-900 placeholder-slate-500 focus:outline-none focus:border-emerald-400 transition-colors"
-            />
+              {/* Text Input */}
+              <input
+                type="text"
+                value={inputText}
+                onChange={(e) => setInputText(e.target.value)}
+                placeholder={
+                  isListening || liveState === 'listening'
+                    ? 'Listening to your voice...'
+                    : isSpeaking || liveState === 'speaking'
+                    ? 'Tap mic to interrupt and speak...'
+                    : `Reply to ${activeScenario.characterName}...`
+                }
+                className="flex-1 bg-slate-950/60 dark:bg-slate-950/60 light-mode:bg-white border border-white/10 dark:border-white/10 light-mode:border-slate-200 rounded-2xl px-4 py-2.5 text-xs text-slate-100 dark:text-slate-100 light-mode:text-slate-900 placeholder-slate-500 focus:outline-none focus:border-emerald-400 transition-colors"
+              />
 
-            {/* Send Button */}
-            <button
-              type="submit"
-              disabled={!inputText.trim() || isLoading}
-              className="p-3.5 rounded-2xl bg-gradient-to-r from-emerald-400 to-teal-400 text-slate-950 disabled:opacity-40 transition-all cursor-pointer shadow-md"
-            >
-              <Send className="w-4 h-4" />
-            </button>
-          </form>
+              {/* Send Button */}
+              <button
+                type="submit"
+                disabled={!inputText.trim() || isLoading}
+                className="p-3 rounded-2xl bg-gradient-to-r from-emerald-400 to-teal-400 text-slate-950 disabled:opacity-40 transition-all cursor-pointer shadow-md shrink-0"
+              >
+                <Send className="w-4 h-4" />
+              </button>
+            </form>
+          </div>
         </div>
       )}
 
