@@ -486,7 +486,7 @@ var db = new PersistentDatabase();
 // src/server/aiService.ts
 import { GoogleGenAI, Type } from "@google/genai";
 var apiKey = process.env.GEMINI_API_KEY || "AQ.Ab8RN6JQUS-fp1GOZb_2wVDFraAO48nyMYnf4cwhvvkGVCqg-g";
-var CANDIDATE_CHAT_MODELS = ["gemini-flash-latest", "gemini-3.1-flash-lite", "gemini-3.8-flash", "gemini-2.0-flash"];
+var CANDIDATE_CHAT_MODELS = ["gemini-3.1-flash-lite", "gemini-3.8-flash", "gemini-flash-latest", "gemini-2.0-flash"];
 var ttsModel = "gemini-3.8-flash-lite-tts";
 var LIVE_MODEL = "gemini-3.8-live";
 var ai = new GoogleGenAI({

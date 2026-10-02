@@ -1,5 +1,5 @@
 import React from 'react';
-import { CheckCircle2, AlertCircle, Sparkles, BookOpen, Clock, Award, ArrowRight, RotateCcw, X } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Volume2, BookOpen, Clock, Award, ArrowRight, RotateCcw, X } from 'lucide-react';
 import { CorrectionDetail, Scenario, ScenarioObjective } from '../types';
 
 export interface SessionSummaryData {
@@ -59,7 +59,7 @@ export const SessionSummaryModal: React.FC<{
             </div>
 
             <div className="p-3 rounded-2xl bg-slate-950 border border-white/5">
-              <Sparkles className="w-4 h-4 text-cyan-400 mx-auto mb-1" />
+              <Volume2 className="w-4 h-4 text-cyan-400 mx-auto mb-1" />
               <div className="text-base font-black text-white">{totalTurns}</div>
               <div className="text-[10px] text-slate-400">Turns Spoken</div>
             </div>

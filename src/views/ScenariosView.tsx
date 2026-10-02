@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { Compass, Play, MapPin, Sparkles, Filter } from 'lucide-react';
+import { Compass, Play, MapPin, Target, Filter } from 'lucide-react';
 
 export const ScenariosView: React.FC = () => {
   const { scenarios, setActiveScenarioId, setActiveView, activeJourney } = useApp();
@@ -104,7 +104,7 @@ export const ScenariosView: React.FC = () => {
                 </p>
 
                 <div className="flex items-center gap-1.5 text-[10px] text-emerald-400 font-semibold">
-                  <Sparkles className="w-3 h-3" />
+                  <Target className="w-3 h-3" />
                   <span>{scen.objectives.length} Missions</span>
                 </div>
               </div>

@@ -3,7 +3,7 @@ import { useApp } from '../context/AppContext';
 import { SUPPORTED_LANGUAGES } from '../constants/languages';
 import { LanguageCode } from '../types';
 import { YoeLogo } from './YoeLogo';
-import { ArrowRight, Check, Sparkles, CheckCircle2 } from 'lucide-react';
+import { ArrowRight, Check, CheckCircle2 } from 'lucide-react';
 
 export const OnboardingModal: React.FC = () => {
   const { createNewJourney, dismissOnboarding } = useApp();
@@ -357,7 +357,7 @@ export const OnboardingModal: React.FC = () => {
               ) : (
                 <>
                   <div className="w-14 h-14 rounded-2xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 flex items-center justify-center mx-auto text-2xl shadow-lg">
-                    <Sparkles className="w-7 h-7" />
+                    <CheckCircle2 className="w-7 h-7" />
                   </div>
 
                   <h2 className="text-xl font-black text-slate-100 dark:text-slate-100 light-mode:text-slate-900">

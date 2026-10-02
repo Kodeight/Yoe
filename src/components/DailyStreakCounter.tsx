@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Flame, Check, Calendar, Zap, Shield, Sparkles, ArrowRight } from 'lucide-react';
+import { Flame, Check, Calendar, Zap, Shield, ArrowRight } from 'lucide-react';
 import { calculateStreak, recordDayActivity, StreakData } from '../utils/streakManager';
 import { useApp } from '../context/AppContext';
 
@@ -149,7 +149,7 @@ export const DailyStreakCounter: React.FC = () => {
               onClick={handleManualCheckIn}
               className="flex-1 sm:flex-none px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-400 hover:from-amber-400 hover:to-orange-300 text-slate-950 font-black text-xs flex items-center justify-center gap-1.5 shadow-md shadow-orange-500/20 cursor-pointer transition-all"
             >
-              <Sparkles className="w-3.5 h-3.5" />
+              <Zap className="w-3.5 h-3.5" />
               <span>Log Practice Now</span>
             </button>
             <button

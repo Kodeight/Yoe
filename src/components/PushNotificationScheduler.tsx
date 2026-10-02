@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, Clock, ShieldCheck, Send, CheckCircle2, AlertTriangle, Sparkles, Volume2 } from 'lucide-react';
+import { Bell, Clock, ShieldCheck, Send, CheckCircle2, AlertTriangle, Volume2 } from 'lucide-react';
 import {
   getNotificationConfig,
   saveNotificationConfig,

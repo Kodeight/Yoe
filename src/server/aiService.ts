@@ -4,7 +4,7 @@ import { Scenario, LearningJourney, CorrectionDetail, VocabularyItem, MistakeRec
 // Initialize server-side Gemini AI client
 const apiKey = process.env.GEMINI_API_KEY || 'AQ.Ab8RN6JQUS-fp1GOZb_2wVDFraAO48nyMYnf4cwhvvkGVCqg-g';
 // Candidate models in preference order for maximum reliability and uptime
-const CANDIDATE_CHAT_MODELS = ['gemini-flash-latest', 'gemini-3.1-flash-lite', 'gemini-3.8-flash', 'gemini-2.0-flash'];
+const CANDIDATE_CHAT_MODELS = ['gemini-3.1-flash-lite', 'gemini-3.8-flash', 'gemini-flash-latest', 'gemini-2.0-flash'];
 const ttsModel = 'gemini-3.8-flash-lite-tts';
 export const LIVE_MODEL = 'gemini-3.8-live';
 

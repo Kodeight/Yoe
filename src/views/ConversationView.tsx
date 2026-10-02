@@ -375,7 +375,7 @@ export const ConversationView: React.FC = () => {
     <div className="flex flex-col h-[100dvh] max-w-md mx-auto bg-[var(--bg-primary)] text-slate-100 relative overflow-hidden">
 
       {/* Top Compact Scenario Glass Header Bar */}
-      <div className="shrink-0 z-30 glass-header px-4 py-2.5 flex items-center justify-between safe-top-padding">
+      <div className="shrink-0 z-30 glass-header px-4 py-3 flex items-center justify-between safe-top-padding">
         <button
           onClick={() => {
             if (liveSessionRef.current) {
@@ -392,14 +392,11 @@ export const ConversationView: React.FC = () => {
         </button>
 
         <div className="flex items-center gap-2 min-w-0">
-          <div className="w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-sm shrink-0">
-            {activeScenario.avatar}
-          </div>
           <div className="min-w-0">
-            <h2 className="text-xs font-bold text-slate-100 dark:text-slate-100 light-mode:text-slate-900 flex items-center gap-1.5 truncate">
-              <span>Yoe</span>
+            <h2 className="text-xs font-black text-slate-100 dark:text-slate-100 light-mode:text-slate-900 flex items-center gap-1.5 truncate">
+              <span>YOE</span>
               <span className="px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-400 text-[9px] font-extrabold uppercase">
-                {activeScenario.cefrLevel}
+                {activeJourney?.cefrLevel || 'A1'}
               </span>
             </h2>
             <p className="text-[10px] text-slate-400 dark:text-slate-400 light-mode:text-slate-500 truncate max-w-[170px]">
@@ -605,12 +602,7 @@ export const ConversationView: React.FC = () => {
       ) : (
         /* Main Conversation Messages Scroll Area after Start */
         showTranscript ? (
-          <div
-            className="flex-1 overflow-y-auto px-4 py-2 space-y-3.5 no-scrollbar"
-            style={{
-              paddingBottom: 'calc(var(--composer-height, 58px) + var(--navbar-height, 64px) + var(--chat-bottom-gap, 16px) + env(safe-area-inset-bottom, 0px))'
-            }}
-          >
+          <div className="flex-1 overflow-y-auto px-4 py-2 space-y-3.5 no-scrollbar pb-3">
             {messages.map((msg) => {
               const isUser = msg.sender === 'user';
               const isCurrentlyPlaying = playingMsgId === msg.id && isSpeaking;
@@ -696,9 +688,9 @@ export const ConversationView: React.FC = () => {
               </div>
             )}
 
-            {/* Suggestions belong naturally to conversation flow right after messages */}
+            {/* Suggestions belong naturally to conversation flow right after messages with clean gap */}
             {suggestedReplies.length > 0 && !isLoading && (
-              <div className="pt-2 pb-1 space-y-1.5">
+              <div className="pt-3 pb-1 space-y-1.5 animate-in fade-in">
                 <span className="text-[10px] font-bold text-slate-400 dark:text-slate-400 light-mode:text-slate-500 uppercase tracking-wider block">
                   Suggested Responses:
                 </span>
@@ -732,80 +724,78 @@ export const ConversationView: React.FC = () => {
         )
       )}
 
-      {/* Fixed Conversational Input Controls Floating Above Floating Bottom Navbar */}
+      {/* Structured Bottom Conversational Composer within Chat Viewport */}
       {hasStartedConversation && (
-        <div className="fixed bottom-0 left-0 right-0 z-30 pointer-events-none">
-          <div className="max-w-md mx-auto px-4 pb-[calc(var(--navbar-height,64px)+max(env(safe-area-inset-bottom,0px),0.5rem))] pointer-events-auto">
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                handleSendMessage();
-              }}
-              className="glass-nav p-2 rounded-3xl flex items-center gap-2 shadow-2xl border border-white/10 dark:border-white/10 light-mode:border-slate-200"
-            >
-              {/* Main Barge-In / Interruption Speech Mic Button */}
-              <button
-                type="button"
-                onClick={() => {
-                  if (isLiveApiActive && liveSessionRef.current) {
-                    if (liveState === 'speaking') {
-                      liveSessionRef.current.handleInterruption();
-                    }
-                  } else if (isSpeaking) {
-                    stopSpeaking();
-                    startListening(activeJourney?.targetLanguage);
-                  } else if (isListening) {
-                    stopListening();
-                    if (inputText.trim()) {
-                      handleSendMessage();
-                    }
-                  } else {
-                    startListening(activeJourney?.targetLanguage);
+        <div className="shrink-0 px-4 pt-1 pb-[calc(var(--navbar-height,64px)+max(env(safe-area-inset-bottom,0px),0.5rem))] z-30">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSendMessage();
+            }}
+            className="glass-nav p-2 rounded-3xl flex items-center gap-2 shadow-2xl border border-white/10 dark:border-white/10 light-mode:border-slate-200"
+          >
+            {/* Main Barge-In / Interruption Speech Mic Button */}
+            <button
+              type="button"
+              onClick={() => {
+                if (isLiveApiActive && liveSessionRef.current) {
+                  if (liveState === 'speaking') {
+                    liveSessionRef.current.handleInterruption();
                   }
-                }}
-                className={`p-3 rounded-2xl transition-all cursor-pointer shadow-lg shrink-0 ${
-                  isSpeaking || liveState === 'speaking'
-                    ? 'bg-amber-500 text-slate-950 font-bold hover:bg-amber-400 animate-pulse'
-                    : isListening || liveState === 'listening'
-                    ? 'bg-rose-500 text-white animate-pulse shadow-rose-500/40'
-                    : 'glass-pill text-emerald-400 hover:border-emerald-500/40 hover:bg-emerald-500/10'
-                }`}
-                title={isSpeaking || liveState === 'speaking' ? 'Tap to interrupt' : isListening ? 'Stop & Send' : 'Speak with microphone'}
-              >
-                {isSpeaking || liveState === 'speaking' ? (
-                  <Square className="w-5 h-5 fill-current" />
-                ) : isListening || liveState === 'listening' ? (
-                  <MicOff className="w-5 h-5" />
-                ) : (
-                  <Mic className="w-5 h-5" />
-                )}
-              </button>
-
-              {/* Text Input */}
-              <input
-                type="text"
-                value={inputText}
-                onChange={(e) => setInputText(e.target.value)}
-                placeholder={
-                  isListening || liveState === 'listening'
-                    ? 'Listening to your voice...'
-                    : isSpeaking || liveState === 'speaking'
-                    ? 'Tap mic to interrupt and speak...'
-                    : 'Reply to Yoe...'
+                } else if (isSpeaking) {
+                  stopSpeaking();
+                  startListening(activeJourney?.targetLanguage);
+                } else if (isListening) {
+                  stopListening();
+                  if (inputText.trim()) {
+                    handleSendMessage();
+                  }
+                } else {
+                  startListening(activeJourney?.targetLanguage);
                 }
-                className="flex-1 bg-slate-950/60 dark:bg-slate-950/60 light-mode:bg-white border border-white/10 dark:border-white/10 light-mode:border-slate-200 rounded-2xl px-4 py-2.5 text-xs text-slate-100 dark:text-slate-100 light-mode:text-slate-900 placeholder-slate-500 focus:outline-none focus:border-emerald-400 transition-colors"
-              />
+              }}
+              className={`p-3 rounded-2xl transition-all cursor-pointer shadow-lg shrink-0 ${
+                isSpeaking || liveState === 'speaking'
+                  ? 'bg-amber-500 text-slate-950 font-bold hover:bg-amber-400 animate-pulse'
+                  : isListening || liveState === 'listening'
+                  ? 'bg-rose-500 text-white animate-pulse shadow-rose-500/40'
+                  : 'glass-pill text-emerald-400 hover:border-emerald-500/40 hover:bg-emerald-500/10'
+              }`}
+              title={isSpeaking || liveState === 'speaking' ? 'Tap to interrupt' : isListening ? 'Stop & Send' : 'Speak with microphone'}
+            >
+              {isSpeaking || liveState === 'speaking' ? (
+                <Square className="w-5 h-5 fill-current" />
+              ) : isListening || liveState === 'listening' ? (
+                <MicOff className="w-5 h-5" />
+              ) : (
+                <Mic className="w-5 h-5" />
+              )}
+            </button>
 
-              {/* Send Button */}
-              <button
-                type="submit"
-                disabled={!inputText.trim() || isLoading}
-                className="p-3 rounded-2xl bg-gradient-to-r from-emerald-400 to-teal-400 text-slate-950 disabled:opacity-40 transition-all cursor-pointer shadow-md shrink-0"
-              >
-                <Send className="w-4 h-4" />
-              </button>
-            </form>
-          </div>
+            {/* Text Input */}
+            <input
+              type="text"
+              value={inputText}
+              onChange={(e) => setInputText(e.target.value)}
+              placeholder={
+                isListening || liveState === 'listening'
+                  ? 'Listening to your voice...'
+                  : isSpeaking || liveState === 'speaking'
+                  ? 'Tap mic to interrupt and speak...'
+                  : 'Reply to Yoe...'
+              }
+              className="flex-1 bg-slate-950/60 dark:bg-slate-950/60 light-mode:bg-white border border-white/10 dark:border-white/10 light-mode:border-slate-200 rounded-2xl px-4 py-2.5 text-xs text-slate-100 dark:text-slate-100 light-mode:text-slate-900 placeholder-slate-500 focus:outline-none focus:border-emerald-400 transition-colors"
+            />
+
+            {/* Send Button */}
+            <button
+              type="submit"
+              disabled={!inputText.trim() || isLoading}
+              className="p-3 rounded-2xl bg-gradient-to-r from-emerald-400 to-teal-400 text-slate-950 disabled:opacity-40 transition-all cursor-pointer shadow-md shrink-0"
+            >
+              <Send className="w-4 h-4" />
+            </button>
+          </form>
         </div>
       )}
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Target, Clock, BookOpen, CheckCircle2, Sparkles, ChevronRight, Edit2 } from 'lucide-react';
+import { Target, Clock, BookOpen, CheckCircle2, ChevronRight, Edit2 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
 export interface DailyGoalConfig {

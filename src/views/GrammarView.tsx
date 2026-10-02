@@ -1,6 +1,6 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
-import { Target, AlertTriangle, CheckCircle2, WifiOff, Compass, Sparkles } from 'lucide-react';
+import { Target, AlertTriangle, CheckCircle2, WifiOff, Compass } from 'lucide-react';
 
 export const GrammarView: React.FC = () => {
   const { mistakes, setActiveView, isOnline } = useApp();
@@ -41,7 +41,7 @@ export const GrammarView: React.FC = () => {
       {mistakes.length === 0 ? (
         <div className="rounded-3xl glass-card p-8 text-center space-y-3">
           <div className="w-12 h-12 rounded-full bg-amber-500/15 border border-amber-500/25 flex items-center justify-center mx-auto text-amber-400">
-            <Sparkles className="w-6 h-6" />
+            <Target className="w-6 h-6" />
           </div>
           <h3 className="text-base font-bold text-slate-100 dark:text-slate-100 light-mode:text-slate-900">
             No Grammar Patterns Recorded Yet

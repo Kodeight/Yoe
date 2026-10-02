@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { useAudio } from '../context/AudioContext';
 import { VoiceBubble } from './VoiceBubble';
-import { Mic, ChevronRight, Radio, Sparkles } from 'lucide-react';
+import { Mic, ChevronRight, Radio } from 'lucide-react';
 import { SUPPORTED_LANGUAGES } from '../constants/languages';
 
 let hasAnimatedGreetingThisSession = false;
@@ -105,28 +105,28 @@ export const HeroBanner: React.FC = () => {
           : `Practice conversational ${currentLang.name} with Yoe`}
       </p>
 
-      {/* Clean Premium White Surface Conversational Action Button */}
+      {/* Restored Glowing Emerald/Teal/Cyan Conversational CTA with Crisp WHITE Typography */}
       <button
         onClick={() => setActiveView('chat')}
-        className="w-full relative group overflow-hidden rounded-2xl bg-white text-slate-950 p-4 shadow-xl hover:shadow-2xl transition-all cursor-pointer transform hover:-translate-y-0.5 active:translate-y-0 border border-white/40"
+        className="w-full relative group overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 p-[1px] shadow-xl shadow-emerald-500/25 hover:shadow-emerald-500/40 transition-all cursor-pointer transform hover:-translate-y-0.5 active:translate-y-0"
       >
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-600 group-hover:scale-105 transition-transform">
-              <Mic className="w-5 h-5 text-emerald-600" />
+        <div className="w-full h-full bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 rounded-[15px] px-5 py-4 flex items-center justify-between text-white">
+          <div className="flex items-center gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30 group-hover:scale-105 transition-transform text-white shadow-sm">
+              <Mic className="w-5 h-5 text-white" />
             </div>
             <div className="text-left">
-              <div className="text-sm font-black text-slate-950 tracking-tight">
+              <div className="text-sm font-extrabold text-white tracking-tight drop-shadow-sm">
                 {activeScenario ? `Enter: ${activeScenario.title}` : 'Start Conversation'}
               </div>
-              <div className="text-[11px] text-slate-600 font-medium">
+              <div className="text-[11px] text-white/90 font-medium">
                 {activeScenario ? `Live Voice Practice with Yoe` : 'Begin interactive speaking session'}
               </div>
             </div>
           </div>
 
-          <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-950 group-hover:translate-x-1 group-hover:bg-emerald-50 transition-all">
-            <ChevronRight className="w-4 h-4 text-slate-800" />
+          <div className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white group-hover:translate-x-1 group-hover:bg-white/30 transition-all border border-white/20">
+            <ChevronRight className="w-4 h-4 text-white stroke-[2.5]" />
           </div>
         </div>
       </button>

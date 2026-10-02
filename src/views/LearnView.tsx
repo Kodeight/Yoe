@@ -10,7 +10,6 @@ import {
   Lock,
   Play,
   Award,
-  Sparkles,
   Volume2,
   ArrowRight,
   Flame,
@@ -136,96 +135,129 @@ export const LearnView: React.FC = () => {
 
       {activeTab === 'review' && (
         <div className="space-y-4 animate-in fade-in duration-200">
-          <div className="glass-card rounded-3xl p-5 shadow-xl space-y-3">
+          <div className="glass-card rounded-3xl p-5 shadow-xl space-y-4">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2.5">
                 <div className="p-2 rounded-xl bg-purple-500/15 text-purple-400">
                   <RotateCcw className="w-4 h-4" />
                 </div>
                 <div>
                   <h3 className="text-sm font-bold text-slate-100 dark:text-slate-100 light-mode:text-slate-900">
-                    Spaced Repetition & Recalls
+                    Spaced Repetition & Adaptive Memory
                   </h3>
                   <p className="text-[10px] text-slate-400 dark:text-slate-400 light-mode:text-slate-500">
-                    Targeted reinforcement from your actual speaking sessions
+                    Dynamic recall based on your real conversational turns
                   </p>
                 </div>
               </div>
-              <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 text-[10px] font-bold">
-                {vocabulary.length} Items Active
-              </span>
             </div>
 
             {/* Quick stats */}
-            <div className="grid grid-cols-2 gap-2 pt-1">
-              <div className="p-3 rounded-2xl glass-pill">
-                <div className="text-[10px] text-slate-400">Weak Patterns</div>
-                <div className="text-base font-black text-amber-400">{mistakes.length} Recorded</div>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="p-3 rounded-2xl glass-pill flex items-center justify-between">
+                <div>
+                  <div className="text-[10px] text-slate-400">Weak Patterns</div>
+                  <div className="text-base font-black text-amber-400">{mistakes.length} Recorded</div>
+                </div>
+                <Target className="w-4 h-4 text-amber-400/60" />
               </div>
-              <div className="p-3 rounded-2xl glass-pill">
-                <div className="text-[10px] text-slate-400">Mastery Bank</div>
-                <div className="text-base font-black text-emerald-400">{vocabulary.length} Words</div>
+              <div className="p-3 rounded-2xl glass-pill flex items-center justify-between">
+                <div>
+                  <div className="text-[10px] text-slate-400">Mastery Bank</div>
+                  <div className="text-base font-black text-emerald-400">{vocabulary.length} Words</div>
+                </div>
+                <BookOpen className="w-4 h-4 text-emerald-400/60" />
               </div>
             </div>
 
-            {/* Recent Mistakes List to Review */}
-            <div className="space-y-2 pt-2">
-              <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">
-                Grammar Patterns to Recast
-              </h4>
-              {mistakes.length === 0 ? (
-                <div className="p-4 rounded-2xl glass-pill text-center text-xs text-slate-400">
-                  No recorded errors yet! As you converse with Yoe, weak patterns appear here.
+            {/* Empty State with Clear CTAs if learner has no data */}
+            {mistakes.length === 0 && vocabulary.length === 0 ? (
+              <div className="p-6 rounded-2xl glass-pill text-center space-y-3">
+                <div className="w-10 h-10 rounded-full bg-purple-500/15 border border-purple-500/25 flex items-center justify-center mx-auto text-purple-400">
+                  <RotateCcw className="w-5 h-5" />
                 </div>
-              ) : (
-                mistakes.slice(0, 4).map((m) => (
-                  <div key={m.id} className="p-3 rounded-2xl glass-pill space-y-1 text-xs">
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-amber-400 uppercase text-[10px]">{m.pattern}</span>
-                      <button
-                        onClick={() => speakText(m.correctedForm, activeJourney?.targetLanguage)}
-                        className="text-slate-400 hover:text-emerald-400 cursor-pointer"
-                      >
-                        <Volume2 className="w-3.5 h-3.5" />
-                      </button>
+                <div>
+                  <h4 className="font-bold text-xs text-slate-100 dark:text-slate-100 light-mode:text-slate-900">
+                    Your Memory Bank is Ready to Learn
+                  </h4>
+                  <p className="text-[11px] text-slate-400 dark:text-slate-400 light-mode:text-slate-600 max-w-xs mx-auto leading-relaxed mt-1">
+                    As you practice conversations and complete course units, Yoe automatically captures your weak grammar patterns and new words here for spaced repetition.
+                  </p>
+                </div>
+                <div className="flex gap-2 justify-center pt-1">
+                  <button
+                    onClick={() => setActiveTab('course')}
+                    className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-400 to-teal-400 text-slate-950 font-bold text-xs shadow-md cursor-pointer hover:opacity-95"
+                  >
+                    Start First Lesson
+                  </button>
+                  <button
+                    onClick={() => setActiveView('explore')}
+                    className="px-3.5 py-2 rounded-xl glass-pill text-slate-200 text-xs font-bold hover:border-emerald-500/40 cursor-pointer"
+                  >
+                    Practice Speaking
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                {/* Recent Mistakes List to Review */}
+                {mistakes.length > 0 && (
+                  <div className="space-y-2 pt-1">
+                    <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                      <Target className="w-3.5 h-3.5 text-amber-400" />
+                      <span>Grammar Patterns to Recast</span>
+                    </h4>
+                    <div className="space-y-2">
+                      {mistakes.slice(0, 4).map((m) => (
+                        <div key={m.id} className="p-3 rounded-2xl glass-pill space-y-1 text-xs">
+                          <div className="flex items-center justify-between">
+                            <span className="font-bold text-amber-400 uppercase text-[10px]">{m.pattern}</span>
+                            <button
+                              onClick={() => speakText(m.correctedForm, activeJourney?.targetLanguage)}
+                              className="text-slate-400 hover:text-emerald-400 cursor-pointer p-1"
+                              title="Listen"
+                            >
+                              <Volume2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                          <div className="text-slate-300">
+                            <span className="line-through text-red-300/70 mr-1.5">{m.exampleUserSaid}</span>
+                            <span className="text-emerald-400 font-bold">→ {m.correctedForm}</span>
+                          </div>
+                          <p className="text-[10px] text-slate-400">{m.explanation}</p>
+                        </div>
+                      ))}
                     </div>
-                    <div className="text-slate-300">
-                      <span className="line-through text-red-300/70 mr-1.5">{m.exampleUserSaid}</span>
-                      <span className="text-emerald-400 font-bold">→ {m.correctedForm}</span>
-                    </div>
-                    <p className="text-[10px] text-slate-400">{m.explanation}</p>
                   </div>
-                ))
-              )}
-            </div>
+                )}
 
-            {/* Vocabulary Items to Hear */}
-            <div className="space-y-2 pt-2">
-              <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">
-                Key Vocabulary to Review
-              </h4>
-              {vocabulary.length === 0 ? (
-                <div className="p-4 rounded-2xl glass-pill text-center text-xs text-slate-400">
-                  Your vocabulary bank is empty. Start a scenario to acquire words!
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 gap-2">
-                  {vocabulary.slice(0, 6).map((v) => (
-                    <div
-                      key={v.id}
-                      onClick={() => speakText(v.word, activeJourney?.targetLanguage)}
-                      className="p-2.5 rounded-xl glass-pill cursor-pointer hover:border-emerald-500/40 transition-colors flex items-center justify-between"
-                    >
-                      <div>
-                        <div className="font-bold text-xs text-slate-100">{v.word}</div>
-                        <div className="text-[10px] text-slate-400 truncate">{v.translation}</div>
-                      </div>
-                      <Volume2 className="w-3.5 h-3.5 text-slate-400" />
+                {/* Vocabulary Items to Hear */}
+                {vocabulary.length > 0 && (
+                  <div className="space-y-2 pt-1">
+                    <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                      <BookOpen className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>Vocabulary Bank to Recall</span>
+                    </h4>
+                    <div className="grid grid-cols-2 gap-2">
+                      {vocabulary.slice(0, 6).map((v) => (
+                        <div
+                          key={v.id}
+                          onClick={() => speakText(v.word, activeJourney?.targetLanguage)}
+                          className="p-2.5 rounded-xl glass-pill cursor-pointer hover:border-emerald-500/40 transition-colors flex items-center justify-between group"
+                        >
+                          <div className="min-w-0 pr-1">
+                            <div className="font-bold text-xs text-slate-100 truncate">{v.word}</div>
+                            <div className="text-[10px] text-slate-400 truncate">{v.translation}</div>
+                          </div>
+                          <Volume2 className="w-3.5 h-3.5 text-slate-400 group-hover:text-emerald-400 shrink-0" />
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
+                  </div>
+                )}
+              </>
+            )}
           </div>
         </div>
       )}

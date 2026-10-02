@@ -5,7 +5,6 @@ import {
   Award,
   Flame,
   Star,
-  Sparkles,
   TrendingUp,
   Compass,
   Clock,
@@ -303,7 +302,7 @@ export const ProgressView: React.FC = () => {
       {isFresh && (
         <div className="rounded-3xl glass-card p-6 text-center space-y-3">
           <div className="w-12 h-12 rounded-full bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center mx-auto text-emerald-400">
-            <Sparkles className="w-6 h-6" />
+            <Compass className="w-6 h-6" />
           </div>
           <h3 className="text-base font-bold text-slate-100 dark:text-slate-100 light-mode:text-slate-900">
             Your First Language Journey Starts Here

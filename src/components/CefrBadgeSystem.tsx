@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Award, Shield, Star, Gem, Crown, Trophy, CheckCircle2, Lock, ChevronRight, Sparkles, BookOpen } from 'lucide-react';
+import { Award, Shield, Star, Gem, Crown, Trophy, CheckCircle2, Lock, ChevronRight, BookOpen } from 'lucide-react';
 import { CEFRLevel } from '../types';
 
 interface BadgeTier {
@@ -206,7 +206,7 @@ export const CefrBadgeSystem: React.FC<{
           <div className="mt-3 pt-3 border-t border-white/10 space-y-1.5">
             <div className="flex items-center justify-between text-xs">
               <span className="text-slate-300 font-semibold flex items-center gap-1">
-                <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+                <Award className="w-3.5 h-3.5 text-cyan-400" />
                 <span>Next Badge: {nextBadge.level} ({nextBadge.title})</span>
               </span>
               <span className="text-cyan-400 font-bold">{progressPercent}%</span>
