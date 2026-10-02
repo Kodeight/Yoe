@@ -365,9 +365,24 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         micSource.connect(micAnalyserRef.current);
         micSourceRef.current = micSource;
       } catch (micErr: any) {
-        console.warn('Microphone stream permission/device error:', micErr);
-        setMicPermissionDenied(true);
-        setAudioError('Microphone permission denied or device unavailable. Please grant microphone access to enable live voice.');
+        console.warn('Microphone stream error:', micErr);
+        const errName = micErr.name || '';
+        if (errName === 'NotAllowedError' || errName === 'PermissionDeniedError') {
+          setMicPermissionDenied(true);
+          setAudioError('Microphone permission was denied. Please allow microphone access in your browser or device settings.');
+        } else if (errName === 'NotFoundError' || errName === 'DevicesNotFoundError') {
+          setMicPermissionDenied(false);
+          setAudioError('No microphone device was found connected to your device.');
+        } else if (errName === 'NotReadableError' || errName === 'TrackStartError') {
+          setMicPermissionDenied(false);
+          setAudioError('Microphone is already in use by another application or browser tab.');
+        } else if (errName === 'OverconstrainedError') {
+          setMicPermissionDenied(false);
+          setAudioError('Microphone constraints could not be satisfied by your hardware.');
+        } else {
+          setMicPermissionDenied(true);
+          setAudioError(`Microphone access error: ${micErr.message || 'Unable to access microphone'}`);
+        }
         return false;
       }
     }

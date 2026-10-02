@@ -367,13 +367,13 @@ export const ConversationView: React.FC = () => {
           </div>
           <div className="min-w-0">
             <h2 className="text-xs font-bold text-slate-100 dark:text-slate-100 light-mode:text-slate-900 flex items-center gap-1.5 truncate">
-              <span>{activeScenario.characterName}</span>
+              <span>Yoe</span>
               <span className="px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-400 text-[9px] font-extrabold uppercase">
                 {activeScenario.cefrLevel}
               </span>
             </h2>
-            <p className="text-[10px] text-slate-400 dark:text-slate-400 light-mode:text-slate-500 truncate max-w-[130px]">
-              {activeScenario.title}
+            <p className="text-[10px] text-slate-400 dark:text-slate-400 light-mode:text-slate-500 truncate max-w-[150px]">
+              Roleplaying: {activeScenario.characterName} ({activeScenario.characterRole})
             </p>
           </div>
         </div>
@@ -453,21 +453,21 @@ export const ConversationView: React.FC = () => {
 
       {/* Microphone Permission / Audio Error Alert Banner */}
       {(micPermissionDenied || audioError) && (
-        <div className="mx-4 mt-2 p-3 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs flex items-start gap-2.5 shrink-0 animate-in fade-in z-20">
-          <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+        <div className="mx-4 mt-2 p-3.5 rounded-2xl bg-[var(--error-surface)] border border-[var(--error-border)] text-[var(--error-text)] text-xs flex items-start gap-2.5 shrink-0 animate-in fade-in z-20 shadow-md">
+          <AlertCircle className="w-4 h-4 text-[var(--error)] shrink-0 mt-0.5" />
           <div className="flex-1">
-            <p className="font-bold">{micPermissionDenied ? 'Microphone Permission Needed' : 'Audio Error'}</p>
-            <p className="text-[11px] text-slate-300 mt-0.5 leading-relaxed">
-              {audioError || 'Please allow microphone access in your browser settings so Yoe can hear your voice.'}
+            <p className="font-extrabold">{micPermissionDenied ? 'Microphone Permission Needed' : 'Audio Error'}</p>
+            <p className="text-[11px] text-[var(--error-text)] mt-0.5 leading-relaxed font-medium">
+              {audioError || 'Please allow microphone access in your browser or device settings so Yoe can hear your voice.'}
             </p>
             <button
-              onClick={() => {
+              onClick={async () => {
                 clearAudioError();
-                startListening(activeJourney?.targetLanguage);
+                await startListening(activeJourney?.targetLanguage);
               }}
-              className="mt-2 px-3 py-1 rounded-xl bg-rose-500 text-white text-[10px] font-bold flex items-center gap-1 cursor-pointer hover:bg-rose-400 transition-colors"
+              className="mt-2.5 px-3.5 py-1.5 rounded-xl bg-[var(--error)] text-white text-[11px] font-bold flex items-center gap-1.5 cursor-pointer hover:opacity-90 transition-opacity shadow-sm"
             >
-              <RefreshCw className="w-3 h-3" />
+              <RefreshCw className="w-3.5 h-3.5 animate-spin-hover" />
               <span>Retry Microphone</span>
             </button>
           </div>
@@ -565,7 +565,7 @@ export const ConversationView: React.FC = () => {
       ) : (
         /* Main Conversation Messages Scroll Area after Start */
         showTranscript ? (
-          <div className="flex-1 overflow-y-auto px-4 py-2 space-y-3.5 no-scrollbar pb-36">
+          <div className="flex-1 overflow-y-auto px-4 py-2 space-y-3.5 no-scrollbar pb-[var(--conversation-bottom-inset)]">
             {messages.map((msg) => {
               const isUser = msg.sender === 'user';
               return (
@@ -579,7 +579,7 @@ export const ConversationView: React.FC = () => {
                   >
                     <div className="flex items-center justify-between gap-3 mb-1">
                       <span className={`text-[10px] font-extrabold uppercase tracking-wider ${isUser ? 'text-slate-900/70' : 'text-emerald-400'}`}>
-                        {isUser ? 'You' : `${activeScenario.characterName} (Yoe)`}
+                        {isUser ? 'You' : 'Yoe'}
                       </span>
                       {!isUser && (
                         <button
@@ -739,7 +739,7 @@ export const ConversationView: React.FC = () => {
                     ? 'Listening to your voice...'
                     : isSpeaking || liveState === 'speaking'
                     ? 'Tap mic to interrupt and speak...'
-                    : `Reply to ${activeScenario.characterName}...`
+                    : 'Reply to Yoe...'
                 }
                 className="flex-1 bg-slate-950/60 dark:bg-slate-950/60 light-mode:bg-white border border-white/10 dark:border-white/10 light-mode:border-slate-200 rounded-2xl px-4 py-2.5 text-xs text-slate-100 dark:text-slate-100 light-mode:text-slate-900 placeholder-slate-500 focus:outline-none focus:border-emerald-400 transition-colors"
               />
