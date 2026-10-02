@@ -14,8 +14,11 @@ export const BottomNav: React.FC = () => {
   ] as const;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-40 pb-[max(env(safe-area-inset-bottom,0px),0.75rem)] pointer-events-none">
-      <div className="max-w-md mx-auto px-4 pointer-events-auto">
+    <div className="fixed bottom-0 left-0 right-0 z-40 pointer-events-none">
+      {/* Mobile Navbar Gradient Blur Container - smooth visual separation for underlying content */}
+      <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#070b12] via-[#070b12]/85 to-transparent backdrop-blur-md pointer-events-none" />
+
+      <div className="max-w-md mx-auto px-4 pb-[max(env(safe-area-inset-bottom,0px),0.75rem)] relative z-10 pointer-events-auto">
         <nav className="flex items-center justify-around glass-nav rounded-3xl p-1.5 shadow-2xl transition-colors">
           {navItems.map((item) => {
             const Icon = item.icon;

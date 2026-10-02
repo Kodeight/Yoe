@@ -28,8 +28,8 @@ interface AppContextType {
   cacheLearnedLessonsForOffline: () => void;
   dismissOnboarding: () => void;
   setShowAuthModal: (show: boolean) => void;
-  login: (email: string, password: string) => Promise<boolean>;
-  register: (name: string, email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  login: (identifier: string, password: string) => Promise<boolean>;
+  register: (name: string, username: string, email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   installPWA: () => void;
 }
@@ -370,18 +370,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const dismissOnboarding = () => setShowOnboarding(false);
 
-  const login = async (email: string, password: string): Promise<boolean> => {
+  const login = async (identifier: string, password: string): Promise<boolean> => {
     try {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({ identifier, password })
       });
       const data = await res.json();
       if (!res.ok || !data.user) {
         return false;
       }
-      localStorage.setItem('yoe_auth_token', data.token);
+      if (data.token) {
+        localStorage.setItem('yoe_auth_token', data.token);
+      }
       setUser(data.user);
       if (data.journeys && data.journeys.length > 0) {
         setJourneys(data.journeys);
@@ -400,6 +402,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const register = async (
     name: string,
+    username: string,
     email: string,
     password: string
   ): Promise<{ success: boolean; error?: string }> => {
@@ -409,6 +412,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name,
+          username,
           email,
           password
         })
@@ -417,12 +421,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (!res.ok || !data.user) {
         return { success: false, error: data.error || 'Failed to create account' };
       }
-      localStorage.setItem('yoe_auth_token', data.token);
+      if (data.token) {
+        localStorage.setItem('yoe_auth_token', data.token);
+      }
       setUser(data.user);
       setJourneys([]);
       setActiveJourneyState(null);
       setShowAuthModal(false);
-      setShowOnboarding(true); // Enters conversational onboarding immediately!
+      setShowOnboarding(true); // Enters conversational onboarding immediately
       setActiveView('home');
       return { success: true };
     } catch (err: any) {

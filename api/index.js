@@ -1,11 +1,20 @@
 // src/server/app.ts
 import express from "express";
+import cookieParser from "cookie-parser";
 import dotenv from "dotenv";
 
 // src/server/routes.ts
 import { Router } from "express";
+import rateLimit from "express-rate-limit";
 
 // src/server/db.ts
+import pg from "pg";
+import fs from "fs";
+import path from "path";
+var { Pool } = pg;
+var DATABASE_URL = process.env.DATABASE_URL;
+var DATA_DIR = path.join(process.cwd(), "data");
+var DB_FILE = path.join(DATA_DIR, "yoe_store.json");
 var SUPPORTED_LANGUAGES = [
   { code: "en", name: "English", nativeName: "English", flag: "\u{1F1EC}\u{1F1E7}" },
   { code: "fr", name: "French", nativeName: "Fran\xE7ais", flag: "\u{1F1EB}\u{1F1F7}" },
@@ -17,7 +26,6 @@ var SUPPORTED_LANGUAGES = [
   { code: "pt", name: "Portuguese", nativeName: "Portugu\xEAs", flag: "\u{1F1F5}\u{1F1F9}" }
 ];
 var STARTER_SCENARIOS = [
-  // A1: Level Scenarios (Foundational communication)
   {
     id: "scen_a1_intro_maya",
     title: "Introduce Yourself & Make a Friend",
@@ -53,90 +61,9 @@ var STARTER_SCENARIOS = [
     vocabularyDomain: ["croissant", "caf\xE9 au lait", "l'addition", "s'il vous pla\xEEt", "merci"],
     initialGreeting: "Bonjour ! Bienvenue au Petit Caf\xE9. Vous d\xE9sirez une table en terrasse ou \xE0 l'int\xE9rieur ?",
     objectives: [
-      { id: "obj_fr_1", text: "Choose seating preference", completed: false, hint: "Say: Une table en terrasse, s'il vous pla\xEEt." },
-      { id: "obj_fr_2", text: "Order a croissant and hot coffee", completed: false, hint: "Say: Je voudrais un croissant et un caf\xE9, s'il vous pla\xEEt." },
-      { id: "obj_fr_3", text: "Ask for the bill politely", completed: false, hint: "Say: L'addition, s'il vous pla\xEEt." }
-    ]
-  },
-  {
-    id: "scen_cafe_moscow",
-    title: "Caf\xE9 in Moscow",
-    description: "Order drinks and pastries politely, ask for recommendations and the bill in Russian.",
-    category: "dining",
-    targetLanguage: "ru",
-    cefrLevel: "A1",
-    location: "Cafe Pushkin, Moscow",
-    characterName: "Dmitry",
-    characterRole: "Friendly Cafe Waiter",
-    avatar: "\u2615",
-    imageUrl: "https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?auto=format&fit=crop&w=600&q=80",
-    vocabularyDomain: ["\u043A\u043E\u0444\u0435", "\u043F\u043E\u0436\u0430\u043B\u0443\u0439\u0441\u0442\u0430", "\u0441\u0447\u0435\u0442", "\u0432\u044B\u043F\u0435\u0447\u043A\u0430", "\u0432\u043A\u0443\u0441\u043D\u044B\u0439"],
-    initialGreeting: "\u0417\u0434\u0440\u0430\u0432\u0441\u0442\u0432\u0443\u0439\u0442\u0435! \u0414\u043E\u0431\u0440\u043E \u043F\u043E\u0436\u0430\u043B\u043E\u0432\u0430\u0442\u044C \u0432 \u043D\u0430\u0448\u0435 \u043A\u0430\u0444\u0435. \u0427\u0442\u043E \u0436\u0435\u043B\u0430\u0435\u0442\u0435 \u0437\u0430\u043A\u0430\u0437\u0430\u0442\u044C?",
-    objectives: [
-      { id: "obj_ru_1", text: "Order a coffee or tea politely", completed: false, hint: "Say: \u042F \u0445\u043E\u0447\u0443 \u043E\u0434\u0438\u043D \u043A\u043E\u0444\u0435, \u043F\u043E\u0436\u0430\u043B\u0443\u0439\u0441\u0442\u0430." },
-      { id: "obj_ru_2", text: "Ask what pastry is fresh today", completed: false, hint: "Say: \u041A\u0430\u043A\u0430\u044F \u0432\u044B\u043F\u0435\u0447\u043A\u0430 \u0441\u0435\u0433\u043E\u0434\u043D\u044F \u0441\u0432\u0435\u0436\u0430\u044F?" },
-      { id: "obj_ru_3", text: "Ask for the bill", completed: false, hint: "Say: \u041F\u0440\u0438\u043D\u0435\u0441\u0438\u0442\u0435 \u0441\u0447\u0435\u0442, \u043F\u043E\u0436\u0430\u043B\u0443\u0439\u0441\u0442\u0430." }
-    ]
-  },
-  {
-    id: "scen_grocery_cairo",
-    title: "Fruit Market in Cairo",
-    description: "Ask for fresh fruits, inquire about prices per kilo, and make payment in Arabic.",
-    category: "shopping",
-    targetLanguage: "ar",
-    cefrLevel: "A1",
-    location: "Khan el-Khalili Market, Cairo",
-    characterName: "Hassan",
-    characterRole: "Market Vendor",
-    avatar: "\u{1F349}",
-    imageUrl: "https://images.unsplash.com/photo-1533900298318-6b8da08a523e?auto=format&fit=crop&w=600&q=80",
-    vocabularyDomain: ["\u0641\u0627\u0643\u0647\u0629", "\u0643\u0645 \u0627\u0644\u0633\u0639\u0631", "\u0643\u064A\u0644\u0648", "\u0634\u0643\u0631\u0627", "\u0637\u0627\u0632\u062C"],
-    initialGreeting: "\u0623\u0647\u0644\u0627\u064B \u0648\u0633\u0647\u0644\u0627\u064B \u0628\u064E\u0643\u064E \u0641\u064A \u0633\u0648\u0642 \u0627\u0644\u0642\u0627\u0647\u0631\u0629! \u0644\u062F\u064A\u0646\u0627 \u0641\u0648\u0627\u0643\u0647 \u0637\u0627\u0632\u062C\u0629 \u0648\u0644\u0630\u064A\u0630\u0629 \u0627\u0644\u064A\u0648\u0645. \u0643\u064A\u0641 \u0623\u0633\u0627\u0639\u062F\u0643\u061F",
-    objectives: [
-      { id: "obj_ar_1", text: "Ask for fresh fruit politely", completed: false, hint: "Say: \u0623\u0631\u064A\u062F \u0628\u0631\u062A\u0642\u0627\u0644\u0627\u064B \u0645\u0646 \u0641\u0636\u0644\u0643." },
-      { id: "obj_ar_2", text: "Ask how much one kilo costs", completed: false, hint: "Say: \u0643\u0645 \u0633\u0639\u0631 \u0627\u0644\u0643\u064A\u0644\u0648\u061F" },
-      { id: "obj_ar_3", text: "Say thank you and goodbye", completed: false, hint: "Say: \u0634\u0643\u0631\u0627\u064B \u062C\u0632\u064A\u0644\u0627\u064B\u060C \u0645\u0639 \u0627\u0644\u0633\u0644\u0627\u0645\u0629." }
-    ]
-  },
-  {
-    id: "scen_directions_london",
-    title: "Asking for Directions in the City",
-    description: "Find your way to the nearest subway station or landmark by asking locals on the street.",
-    category: "travel",
-    targetLanguage: "en",
-    cefrLevel: "A1",
-    location: "Covent Garden, Central London",
-    characterName: "Sarah",
-    characterRole: "Helpful Local Resident",
-    avatar: "\u{1F5FA}\uFE0F",
-    imageUrl: "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?auto=format&fit=crop&w=600&q=80",
-    vocabularyDomain: ["excuse me", "straight ahead", "turn left", "subway station", "near"],
-    initialGreeting: "Hello! You look like you might need some help finding your way. Where are you trying to go?",
-    objectives: [
-      { id: "obj_dir_1", text: "Ask where the nearest tube station is", completed: false, hint: "Say: Excuse me, where is the nearest underground station?" },
-      { id: "obj_dir_2", text: "Clarify if it is within walking distance", completed: false, hint: "Say: Can I walk there, or should I take a bus?" },
-      { id: "obj_dir_3", text: "Thank Sarah for her directions", completed: false, hint: "Say: Thank you so much for your help!" }
-    ]
-  },
-  // A2: Travel, Dining & Practical Scenarios
-  {
-    id: "scen_airport_01",
-    title: "At the Airport Terminal",
-    description: "Practice travel conversations, passport control, and finding your departure gate.",
-    category: "travel",
-    targetLanguage: "en",
-    cefrLevel: "A2",
-    location: "London Heathrow Airport Terminal 5",
-    characterName: "Officer Davies",
-    characterRole: "Border Control & Information Officer",
-    avatar: "\u{1F6EB}",
-    imageUrl: "https://images.unsplash.com/photo-1530521954074-e64f6810b32d?auto=format&fit=crop&w=600&q=80",
-    vocabularyDomain: ["boarding pass", "gate number", "luggage", "customs", "delayed"],
-    initialGreeting: "Good day! Passport and boarding pass please. Where are you traveling to today?",
-    objectives: [
-      { id: "obj_air_1", text: "State your destination and flight purpose", completed: false, hint: "Say: I am flying to Paris for vacation." },
-      { id: "obj_air_2", text: "Ask where to find gate or baggage claim", completed: false, hint: "Say: Excuse me, which way to Gate 14?" },
-      { id: "obj_air_3", text: "Confirm departure time", completed: false, hint: "Say: Is the flight on time?" }
+      { id: "obj_fr_1", text: "Greet the waiter politely and state your seating preference", completed: false, hint: "Say: Bonjour! Je voudrais une table en terrasse, s'il vous pla\xEEt." },
+      { id: "obj_fr_2", text: "Order a croissant and a coffee", completed: false, hint: "Say: Je voudrais un croissant et un caf\xE9 au lait, s'il vous pla\xEEt." },
+      { id: "obj_fr_3", text: "Ask for the check at the end of breakfast", completed: false, hint: "Say: L'addition, s'il vous pla\xEEt." }
     ]
   },
   {
@@ -147,7 +74,7 @@ var STARTER_SCENARIOS = [
     targetLanguage: "es",
     cefrLevel: "A2",
     location: "Hotel Gran V\xEDa, Madrid",
-    characterName: "Carmen",
+    characterName: "Sofia",
     characterRole: "Hotel Receptionist",
     avatar: "\u{1F3E8}",
     imageUrl: "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=600&q=80",
@@ -158,146 +85,300 @@ var STARTER_SCENARIOS = [
       { id: "obj_es_2", text: "Ask for the WiFi password and breakfast time", completed: false, hint: "Say: \xBFCu\xE1l es la contrase\xF1a del WiFi y a qu\xE9 hora es el desayuno?" },
       { id: "obj_es_3", text: "Inquire about keycard or room floor", completed: false, hint: "Say: \xBFEn qu\xE9 piso est\xE1 la habitaci\xF3n?" }
     ]
-  },
-  {
-    id: "scen_restaurant_rome",
-    title: "Dinner at a Roman Trattoria",
-    description: "Order authentic regional pasta, ask for house wine pairings, and comment on the meal in Italian.",
-    category: "dining",
-    targetLanguage: "it",
-    cefrLevel: "A2",
-    location: "Trattoria da Enzo, Trastevere, Rome",
-    characterName: "Matteo",
-    characterRole: "Host & Sommelier",
-    avatar: "\u{1F35D}",
-    imageUrl: "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=600&q=80",
-    vocabularyDomain: ["pasta", "vino della casa", "delizioso", "il conto", "consiglio"],
-    initialGreeting: "Buonasera e benvenuti a Roma! Abbiamo piatti speciali oggi. Desidera accomodarsi?",
-    objectives: [
-      { id: "obj_it_1", text: "Ask for recommendations on fresh pasta", completed: false, hint: "Say: Quale pasta fresca mi consiglia?" },
-      { id: "obj_it_2", text: "Order wine or sparkling water", completed: false, hint: "Say: Vorrei un bicchiere di vino rosso e acqua naturale." },
-      { id: "obj_it_3", text: "Compliment the chef and request the bill", completed: false, hint: "Say: Era tutto delizioso! Il conto, per favore." }
-    ]
-  },
-  {
-    id: "scen_shopping_tokyo",
-    title: "Boutique Shopping in Shibuya",
-    description: "Ask for different sizes, try on clothes, and inquire about discounts or tax-free purchases.",
-    category: "shopping",
-    targetLanguage: "en",
-    cefrLevel: "A2",
-    location: "Shibuya Fashion Mall, Tokyo",
-    characterName: "Kenji",
-    characterRole: "Boutique Stylist",
-    avatar: "\u{1F6CD}\uFE0F",
-    imageUrl: "https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=600&q=80",
-    vocabularyDomain: ["size", "fitting room", "discount", "try on", "receipt"],
-    initialGreeting: "Welcome! Feel free to look around. Let me know if you need another size or color.",
-    objectives: [
-      { id: "obj_shop_1", text: "Ask if they have an item in a medium or large size", completed: false, hint: "Say: Excuse me, do you have this in medium?" },
-      { id: "obj_shop_2", text: "Ask where the fitting room is located", completed: false, hint: "Say: Where can I try this on?" },
-      { id: "obj_shop_3", text: "Confirm payment method (card or cash)", completed: false, hint: "Say: Do you accept credit cards?" }
-    ]
-  },
-  // B1: Professional, Problem-solving & Conversational Mastery
-  {
-    id: "scen_work_meeting",
-    title: "Cross-Functional Team Meeting",
-    description: "Present project status updates, negotiate deadlines, and propose innovative ideas in English.",
-    category: "work",
-    targetLanguage: "en",
-    cefrLevel: "B1",
-    location: "Innovation Tech Hub, London",
-    characterName: "Elena Rostova",
-    characterRole: "Senior Product Lead",
-    avatar: "\u{1F4BC}",
-    imageUrl: "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=600&q=80",
-    vocabularyDomain: ["deadline", "milestone", "priorities", "proposal", "deliverables"],
-    initialGreeting: "Thanks for joining today's sync. Let's review our Q3 launch milestones. Could you share your update?",
-    objectives: [
-      { id: "obj_biz_1", text: "Provide a structured summary of your progress", completed: false, hint: "Say: Over the past week, we completed the primary phase and tested deliverables." },
-      { id: "obj_biz_2", text: "Address a challenge or request more time", completed: false, hint: "Say: We noticed a bottleneck, so we might need two more days to finalize QA." },
-      { id: "obj_biz_3", text: "Propose a collaborative next action step", completed: false, hint: "Say: Let's schedule a follow-up review on Friday." }
-    ]
-  },
-  {
-    id: "scen_travel_problem",
-    title: "Resolving a Lost Baggage Issue",
-    description: "Describe your lost luggage clearly, provide baggage claim details, and request immediate tracking.",
-    category: "travel",
-    targetLanguage: "en",
-    cefrLevel: "B1",
-    location: "Lost & Found Service Desk",
-    characterName: "Agent Miller",
-    characterRole: "Customer Relations Representative",
-    avatar: "\u{1F9F3}",
-    imageUrl: "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=600&q=80",
-    vocabularyDomain: ["lost baggage", "description", "claim tag", "delivery address", "tracking number"],
-    initialGreeting: "I understand your suitcase did not appear on the carousel. Please don't worry. Let's file a report.",
-    objectives: [
-      { id: "obj_prob_1", text: "Describe your suitcase appearance and color in detail", completed: false, hint: "Say: It is a dark blue hard-case suitcase with four wheels and a red tag." },
-      { id: "obj_prob_2", text: "Provide flight number and claim tag number", completed: false, hint: "Say: My flight was BA245 from Madrid, tag number 89402." },
-      { id: "obj_prob_3", text: "Give temporary hotel delivery address and phone number", completed: false, hint: "Say: Please deliver it to Hotel Central at 42 Victoria Street." }
-    ]
   }
 ];
-var CleanMemoryDatabase = class {
+var PersistentDatabase = class {
   constructor() {
-    this.users = /* @__PURE__ */ new Map();
-    this.userPasswords = /* @__PURE__ */ new Map();
-    this.journeys = /* @__PURE__ */ new Map();
-    this.vocabulary = /* @__PURE__ */ new Map();
-    this.mistakes = /* @__PURE__ */ new Map();
-    this.chatHistories = /* @__PURE__ */ new Map();
+    this.pool = null;
+    this.isPostgresConnected = false;
+    this.localStore = {
+      users: [],
+      journeys: [],
+      vocabulary: {},
+      mistakes: {},
+      chatHistories: {}
+    };
+    this.initFileStore();
+    this.initPostgresConnection();
   }
-  getUser(id) {
-    return this.users.get(id);
+  initFileStore() {
+    try {
+      if (!fs.existsSync(DATA_DIR)) {
+        fs.mkdirSync(DATA_DIR, { recursive: true });
+      }
+      if (fs.existsSync(DB_FILE)) {
+        const raw = fs.readFileSync(DB_FILE, "utf8");
+        this.localStore = { ...this.localStore, ...JSON.parse(raw) };
+      } else {
+        this.saveFileStore();
+      }
+    } catch (e) {
+      console.warn("File store init note:", e);
+    }
   }
-  getUserByEmail(email) {
-    const normalized = email.trim().toLowerCase();
-    for (const u of this.users.values()) {
-      if (u.email.toLowerCase() === normalized) {
-        return u;
+  saveFileStore() {
+    try {
+      if (!fs.existsSync(DATA_DIR)) {
+        fs.mkdirSync(DATA_DIR, { recursive: true });
+      }
+      fs.writeFileSync(DB_FILE, JSON.stringify(this.localStore, null, 2));
+    } catch (e) {
+      console.warn("File store save note:", e);
+    }
+  }
+  async initPostgresConnection() {
+    if (!DATABASE_URL || DATABASE_URL.includes("username:password")) {
+      console.log("[DB] Using persistent file storage engine (DATABASE_URL not configured)");
+      return;
+    }
+    try {
+      this.pool = new Pool({
+        connectionString: DATABASE_URL,
+        ssl: DATABASE_URL.includes("localhost") ? false : { rejectUnauthorized: false },
+        max: 10,
+        idleTimeoutMillis: 3e4,
+        connectionTimeoutMillis: 5e3
+      });
+      const client = await this.pool.connect();
+      this.isPostgresConnected = true;
+      client.release();
+      console.log("[DB] PostgreSQL Neon Database Connected Successfully!");
+      await this.pool.query(`
+        CREATE TABLE IF NOT EXISTS users (
+          id VARCHAR(64) PRIMARY KEY,
+          username VARCHAR(64) UNIQUE NOT NULL,
+          email VARCHAR(255) UNIQUE NOT NULL,
+          password_hash TEXT NOT NULL,
+          name VARCHAR(128) NOT NULL,
+          avatar_url TEXT,
+          ui_language VARCHAR(16) DEFAULT 'en',
+          theme VARCHAR(16) DEFAULT 'dark',
+          subscription_status VARCHAR(32) DEFAULT 'TRIAL',
+          email_verified BOOLEAN DEFAULT false,
+          status VARCHAR(32) DEFAULT 'active',
+          last_login_at TIMESTAMP,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username ON users (LOWER(username));
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users (LOWER(email));
+
+        CREATE TABLE IF NOT EXISTS learning_journeys (
+          id VARCHAR(64) PRIMARY KEY,
+          user_id VARCHAR(64) REFERENCES users(id) ON DELETE CASCADE,
+          target_language_code VARCHAR(16) NOT NULL,
+          support_language_code VARCHAR(16) NOT NULL,
+          cefr_level VARCHAR(16) DEFAULT 'A1',
+          streak_days INT DEFAULT 0,
+          total_minutes_spoken INT DEFAULT 0,
+          points INT DEFAULT 0,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS vocabulary_items (
+          id VARCHAR(64) PRIMARY KEY,
+          journey_id VARCHAR(64) REFERENCES learning_journeys(id) ON DELETE CASCADE,
+          word TEXT NOT NULL,
+          translation TEXT NOT NULL,
+          phonetic TEXT,
+          example_sentence TEXT,
+          exposure_count INT DEFAULT 1,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS mistakes (
+          id VARCHAR(64) PRIMARY KEY,
+          journey_id VARCHAR(64) REFERENCES learning_journeys(id) ON DELETE CASCADE,
+          category TEXT NOT NULL,
+          pattern TEXT NOT NULL,
+          example_user_said TEXT NOT NULL,
+          corrected_form TEXT NOT NULL,
+          explanation TEXT NOT NULL,
+          occurrence_count INT DEFAULT 1,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+    } catch (err) {
+      console.warn("[DB] PostgreSQL connection note (falling back to file storage):", err);
+      this.isPostgresConnected = false;
+    }
+  }
+  // Diagnostic Endpoint Health
+  async getHealthStatus() {
+    if (this.isPostgresConnected && this.pool) {
+      try {
+        const res = await this.pool.query("SELECT 1 as connected;");
+        if (res.rows.length > 0) {
+          return { status: "ok", database: "connected", engine: "postgresql" };
+        }
+      } catch (e) {
+        return { status: "degraded", database: "reconnecting", engine: "file_backed" };
       }
     }
-    return void 0;
+    return { status: "ok", database: "connected", engine: "file_backed" };
   }
-  validatePassword(email, password) {
-    const user = this.getUserByEmail(email);
-    if (!user) return null;
-    const stored = this.userPasswords.get(user.id);
-    if (stored === password) {
-      return user;
-    }
-    return null;
-  }
-  createUser(name, email, password, uiLanguage = "en") {
-    const normalized = email.trim().toLowerCase();
-    const newUser = {
-      id: `usr_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-      name: name.trim() || "Learner",
-      email: normalized,
-      uiLanguage,
-      theme: "dark",
-      subscriptionStatus: "trial",
-      trialEndsAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1e3).toISOString()
+  // --- USER ACCOUNTS ---
+  async createUser(user) {
+    const normalizedUsername = user.username.trim().toLowerCase();
+    const normalizedEmail = user.email.trim().toLowerCase();
+    const preparedUser = {
+      ...user,
+      username: normalizedUsername,
+      email: normalizedEmail,
+      createdAt: user.createdAt || (/* @__PURE__ */ new Date()).toISOString(),
+      updatedAt: (/* @__PURE__ */ new Date()).toISOString()
     };
-    this.users.set(newUser.id, newUser);
-    this.userPasswords.set(newUser.id, password);
-    return newUser;
+    if (this.isPostgresConnected && this.pool) {
+      try {
+        await this.pool.query(
+          `INSERT INTO users (id, username, email, password_hash, name, avatar_url, ui_language, theme, subscription_status, email_verified, status, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())`,
+          [
+            preparedUser.id,
+            preparedUser.username,
+            preparedUser.email,
+            preparedUser.passwordHash,
+            preparedUser.name,
+            preparedUser.avatarUrl || null,
+            preparedUser.uiLanguage || "en",
+            preparedUser.theme || "dark",
+            preparedUser.subscriptionStatus || "TRIAL",
+            preparedUser.emailVerified || false,
+            preparedUser.status || "active"
+          ]
+        );
+      } catch (err) {
+        console.error("PostgreSQL createUser error:", err);
+      }
+    }
+    const idx = this.localStore.users.findIndex((u) => u.id === preparedUser.id || u.username === preparedUser.username || u.email === preparedUser.email);
+    if (idx !== -1) {
+      this.localStore.users[idx] = preparedUser;
+    } else {
+      this.localStore.users.push(preparedUser);
+    }
+    this.saveFileStore();
+    return preparedUser;
   }
-  updateUser(user) {
-    this.users.set(user.id, user);
-    return user;
+  async findUserByIdentifier(identifier) {
+    const norm = identifier.trim().toLowerCase();
+    if (this.isPostgresConnected && this.pool) {
+      try {
+        const res = await this.pool.query(
+          `SELECT id, username, email, password_hash as "passwordHash", name, avatar_url as "avatarUrl",
+                  ui_language as "uiLanguage", theme, subscription_status as "subscriptionStatus",
+                  email_verified as "emailVerified", status, last_login_at as "lastLoginAt",
+                  created_at as "createdAt", updated_at as "updatedAt"
+           FROM users
+           WHERE LOWER(username) = $1 OR LOWER(email) = $1 LIMIT 1`,
+          [norm]
+        );
+        if (res.rows.length > 0) {
+          return res.rows[0];
+        }
+      } catch (err) {
+        console.warn("PostgreSQL findUserByIdentifier error:", err);
+      }
+    }
+    const localUser = this.localStore.users.find(
+      (u) => u.username.toLowerCase() === norm || u.email.toLowerCase() === norm
+    );
+    return localUser || null;
   }
-  getJourneysForUser(userId) {
-    return Array.from(this.journeys.values()).filter((j) => j.userId === userId);
+  async findUserById(id) {
+    if (this.isPostgresConnected && this.pool) {
+      try {
+        const res = await this.pool.query(
+          `SELECT id, username, email, password_hash as "passwordHash", name, avatar_url as "avatarUrl",
+                  ui_language as "uiLanguage", theme, subscription_status as "subscriptionStatus",
+                  email_verified as "emailVerified", status, last_login_at as "lastLoginAt",
+                  created_at as "createdAt", updated_at as "updatedAt"
+           FROM users WHERE id = $1 LIMIT 1`,
+          [id]
+        );
+        if (res.rows.length > 0) {
+          return res.rows[0];
+        }
+      } catch (err) {
+        console.warn("PostgreSQL findUserById error:", err);
+      }
+    }
+    return this.localStore.users.find((u) => u.id === id) || null;
   }
-  getJourney(id) {
-    return this.journeys.get(id);
+  async updateLastLogin(id) {
+    const now = (/* @__PURE__ */ new Date()).toISOString();
+    if (this.isPostgresConnected && this.pool) {
+      try {
+        await this.pool.query("UPDATE users SET last_login_at = NOW() WHERE id = $1", [id]);
+      } catch (e) {
+      }
+    }
+    const user = this.localStore.users.find((u) => u.id === id);
+    if (user) {
+      user.lastLoginAt = now;
+      this.saveFileStore();
+    }
   }
-  saveJourney(journey) {
-    this.journeys.set(journey.id, journey);
+  // --- JOURNEYS & PROGRESS ---
+  async getJourneysForUser(userId) {
+    if (this.isPostgresConnected && this.pool) {
+      try {
+        const res = await this.pool.query(
+          `SELECT id, user_id as "userId", target_language_code as "targetLanguage",
+                  support_language_code as "supportLanguage", cefr_level as "cefrLevel",
+                  streak_days as "streakDays", total_minutes_spoken as "totalMinutesSpoken",
+                  points, created_at as "createdAt"
+           FROM learning_journeys WHERE user_id = $1`,
+          [userId]
+        );
+        if (res.rows.length > 0) {
+          return res.rows.map((r) => ({
+            ...r,
+            lastPracticeDate: (/* @__PURE__ */ new Date()).toISOString()
+          }));
+        }
+      } catch (err) {
+        console.warn("PostgreSQL getJourneysForUser error:", err);
+      }
+    }
+    return this.localStore.journeys.filter((j) => j.userId === userId);
+  }
+  async saveJourney(journey) {
+    if (this.isPostgresConnected && this.pool) {
+      try {
+        await this.pool.query(
+          `INSERT INTO learning_journeys (id, user_id, target_language_code, support_language_code, cefr_level, streak_days, total_minutes_spoken, points, updated_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+           ON CONFLICT (id) DO UPDATE SET
+             cefr_level = EXCLUDED.cefr_level,
+             streak_days = EXCLUDED.streak_days,
+             total_minutes_spoken = EXCLUDED.total_minutes_spoken,
+             points = EXCLUDED.points,
+             updated_at = NOW()`,
+          [
+            journey.id,
+            journey.userId,
+            journey.targetLanguage,
+            journey.supportLanguage,
+            journey.cefrLevel,
+            journey.streakDays,
+            journey.totalMinutesSpoken,
+            journey.points
+          ]
+        );
+      } catch (err) {
+        console.warn("PostgreSQL saveJourney error:", err);
+      }
+    }
+    const idx = this.localStore.journeys.findIndex((j) => j.id === journey.id);
+    if (idx !== -1) {
+      this.localStore.journeys[idx] = journey;
+    } else {
+      this.localStore.journeys.push(journey);
+    }
+    this.saveFileStore();
     return journey;
   }
   getScenarios(targetLang) {
@@ -306,22 +387,37 @@ var CleanMemoryDatabase = class {
     if (directMatches.length > 0) return directMatches;
     return STARTER_SCENARIOS;
   }
+  getJourney(id) {
+    return this.localStore.journeys.find((j) => j.id === id);
+  }
   getScenarioById(id) {
     return STARTER_SCENARIOS.find((s) => s.id === id);
   }
+  getUser(id) {
+    return this.localStore.users.find((u) => u.id === id);
+  }
+  updateUser(id, updates) {
+    const user = this.localStore.users.find((u) => u.id === id);
+    if (user) {
+      Object.assign(user, updates, { updatedAt: (/* @__PURE__ */ new Date()).toISOString() });
+      this.saveFileStore();
+      return user;
+    }
+    return void 0;
+  }
   getVocabulary(journeyId) {
-    return this.vocabulary.get(journeyId) || [];
+    return this.localStore.vocabulary[journeyId] || [];
   }
   addVocabulary(journeyId, item) {
-    let list = this.vocabulary.get(journeyId);
+    let list = this.localStore.vocabulary[journeyId];
     if (!list) {
       list = [];
-      this.vocabulary.set(journeyId, list);
+      this.localStore.vocabulary[journeyId] = list;
     }
     const existing = list.find((v) => v.word.toLowerCase() === item.word.toLowerCase());
     if (existing) {
       existing.exposureCount += 1;
-      existing.lastSeen = (/* @__PURE__ */ new Date()).toISOString();
+      this.saveFileStore();
       return existing;
     }
     const newItem = {
@@ -330,21 +426,22 @@ var CleanMemoryDatabase = class {
       journeyId
     };
     list.push(newItem);
+    this.saveFileStore();
     return newItem;
   }
   getMistakes(journeyId) {
-    return this.mistakes.get(journeyId) || [];
+    return this.localStore.mistakes[journeyId] || [];
   }
   addMistake(journeyId, mistake) {
-    let list = this.mistakes.get(journeyId);
+    let list = this.localStore.mistakes[journeyId];
     if (!list) {
       list = [];
-      this.mistakes.set(journeyId, list);
+      this.localStore.mistakes[journeyId] = list;
     }
     const existing = list.find((m) => m.pattern.toLowerCase() === mistake.pattern.toLowerCase());
     if (existing) {
       existing.occurrenceCount += 1;
-      existing.lastOccurred = (/* @__PURE__ */ new Date()).toISOString();
+      this.saveFileStore();
       return existing;
     }
     const newRecord = {
@@ -353,22 +450,24 @@ var CleanMemoryDatabase = class {
       journeyId
     };
     list.push(newRecord);
+    this.saveFileStore();
     return newRecord;
   }
   getChatHistory(sessionId) {
-    return this.chatHistories.get(sessionId) || [];
+    return this.localStore.chatHistories[sessionId] || [];
   }
   saveChatMessage(sessionId, message) {
-    let history = this.chatHistories.get(sessionId);
+    let history = this.localStore.chatHistories[sessionId];
     if (!history) {
       history = [];
-      this.chatHistories.set(sessionId, history);
+      this.localStore.chatHistories[sessionId] = history;
     }
     history.push(message);
+    this.saveFileStore();
     return message;
   }
 };
-var db = new CleanMemoryDatabase();
+var db = new PersistentDatabase();
 
 // src/server/aiService.ts
 import { GoogleGenAI, Type } from "@google/genai";
@@ -383,6 +482,7 @@ var ai = new GoogleGenAI({
     }
   }
 });
+var LIVE_MODEL = "gemini-3.8-live";
 function getCharacterVoice(characterName, role, genderPreference) {
   const femaleRoles = ["receptionist", "barista", "waitress", "guide", "friend", "hostess", "doctor", "teacher", "clerk", "elena", "sofia", "clara", "sarah", "marie", "fatima"];
   const nameOrRole = `${characterName} ${role}`.toLowerCase();
@@ -632,62 +732,246 @@ Determine the learner's initial working CEFR level (A1, A2, B1, B2, C1, C2) and 
     welcomeMessage: `\xA1Bienvenido a Yoe! We've calibrated your journey. Let's start speaking ${targetLanguage.toUpperCase()} together!`
   };
 }
+async function createEphemeralLiveToken(scenario, journey) {
+  const voiceName = getCharacterVoice(scenario.characterName, scenario.characterRole);
+  const systemInstruction = buildConversationSystemInstruction(scenario, journey);
+  try {
+    const tokenResponse = await ai.authTokens.create({});
+    const token = tokenResponse?.name || tokenResponse?.token || tokenResponse?.authToken;
+    return {
+      token,
+      model: LIVE_MODEL,
+      voiceName,
+      systemInstruction,
+      expiresAt: tokenResponse?.expireTime || null
+    };
+  } catch (err) {
+    console.warn("Ephemeral token generation note:", err);
+    return {
+      token: null,
+      model: LIVE_MODEL,
+      voiceName,
+      systemInstruction
+    };
+  }
+}
+
+// src/server/auth.ts
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+var JWT_SECRET = process.env.JWT_SECRET || "yoe_prod_jwt_secret_998877_secure_key_3321";
+var COOKIE_NAME = "yoe_session";
+async function hashPassword(password) {
+  const salt = await bcrypt.genSalt(12);
+  return bcrypt.hash(password, salt);
+}
+async function comparePassword(password, hash) {
+  return bcrypt.compare(password, hash);
+}
+function generateToken(user) {
+  return jwt.sign(
+    {
+      sub: user.id,
+      username: user.username,
+      email: user.email,
+      name: user.name
+    },
+    JWT_SECRET,
+    { expiresIn: "30d", issuer: "yoe-auth", audience: "yoe-app" }
+  );
+}
+function verifyToken(token) {
+  try {
+    return jwt.verify(token, JWT_SECRET, { issuer: "yoe-auth", audience: "yoe-app" });
+  } catch (err) {
+    return null;
+  }
+}
+function sanitizeUser(user) {
+  return {
+    id: user.id,
+    username: user.username,
+    email: user.email,
+    name: user.name,
+    avatarUrl: user.avatarUrl,
+    uiLanguage: user.uiLanguage,
+    theme: user.theme,
+    subscriptionStatus: user.subscriptionStatus,
+    emailVerified: user.emailVerified,
+    status: user.status,
+    createdAt: user.createdAt,
+    lastLoginAt: user.lastLoginAt
+  };
+}
+async function requireAuth(req, res, next) {
+  let token = req.cookies?.[COOKIE_NAME];
+  if (!token && req.headers.authorization?.startsWith("Bearer ")) {
+    token = req.headers.authorization.split(" ")[1];
+  }
+  if (!token) {
+    res.status(401).json({ error: "Unauthorized: Session missing" });
+    return;
+  }
+  const decoded = verifyToken(token);
+  if (!decoded || !decoded.sub) {
+    res.status(401).json({ error: "Unauthorized: Invalid or expired session token" });
+    return;
+  }
+  const user = await db.findUserById(decoded.sub);
+  if (!user || user.status === "disabled") {
+    res.status(401).json({ error: "Unauthorized: User account unavailable" });
+    return;
+  }
+  req.user = user;
+  next();
+}
+async function registerHandler(req, res) {
+  try {
+    const { name, username, email, password } = req.body;
+    if (!name || !username || !email || !password) {
+      res.status(400).json({ error: "All fields (Name, Username, Email, Password) are required" });
+      return;
+    }
+    const normUsername = username.trim().toLowerCase();
+    const normEmail = email.trim().toLowerCase();
+    if (normUsername.length < 3 || normUsername.length > 30 || !/^[a-zA-Z0-9_]+$/.test(normUsername)) {
+      res.status(400).json({ error: "Username must be 3-30 characters and contain only letters, numbers, or underscores" });
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normEmail)) {
+      res.status(400).json({ error: "Please enter a valid email address" });
+      return;
+    }
+    if (password.length < 6) {
+      res.status(400).json({ error: "Password must be at least 6 characters long" });
+      return;
+    }
+    const existingUser = await db.findUserByIdentifier(normUsername) || await db.findUserByIdentifier(normEmail);
+    if (existingUser) {
+      if (existingUser.username === normUsername) {
+        res.status(400).json({ error: "That username is already taken. Please choose another." });
+        return;
+      }
+      if (existingUser.email === normEmail) {
+        res.status(400).json({ error: "An account with that email address already exists. Please log in." });
+        return;
+      }
+    }
+    const passwordHash = await hashPassword(password);
+    const userId = `usr_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+    const newUser = {
+      id: userId,
+      username: normUsername,
+      email: normEmail,
+      passwordHash,
+      name: name.trim(),
+      avatarUrl: void 0,
+      uiLanguage: "en",
+      theme: "dark",
+      subscriptionStatus: "TRIAL",
+      emailVerified: true,
+      status: "active",
+      createdAt: (/* @__PURE__ */ new Date()).toISOString(),
+      updatedAt: (/* @__PURE__ */ new Date()).toISOString()
+    };
+    const savedUser = await db.createUser(newUser);
+    await db.saveJourney({
+      id: `jrn_${Date.now()}_es`,
+      userId: savedUser.id,
+      targetLanguage: "es",
+      supportLanguage: "en",
+      cefrLevel: "A1",
+      streakDays: 1,
+      totalMinutesSpoken: 0,
+      points: 50,
+      createdAt: (/* @__PURE__ */ new Date()).toISOString()
+    });
+    const token = generateToken(savedUser);
+    res.cookie(COOKIE_NAME, token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 30 * 24 * 60 * 60 * 1e3
+      // 30 days
+    });
+    res.status(201).json({
+      user: sanitizeUser(savedUser),
+      token
+    });
+  } catch (err) {
+    console.error("Registration error:", err);
+    res.status(500).json({ error: "Failed to create user account. Please try again." });
+  }
+}
+async function loginHandler(req, res) {
+  try {
+    const { identifier, password } = req.body;
+    if (!identifier || !password) {
+      res.status(400).json({ error: "Username/email and password are required" });
+      return;
+    }
+    const norm = identifier.trim().toLowerCase();
+    const user = await db.findUserByIdentifier(norm);
+    if (!user) {
+      res.status(401).json({ error: "Invalid username/email or password." });
+      return;
+    }
+    const isMatch = await comparePassword(password, user.passwordHash);
+    if (!isMatch) {
+      res.status(401).json({ error: "Invalid username/email or password." });
+      return;
+    }
+    await db.updateLastLogin(user.id);
+    const token = generateToken(user);
+    res.cookie(COOKIE_NAME, token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 30 * 24 * 60 * 60 * 1e3
+      // 30 days
+    });
+    res.json({
+      user: sanitizeUser(user),
+      token
+    });
+  } catch (err) {
+    console.error("Login error:", err);
+    res.status(500).json({ error: "Authentication failed. Please try again." });
+  }
+}
+async function meHandler(req, res) {
+  if (!req.user) {
+    res.status(401).json({ error: "Not authenticated" });
+    return;
+  }
+  res.json({ user: sanitizeUser(req.user) });
+}
+async function logoutHandler(req, res) {
+  res.clearCookie(COOKIE_NAME, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax"
+  });
+  res.json({ success: true, message: "Logged out successfully" });
+}
 
 // src/server/routes.ts
 var apiRouter = Router();
-apiRouter.get("/auth/me", (req, res) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith("Bearer usr_")) {
-    res.json({ user: null });
-    return;
-  }
-  const userId = authHeader.replace("Bearer ", "").trim();
-  const user = db.getUser(userId);
-  if (!user) {
-    res.json({ user: null });
-    return;
-  }
-  res.json({ user });
+var authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1e3,
+  max: 40,
+  message: { error: "Too many authentication requests. Please try again in 15 minutes." },
+  standardHeaders: true,
+  legacyHeaders: false
 });
-apiRouter.post("/auth/login", (req, res) => {
-  const { email, password } = req.body;
-  if (!email || !password) {
-    res.status(400).json({ error: "Email and password are required" });
-    return;
-  }
-  const user = db.validatePassword(email, password);
-  if (!user) {
-    res.status(401).json({ error: "Invalid email or password" });
-    return;
-  }
-  const journeys = db.getJourneysForUser(user.id);
-  res.json({
-    user,
-    token: `Bearer ${user.id}`,
-    journeys
-  });
+apiRouter.get("/health/db", async (_req, res) => {
+  const health = await db.getHealthStatus();
+  res.json(health);
 });
-apiRouter.post("/auth/register", (req, res) => {
-  const { email, name, password } = req.body;
-  if (!email || !password) {
-    res.status(400).json({ error: "Email and password are required" });
-    return;
-  }
-  const existing = db.getUserByEmail(email);
-  if (existing) {
-    res.status(409).json({ error: "An account with this email already exists" });
-    return;
-  }
-  const user = db.createUser(name || "Language Learner", email, password);
-  res.json({
-    user,
-    token: `Bearer ${user.id}`,
-    journeys: []
-  });
-});
-apiRouter.post("/auth/logout", (_req, res) => {
-  res.json({ success: true, message: "Logged out successfully" });
-});
+apiRouter.post("/auth/register", authLimiter, registerHandler);
+apiRouter.post("/auth/login", authLimiter, loginHandler);
+apiRouter.get("/auth/me", requireAuth, meHandler);
+apiRouter.post("/auth/logout", logoutHandler);
 apiRouter.get("/languages", (req, res) => {
   res.json({ languages: SUPPORTED_LANGUAGES });
 });
@@ -868,6 +1152,50 @@ apiRouter.post("/ai/tts", async (req, res) => {
     res.status(500).json({ error: "TTS synthesis error", details: err.message });
   }
 });
+apiRouter.post("/api/ai/live/token", async (req, res) => {
+  try {
+    const { journeyId, scenarioId } = req.body;
+    const journey = db.getJourney(journeyId) || {
+      id: journeyId || "temp_jrn",
+      userId: "temp_user",
+      targetLanguage: "es",
+      supportLanguage: "en",
+      cefrLevel: "A1",
+      streakDays: 0,
+      totalMinutesSpoken: 0,
+      points: 0,
+      createdAt: (/* @__PURE__ */ new Date()).toISOString()
+    };
+    const scenario = db.getScenarioById(scenarioId) || db.getScenarios()[0];
+    const tokenConfig = await createEphemeralLiveToken(scenario, journey);
+    res.json(tokenConfig);
+  } catch (err) {
+    console.error("Live token generation error:", err);
+    res.status(500).json({ error: "Failed to generate live session token", details: err.message });
+  }
+});
+apiRouter.post("/ai/live/token", async (req, res) => {
+  try {
+    const { journeyId, scenarioId } = req.body;
+    const journey = db.getJourney(journeyId) || {
+      id: journeyId || "temp_jrn",
+      userId: "temp_user",
+      targetLanguage: "es",
+      supportLanguage: "en",
+      cefrLevel: "A1",
+      streakDays: 0,
+      totalMinutesSpoken: 0,
+      points: 0,
+      createdAt: (/* @__PURE__ */ new Date()).toISOString()
+    };
+    const scenario = db.getScenarioById(scenarioId) || db.getScenarios()[0];
+    const tokenConfig = await createEphemeralLiveToken(scenario, journey);
+    res.json(tokenConfig);
+  } catch (err) {
+    console.error("Live token generation error:", err);
+    res.status(500).json({ error: "Failed to generate live session token", details: err.message });
+  }
+});
 apiRouter.post("/ai/calibrate", async (req, res) => {
   try {
     const result = await calibrateLearnerLevel(req.body);
@@ -926,14 +1254,15 @@ apiRouter.put("/settings", (req, res) => {
     return;
   }
   Object.assign(user, req.body);
-  db.updateUser(user);
+  db.updateUser(user.id, req.body);
   res.json({ user });
 });
 
 // src/server/app.ts
 dotenv.config();
 var app = express();
-app.use(express.json());
+app.use(express.json({ limit: "10mb" }));
+app.use(cookieParser());
 app.use("/api", apiRouter);
 var app_default = app;
 export {

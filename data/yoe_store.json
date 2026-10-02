@@ -1,0 +1,35 @@
+{
+  "users": [
+    {
+      "id": "usr_1790899725831_omloyl",
+      "username": "halim_pro",
+      "email": "halim@example.com",
+      "passwordHash": "$2b$12$tjEr/JD6nENA1AwoA5GVEONKJCblW2mzXcpMSBk0H/YMHX2FWY8oa",
+      "name": "Halim Tester",
+      "uiLanguage": "en",
+      "theme": "dark",
+      "subscriptionStatus": "TRIAL",
+      "emailVerified": true,
+      "status": "active",
+      "createdAt": "2026-10-02T00:08:45.832Z",
+      "updatedAt": "2026-10-02T00:08:45.832Z",
+      "lastLoginAt": "2026-10-02T00:08:54.292Z"
+    }
+  ],
+  "journeys": [
+    {
+      "id": "jrn_1790899725832_es",
+      "userId": "usr_1790899725831_omloyl",
+      "targetLanguage": "es",
+      "supportLanguage": "en",
+      "cefrLevel": "A1",
+      "streakDays": 1,
+      "totalMinutesSpoken": 0,
+      "points": 50,
+      "createdAt": "2026-10-02T00:08:45.832Z"
+    }
+  ],
+  "vocabulary": {},
+  "mistakes": {},
+  "chatHistories": {}
+}

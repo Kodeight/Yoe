@@ -42,6 +42,8 @@ export interface ScenarioChatResponse {
   }>;
 }
 
+export const LIVE_MODEL = 'gemini-3.8-live';
+
 // Select appropriate Gemini native voice based on character persona
 export function getCharacterVoice(characterName: string, role: string, genderPreference?: string): string {
   const femaleRoles = ['receptionist', 'barista', 'waitress', 'guide', 'friend', 'hostess', 'doctor', 'teacher', 'clerk', 'elena', 'sofia', 'clara', 'sarah', 'marie', 'fatima'];
@@ -54,7 +56,7 @@ export function getCharacterVoice(characterName: string, role: string, genderPre
 /**
  * Robust, structured conversation prompt builder that enforces natural, living dialogue
  */
-function buildConversationSystemInstruction(scenario: Scenario, journey: LearningJourney, recentMistakes?: MistakeRecord[]): string {
+export function buildConversationSystemInstruction(scenario: Scenario, journey: LearningJourney, recentMistakes?: MistakeRecord[]): string {
   const mistakesContext = recentMistakes && recentMistakes.length > 0
     ? `\n[KNOWN LEARNER WEAKNESSES TO GENTLY RECAST]:\n${recentMistakes.map(m => `- ${m.pattern}: (e.g. said "${m.exampleUserSaid}", target: "${m.correctedForm}")`).join('\n')}`
     : '';
@@ -337,3 +339,32 @@ Determine the learner's initial working CEFR level (A1, A2, B1, B2, C1, C2) and 
     welcomeMessage: `¡Bienvenido a Yoe! We've calibrated your journey. Let's start speaking ${targetLanguage.toUpperCase()} together!`
   };
 }
+
+/**
+ * Creates a short-lived ephemeral token for client-side Gemini Live API WebSocket sessions
+ */
+export async function createEphemeralLiveToken(scenario: Scenario, journey: LearningJourney) {
+  const voiceName = getCharacterVoice(scenario.characterName, scenario.characterRole);
+  const systemInstruction = buildConversationSystemInstruction(scenario, journey);
+
+  try {
+    const tokenResponse = await (ai as any).authTokens.create({});
+    const token = tokenResponse?.name || tokenResponse?.token || tokenResponse?.authToken;
+    return {
+      token,
+      model: LIVE_MODEL,
+      voiceName,
+      systemInstruction,
+      expiresAt: tokenResponse?.expireTime || null
+    };
+  } catch (err) {
+    console.warn('Ephemeral token generation note:', err);
+    return {
+      token: null,
+      model: LIVE_MODEL,
+      voiceName,
+      systemInstruction
+    };
+  }
+}
+

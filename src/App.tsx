@@ -34,7 +34,7 @@ export default function App() {
       {!isDedicatedChat && <Header />}
 
       {/* Main Dynamic View Content Layer */}
-      <main className={`flex-1 w-full ${!isDedicatedChat ? 'pb-24 pt-2' : ''}`}>
+      <main className="flex-1 w-full pb-28 pt-1">
         {activeView === 'home' && <HomeView />}
         {activeView === 'chat' && <ConversationView />}
         {activeView === 'learn' && <ProgressView />}
@@ -44,8 +44,8 @@ export default function App() {
         {activeView === 'grammar' && <GrammarView />}
       </main>
 
-      {/* Persistent Liquid Glass Bottom Navigation */}
-      {!isDedicatedChat && <BottomNav />}
+      {/* Persistent Liquid Glass Bottom Navigation (Always Visible) */}
+      <BottomNav />
 
       {/* Authentication Modal / Overlay if prompted */}
       {showAuthModal && (

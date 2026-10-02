@@ -1,17 +1,7 @@
-const CACHE_NAME = 'yoe-pwa-v1';
-const LESSONS_CACHE = 'yoe-lessons-offline-v1';
-const ASSETS = [
-  '/',
-  '/index.html',
-  '/manifest.json'
-];
+const CACHE_NAME = 'yoe-pwa-v2';
+const LESSONS_CACHE = 'yoe-lessons-offline-v2';
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS);
-    })
-  );
   self.skipWaiting();
 });
 
@@ -30,7 +20,7 @@ self.addEventListener('activate', (e) => {
   self.clients.claim();
 });
 
-// Listener for caching previously learned lessons, vocabulary, and grammar
+// Listener for caching learned lessons, vocabulary, and grammar
 self.addEventListener('message', (event) => {
   if (!event.data) return;
   const { type, payload } = event.data;
@@ -66,7 +56,6 @@ self.addEventListener('message', (event) => {
             );
           }
 
-          // Also store all-in-one bundle for offline recovery
           await cache.put(
             new Request('/api/offline-lessons-bundle'),
             new Response(JSON.stringify(payload), {
@@ -84,7 +73,28 @@ self.addEventListener('message', (event) => {
 self.addEventListener('fetch', (e) => {
   const url = e.request.url;
 
-  // Cache-first / Network-fallback for learnable offline content: vocabulary, grammar, scenarios, journeys
+  // 1. Navigation Requests (HTML App Shell): Network-First Strategy
+  // Guarantees newly deployed application builds are served immediately without stale shell caching!
+  if (e.request.mode === 'navigate' || url.endsWith('/index.html')) {
+    e.respondWith(
+      fetch(e.request)
+        .then((networkRes) => {
+          if (networkRes && networkRes.status === 200) {
+            const clone = networkRes.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put('/index.html', clone));
+          }
+          return networkRes;
+        })
+        .catch(() => {
+          return caches.match('/index.html').then((cached) => {
+            return cached || new Response('Offline', { status: 503, statusText: 'Offline' });
+          });
+        })
+    );
+    return;
+  }
+
+  // 2. Offline Lessons / Vocabulary / API content: Network-First with Offline Cache Fallback
   if (
     e.request.method === 'GET' &&
     (url.includes('/api/vocabulary') ||
@@ -103,12 +113,8 @@ self.addEventListener('fetch', (e) => {
           return networkResponse;
         })
         .catch(() => {
-          // Internet unavailable: serve cached lessons, vocabulary, and grammar
           return caches.match(e.request).then((cachedResponse) => {
-            if (cachedResponse) {
-              return cachedResponse;
-            }
-            // Return empty fallback array rather than failing
+            if (cachedResponse) return cachedResponse;
             if (url.includes('/api/vocabulary')) {
               return new Response(JSON.stringify({ vocabulary: [], offline: true }), {
                 headers: { 'Content-Type': 'application/json' }
@@ -128,22 +134,22 @@ self.addEventListener('fetch', (e) => {
     return;
   }
 
-  // Skip other API routes (e.g. streaming AI chat or POST routes)
+  // Skip other non-GET or dynamic API routes (e.g. streaming WebSocket or POST)
   if (e.request.method !== 'GET' || url.includes('/api/')) {
     return;
   }
 
-  // Standard static assets caching
+  // 3. Static Assets (/assets/*.js, /assets/*.css, icons): Cache-First with Network Fallback
   e.respondWith(
     caches.match(e.request).then((cached) => {
-      return (
-        cached ||
-        fetch(e.request).catch(() => {
-          if (e.request.mode === 'navigate') {
-            return caches.match('/index.html');
-          }
-        })
-      );
+      if (cached) return cached;
+      return fetch(e.request).then((networkRes) => {
+        if (networkRes && networkRes.status === 200 && (url.includes('/assets/') || url.includes('/icons/'))) {
+          const clone = networkRes.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(e.request, clone));
+        }
+        return networkRes;
+      });
     })
   );
 });
@@ -176,7 +182,7 @@ self.addEventListener('push', (event) => {
   );
 });
 
-// Notification click to bring app to focus
+// Notification click
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   event.waitUntil(
@@ -192,4 +198,3 @@ self.addEventListener('notificationclick', (event) => {
     })
   );
 });
-

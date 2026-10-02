@@ -3,13 +3,13 @@ import { useApp } from '../context/AppContext';
 import { useAudio } from '../context/AudioContext';
 import { ChatMessage, CorrectionDetail } from '../types';
 import { VoiceBubble, VoiceBubbleState } from '../components/VoiceBubble';
+import { GeminiLiveSession } from '../utils/geminiLiveClient';
 import {
   ArrowLeft,
   Mic,
   MicOff,
   Send,
   Volume2,
-  Sparkles,
   CheckCircle2,
   Circle,
   ChevronDown,
@@ -18,7 +18,11 @@ import {
   Award,
   Compass,
   MessageSquare,
-  Square
+  Square,
+  Radio,
+  Play,
+  Languages,
+  Target
 } from 'lucide-react';
 import { SessionSummaryModal } from '../components/SessionSummaryModal';
 
@@ -38,6 +42,8 @@ export const ConversationView: React.FC = () => {
     playNotificationSound
   } = useAudio();
 
+  // Conversation state
+  const [hasStartedConversation, setHasStartedConversation] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -46,18 +52,26 @@ export const ConversationView: React.FC = () => {
   const [suggestedReplies, setSuggestedReplies] = useState<Array<{ phrase: string; translation: string }>>([]);
   const [showTranslations, setShowTranslations] = useState<Record<string, boolean>>({});
   const [showTranscript, setShowTranscript] = useState(true);
+  const [isLiveApiActive, setIsLiveApiActive] = useState(false);
+  const [liveState, setLiveState] = useState<VoiceBubbleState>('idle');
+  const [liveEnergy, setLiveEnergy] = useState<number>(0);
 
-  // Session tracking
+  // Session metrics tracking
   const [sessionStartTime] = useState<number>(() => Date.now());
   const [sessionMistakes, setSessionMistakes] = useState<CorrectionDetail[]>([]);
   const [sessionVocab, setSessionVocab] = useState<Array<{ word: string; translation: string; phonetic?: string }>>([]);
   const [showSummaryModal, setShowSummaryModal] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const liveSessionRef = useRef<GeminiLiveSession | null>(null);
 
-  // Initialize conversation when scenario is selected
+  // Prepare initial scenario state on mount WITHOUT autostarting audio/mic
   useEffect(() => {
-    if (activeScenario) {
+    if (activeScenario && activeJourney) {
+      setHasStartedConversation(false);
+      setIsLiveApiActive(false);
+      setCompletedObjectives({});
+
       const initialGreetingMsg: ChatMessage = {
         id: `msg_init_${activeScenario.id}`,
         sessionId: activeScenario.id,
@@ -67,16 +81,16 @@ export const ConversationView: React.FC = () => {
         timestamp: new Date().toISOString()
       };
       setMessages([initialGreetingMsg]);
-      setCompletedObjectives({});
-
-      // Play greeting with native speech synthesis
-      speakText(
-        activeScenario.initialGreeting,
-        activeJourney?.targetLanguage,
-        activeScenario.characterName,
-        activeScenario.characterRole
-      );
     }
+
+    return () => {
+      if (liveSessionRef.current) {
+        liveSessionRef.current.cleanup();
+        liveSessionRef.current = null;
+      }
+      stopSpeaking();
+      stopListening();
+    };
   }, [activeScenario]);
 
   // Sync speech recognition transcript
@@ -88,13 +102,71 @@ export const ConversationView: React.FC = () => {
 
   // Scroll to bottom on new messages
   useEffect(() => {
-    if (showTranscript) {
+    if (showTranscript && hasStartedConversation) {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [messages, isLoading, showTranscript]);
+  }, [messages, isLoading, showTranscript, hasStartedConversation]);
+
+  // Handle explicit user gesture to START the conversation
+  const handleStartConversation = async () => {
+    if (!activeScenario || !activeJourney) return;
+
+    setHasStartedConversation(true);
+    playNotificationSound();
+
+    // 1. Attempt Gemini Live API connection
+    const live = new GeminiLiveSession({
+      journeyId: activeJourney.id,
+      scenarioId: activeScenario.id,
+      onStateChange: (st) => {
+        if (st === 'connecting' || st === 'listening' || st === 'speaking' || st === 'thinking' || st === 'interrupted' || st === 'idle') {
+          setLiveState(st as VoiceBubbleState);
+        }
+      },
+      onAudioEnergy: (energy) => {
+        setLiveEnergy(energy);
+      },
+      onTranscriptChunk: (sender, chunkText, isFinal) => {
+        if (chunkText) {
+          setMessages(prev => {
+            const last = prev[prev.length - 1];
+            if (last && last.sender === sender && !last.id.includes('final')) {
+              return [...prev.slice(0, -1), { ...last, text: last.text + chunkText }];
+            }
+            return [
+              ...prev,
+              {
+                id: `live_${Date.now()}`,
+                sessionId: activeScenario.id,
+                sender,
+                text: chunkText,
+                timestamp: new Date().toISOString()
+              }
+            ];
+          });
+        }
+      }
+    });
+
+    const started = await live.start();
+    if (started) {
+      setIsLiveApiActive(true);
+      liveSessionRef.current = live;
+    } else {
+      // Speak initial greeting via fallback mode
+      speakText(
+        activeScenario.initialGreeting,
+        activeJourney.targetLanguage,
+        activeScenario.characterName,
+        activeScenario.characterRole
+      );
+    }
+  };
 
   // Calculate current dynamic voice bubble state
   const getBubbleState = (): VoiceBubbleState => {
+    if (!hasStartedConversation) return 'idle';
+    if (isLiveApiActive) return liveState;
     if (isInterrupted) return 'interrupted';
     if (isListening) return 'listening';
     if (isLoading) return 'thinking';
@@ -139,7 +211,7 @@ export const ConversationView: React.FC = () => {
         setMessages(prev => [...prev, data.message]);
         playNotificationSound();
 
-        // Native Gemini audio playback or fallback
+        // Native audio playback or fallback
         if (data.aiResponse?.audioBase64) {
           playGeminiAudio(data.aiResponse.audioBase64);
         } else {
@@ -183,6 +255,9 @@ export const ConversationView: React.FC = () => {
   };
 
   const handleOpenSummary = () => {
+    if (liveSessionRef.current) {
+      liveSessionRef.current.cleanup();
+    }
     stopSpeaking();
     stopListening();
     setShowSummaryModal(true);
@@ -210,7 +285,7 @@ export const ConversationView: React.FC = () => {
             Ready to Speak?
           </h2>
           <p className="text-xs text-slate-400 dark:text-slate-400 light-mode:text-slate-600 leading-relaxed">
-            Choose any realistic scenario world from our curriculum to start having live voice conversations with your AI character.
+            Choose any realistic scenario world from our curriculum to start having live voice conversations with Yoe.
           </p>
 
           <div className="pt-3 space-y-2.5">
@@ -245,14 +320,18 @@ export const ConversationView: React.FC = () => {
   const completedCount = Object.values(completedObjectives).filter(Boolean).length;
   const totalObjectives = activeScenario.objectives.length;
   const bubbleState = getBubbleState();
+  const currentEnergy = isLiveApiActive ? liveEnergy : audioEnergy;
 
   return (
     <div className="flex flex-col h-[100dvh] max-w-md mx-auto bg-[var(--bg-primary)] text-slate-100 relative overflow-hidden">
 
-      {/* Top Scenario Glass Bar */}
+      {/* Top Scenario Glass Header Bar */}
       <div className="sticky top-0 z-30 glass-header px-4 py-2.5 flex items-center justify-between safe-top-padding">
         <button
           onClick={() => {
+            if (liveSessionRef.current) {
+              liveSessionRef.current.cleanup();
+            }
             stopSpeaking();
             stopListening();
             setActiveView('home');
@@ -286,7 +365,7 @@ export const ConversationView: React.FC = () => {
             className={`p-1.5 rounded-full transition-colors cursor-pointer ${
               showTranscript ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'glass-pill text-slate-400'
             }`}
-            title={showTranscript ? 'Hide text transcript' : 'Show text transcript'}
+            title={showTranscript ? 'Hide transcript' : 'Show transcript'}
           >
             <MessageSquare className="w-3.5 h-3.5" />
           </button>
@@ -304,7 +383,7 @@ export const ConversationView: React.FC = () => {
             onClick={() => setShowMissions(!showMissions)}
             className="px-2 py-1 rounded-full glass-pill text-[10px] font-bold text-emerald-400 flex items-center gap-1 cursor-pointer"
           >
-            <Sparkles className="w-3 h-3 text-emerald-400" />
+            <Target className="w-3 h-3 text-emerald-400" />
             <span>{completedCount}/{totalObjectives}</span>
             {showMissions ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
           </button>
@@ -357,7 +436,13 @@ export const ConversationView: React.FC = () => {
       <div className="shrink-0 flex flex-col items-center justify-center pt-3 pb-2 select-none relative">
         <div
           onClick={() => {
-            if (isSpeaking) {
+            if (!hasStartedConversation) {
+              handleStartConversation();
+            } else if (isLiveApiActive && liveSessionRef.current) {
+              if (liveState === 'speaking') {
+                liveSessionRef.current.handleInterruption();
+              }
+            } else if (isSpeaking) {
               stopSpeaking();
             } else if (!isListening) {
               startListening(activeJourney?.targetLanguage);
@@ -366,21 +451,23 @@ export const ConversationView: React.FC = () => {
             }
           }}
           className="cursor-pointer transition-transform hover:scale-102 active:scale-98"
-          title={isSpeaking ? 'Tap to interrupt' : isListening ? 'Tap to finish' : 'Tap to speak'}
+          title={!hasStartedConversation ? 'Start Conversation' : isSpeaking || liveState === 'speaking' ? 'Tap to interrupt' : isListening ? 'Tap to finish' : 'Tap to speak'}
         >
           <VoiceBubble
             size="lg"
             state={bubbleState}
-            audioEnergy={audioEnergy}
+            audioEnergy={currentEnergy}
             interactive
           />
         </div>
 
-        {/* Dynamic Subtle Voice State Badge */}
+        {/* Dynamic Voice State Badge */}
         <div className="mt-1 flex items-center gap-1.5 px-3 py-1 rounded-full glass-pill text-[11px] font-semibold text-slate-300 dark:text-slate-300 light-mode:text-slate-700">
           <span
             className={`w-2 h-2 rounded-full ${
-              bubbleState === 'speaking'
+              !hasStartedConversation
+                ? 'bg-emerald-500/40'
+                : bubbleState === 'speaking'
                 ? 'bg-emerald-400 animate-pulse'
                 : bubbleState === 'listening'
                 ? 'bg-cyan-400 animate-ping'
@@ -392,120 +479,151 @@ export const ConversationView: React.FC = () => {
             }`}
           />
           <span>
-            {bubbleState === 'speaking'
+            {!hasStartedConversation
+              ? `Ready to talk with ${activeScenario.characterName}`
+              : bubbleState === 'speaking'
               ? `${activeScenario.characterName} is speaking`
               : bubbleState === 'listening'
-              ? 'Listening to you...'
+              ? 'Listening to your voice...'
               : bubbleState === 'thinking'
               ? `${activeScenario.characterName} is thinking...`
               : bubbleState === 'interrupted'
               ? 'Interrupted'
               : 'Tap to speak'}
           </span>
+          {isLiveApiActive && (
+            <span className="ml-1 px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-400 text-[9px] font-black uppercase flex items-center gap-0.5">
+              <Radio className="w-2.5 h-2.5" />
+              <span>Live</span>
+            </span>
+          )}
         </div>
       </div>
 
-      {/* Main Conversation Messages Scroll Area */}
-      {showTranscript ? (
-        <div className="flex-1 overflow-y-auto px-4 py-2 space-y-3.5 no-scrollbar">
-          {messages.map((msg) => {
-            const isUser = msg.sender === 'user';
-            return (
-              <div key={msg.id} className={`flex flex-col ${isUser ? 'items-end' : 'items-start'} space-y-1`}>
-                <div
-                  className={`max-w-[85%] rounded-3xl p-3.5 text-xs shadow-md transition-all ${
-                    isUser
-                      ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 font-semibold rounded-br-sm'
-                      : 'glass-card text-slate-100 dark:text-slate-100 light-mode:text-slate-900 rounded-bl-sm'
-                  }`}
-                >
-                  <div className="flex items-center justify-between gap-3 mb-1">
-                    <span className={`text-[10px] font-extrabold uppercase tracking-wider ${isUser ? 'text-slate-900/70' : 'text-emerald-400'}`}>
-                      {isUser ? 'You' : activeScenario.characterName}
-                    </span>
-                    {!isUser && (
-                      <button
-                        onClick={() =>
-                          speakText(
-                            msg.text,
-                            activeJourney?.targetLanguage,
-                            activeScenario.characterName,
-                            activeScenario.characterRole
-                          )
-                        }
-                        className="text-slate-400 hover:text-emerald-400 transition-colors cursor-pointer"
-                        title="Listen"
-                      >
-                        <Volume2 className="w-3.5 h-3.5" />
-                      </button>
+      {/* Prominent Primary START Button before conversation begins */}
+      {!hasStartedConversation ? (
+        <div className="flex-1 flex flex-col items-center justify-center p-6 text-center space-y-4 my-auto">
+          <div className="max-w-xs space-y-2">
+            <h3 className="text-lg font-black text-slate-100 dark:text-slate-100 light-mode:text-slate-900 tracking-tight">
+              {activeScenario.title}
+            </h3>
+            <p className="text-xs text-slate-400 dark:text-slate-400 light-mode:text-slate-600 leading-relaxed">
+              You are meeting <span className="text-emerald-400 font-bold">{activeScenario.characterName}</span> ({activeScenario.characterRole}). Press Start to begin your live voice roleplay.
+            </p>
+          </div>
+
+          <button
+            onClick={handleStartConversation}
+            className="w-full max-w-xs py-4 px-6 rounded-2xl bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 text-slate-950 font-black text-sm flex items-center justify-center gap-2.5 shadow-xl shadow-emerald-500/25 hover:shadow-emerald-500/40 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer"
+          >
+            <Play className="w-5 h-5 fill-current" />
+            <span>Start Conversation</span>
+          </button>
+        </div>
+      ) : (
+        /* Main Conversation Messages Scroll Area after Start */
+        showTranscript ? (
+          <div className="flex-1 overflow-y-auto px-4 py-2 space-y-3.5 no-scrollbar">
+            {messages.map((msg) => {
+              const isUser = msg.sender === 'user';
+              return (
+                <div key={msg.id} className={`flex flex-col ${isUser ? 'items-end' : 'items-start'} space-y-1`}>
+                  <div
+                    className={`max-w-[85%] rounded-3xl p-3.5 text-xs shadow-md transition-all ${
+                      isUser
+                        ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 font-semibold rounded-br-sm'
+                        : 'glass-card text-slate-100 dark:text-slate-100 light-mode:text-slate-900 rounded-bl-sm'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-3 mb-1">
+                      <span className={`text-[10px] font-extrabold uppercase tracking-wider ${isUser ? 'text-slate-900/70' : 'text-emerald-400'}`}>
+                        {isUser ? 'You' : activeScenario.characterName}
+                      </span>
+                      {!isUser && (
+                        <button
+                          onClick={() =>
+                            speakText(
+                              msg.text,
+                              activeJourney?.targetLanguage,
+                              activeScenario.characterName,
+                              activeScenario.characterRole
+                            )
+                          }
+                          className="text-slate-400 hover:text-emerald-400 transition-colors cursor-pointer"
+                          title="Listen"
+                        >
+                          <Volume2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+
+                    <p className="leading-relaxed text-[13px]">{msg.text}</p>
+
+                    {/* Single Clear Translation Toggle Action */}
+                    {!isUser && msg.translation && (
+                      <div className="mt-2 pt-2 border-t border-white/10 dark:border-white/10 light-mode:border-slate-200">
+                        {showTranslations[msg.id] ? (
+                          <p className="text-[11px] text-slate-400 dark:text-slate-400 light-mode:text-slate-600 italic">
+                            {msg.translation}
+                          </p>
+                        ) : (
+                          <button
+                            onClick={() => setShowTranslations(prev => ({ ...prev, [msg.id]: true }))}
+                            className="text-[10px] font-bold text-emerald-400 hover:underline cursor-pointer flex items-center gap-1"
+                          >
+                            <Languages className="w-3 h-3" />
+                            <span>Translate</span>
+                          </button>
+                        )}
+                      </div>
                     )}
                   </div>
 
-                  <p className="leading-relaxed text-[13px]">{msg.text}</p>
-
-                  {/* Translation view for tutor messages */}
-                  {!isUser && msg.translation && (
-                    <div className="mt-2 pt-2 border-t border-white/10 dark:border-white/10 light-mode:border-slate-200">
-                      {showTranslations[msg.id] ? (
-                        <p className="text-[11px] text-slate-400 dark:text-slate-400 light-mode:text-slate-600 italic">
-                          {msg.translation}
+                  {/* Gentle Structured Correction Note */}
+                  {msg.correction && (
+                    <div className="max-w-[85%] rounded-2xl bg-amber-500/10 border border-amber-500/25 p-3 text-xs space-y-1.5 animate-in fade-in">
+                      <div className="flex items-center gap-1.5 text-amber-400 font-bold text-[10px] uppercase">
+                        <Lightbulb className="w-3.5 h-3.5" />
+                        <span>Yoe Gentle Coaching</span>
+                      </div>
+                      <div className="text-[11px] text-slate-200 dark:text-slate-200 light-mode:text-slate-800">
+                        <span className="line-through text-red-300 opacity-70 mr-1.5">{msg.correction.original}</span>
+                        <span className="text-emerald-400 font-bold">→ {msg.correction.corrected}</span>
+                      </div>
+                      {msg.correction.explanation && (
+                        <p className="text-[10px] text-slate-400 dark:text-slate-400 light-mode:text-slate-600">
+                          {msg.correction.explanation}
                         </p>
-                      ) : (
-                        <button
-                          onClick={() => setShowTranslations(prev => ({ ...prev, [msg.id]: true }))}
-                          className="text-[10px] font-bold text-emerald-400 hover:underline cursor-pointer"
-                        >
-                          Show Translation
-                        </button>
                       )}
                     </div>
                   )}
                 </div>
+              );
+            })}
 
-                {/* Gentle Structured Correction Note */}
-                {msg.correction && (
-                  <div className="max-w-[85%] rounded-2xl bg-amber-500/10 border border-amber-500/25 p-3 text-xs space-y-1.5 animate-in fade-in">
-                    <div className="flex items-center gap-1.5 text-amber-400 font-bold text-[10px] uppercase">
-                      <Lightbulb className="w-3.5 h-3.5" />
-                      <span>Yoe Gentle Coaching</span>
-                    </div>
-                    <div className="text-[11px] text-slate-200 dark:text-slate-200 light-mode:text-slate-800">
-                      <span className="line-through text-red-300 opacity-70 mr-1.5">{msg.correction.original}</span>
-                      <span className="text-emerald-400 font-bold">→ {msg.correction.corrected}</span>
-                    </div>
-                    {msg.correction.explanation && (
-                      <p className="text-[10px] text-slate-400 dark:text-slate-400 light-mode:text-slate-600">
-                        {msg.correction.explanation}
-                      </p>
-                    )}
-                  </div>
-                )}
+            {isLoading && (
+              <div className="flex items-center gap-2 p-3 rounded-2xl glass-card max-w-[180px]">
+                <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
+                <span className="text-xs text-slate-400">{activeScenario.characterName} is replying...</span>
               </div>
-            );
-          })}
+            )}
 
-          {isLoading && (
-            <div className="flex items-center gap-2 p-3 rounded-2xl glass-card max-w-[180px]">
-              <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
-              <span className="text-xs text-slate-400">{activeScenario.characterName} is replying...</span>
-            </div>
-          )}
-
-          <div ref={messagesEndRef} />
-        </div>
-      ) : (
-        <div className="flex-1 flex items-center justify-center p-4">
-          <div className="text-center space-y-2 text-slate-400 text-xs">
-            <p className="font-semibold text-slate-300">Voice-First Conversation Active</p>
-            <p className="text-[11px] max-w-xs mx-auto">
-              Speak naturally into your microphone. Tap the transcript icon anytime to review the dialogue.
-            </p>
+            <div ref={messagesEndRef} />
           </div>
-        </div>
+        ) : (
+          <div className="flex-1 flex items-center justify-center p-4">
+            <div className="text-center space-y-2 text-slate-400 text-xs">
+              <p className="font-semibold text-slate-300">Live Voice Conversation Active</p>
+              <p className="text-[11px] max-w-xs mx-auto">
+                Speak naturally into your microphone. Tap the transcript icon anytime to review the dialogue.
+              </p>
+            </div>
+          </div>
+        )
       )}
 
       {/* Suggested Quick Replies Carousel */}
-      {suggestedReplies.length > 0 && !isLoading && (
+      {hasStartedConversation && suggestedReplies.length > 0 && !isLoading && (
         <div className="px-4 py-1.5 flex gap-2 overflow-x-auto no-scrollbar shrink-0">
           {suggestedReplies.map((reply, idx) => (
             <button
@@ -521,74 +639,79 @@ export const ConversationView: React.FC = () => {
       )}
 
       {/* Bottom Sticky Conversational Input Controls */}
-      <div className="sticky bottom-0 glass-nav p-3 safe-bottom-padding border-t border-white/10 dark:border-white/10 light-mode:border-slate-200 shrink-0">
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            handleSendMessage();
-          }}
-          className="flex items-center gap-2"
-        >
-          {/* Main Barge-In / Interruption Speech Mic Button */}
-          <button
-            type="button"
-            onClick={() => {
-              if (isSpeaking) {
-                // Instant Barge-In
-                stopSpeaking();
-                startListening(activeJourney?.targetLanguage);
-              } else if (isListening) {
-                stopListening();
-                if (inputText.trim()) {
-                  handleSendMessage();
-                }
-              } else {
-                startListening(activeJourney?.targetLanguage);
-              }
+      {hasStartedConversation && (
+        <div className="sticky bottom-0 glass-nav p-3 safe-bottom-padding border-t border-white/10 dark:border-white/10 light-mode:border-slate-200 shrink-0 mb-16">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSendMessage();
             }}
-            className={`p-3.5 rounded-2xl transition-all cursor-pointer shadow-lg ${
-              isSpeaking
-                ? 'bg-amber-500 text-slate-950 font-bold hover:bg-amber-400 animate-pulse'
-                : isListening
-                ? 'bg-rose-500 text-white animate-pulse shadow-rose-500/40'
-                : 'glass-pill text-emerald-400 hover:border-emerald-500/40 hover:bg-emerald-500/10'
-            }`}
-            title={isSpeaking ? 'Tap to interrupt' : isListening ? 'Stop & Send' : 'Speak with microphone'}
+            className="flex items-center gap-2"
           >
-            {isSpeaking ? (
-              <Square className="w-5 h-5 fill-current" />
-            ) : isListening ? (
-              <MicOff className="w-5 h-5" />
-            ) : (
-              <Mic className="w-5 h-5" />
-            )}
-          </button>
+            {/* Main Barge-In / Interruption Speech Mic Button */}
+            <button
+              type="button"
+              onClick={() => {
+                if (isLiveApiActive && liveSessionRef.current) {
+                  if (liveState === 'speaking') {
+                    liveSessionRef.current.handleInterruption();
+                  }
+                } else if (isSpeaking) {
+                  stopSpeaking();
+                  startListening(activeJourney?.targetLanguage);
+                } else if (isListening) {
+                  stopListening();
+                  if (inputText.trim()) {
+                    handleSendMessage();
+                  }
+                } else {
+                  startListening(activeJourney?.targetLanguage);
+                }
+              }}
+              className={`p-3.5 rounded-2xl transition-all cursor-pointer shadow-lg ${
+                isSpeaking || liveState === 'speaking'
+                  ? 'bg-amber-500 text-slate-950 font-bold hover:bg-amber-400 animate-pulse'
+                  : isListening || liveState === 'listening'
+                  ? 'bg-rose-500 text-white animate-pulse shadow-rose-500/40'
+                  : 'glass-pill text-emerald-400 hover:border-emerald-500/40 hover:bg-emerald-500/10'
+              }`}
+              title={isSpeaking || liveState === 'speaking' ? 'Tap to interrupt' : isListening ? 'Stop & Send' : 'Speak with microphone'}
+            >
+              {isSpeaking || liveState === 'speaking' ? (
+                <Square className="w-5 h-5 fill-current" />
+              ) : isListening || liveState === 'listening' ? (
+                <MicOff className="w-5 h-5" />
+              ) : (
+                <Mic className="w-5 h-5" />
+              )}
+            </button>
 
-          {/* Text Input */}
-          <input
-            type="text"
-            value={inputText}
-            onChange={(e) => setInputText(e.target.value)}
-            placeholder={
-              isListening
-                ? 'Listening to your voice...'
-                : isSpeaking
-                ? 'Tap mic to interrupt and speak...'
-                : `Reply to ${activeScenario.characterName}...`
-            }
-            className="flex-1 bg-slate-950/60 dark:bg-slate-950/60 light-mode:bg-white border border-white/10 dark:border-white/10 light-mode:border-slate-200 rounded-2xl px-4 py-3 text-xs text-slate-100 dark:text-slate-100 light-mode:text-slate-900 placeholder-slate-500 focus:outline-none focus:border-emerald-400 transition-colors"
-          />
+            {/* Text Input */}
+            <input
+              type="text"
+              value={inputText}
+              onChange={(e) => setInputText(e.target.value)}
+              placeholder={
+                isListening || liveState === 'listening'
+                  ? 'Listening to your voice...'
+                  : isSpeaking || liveState === 'speaking'
+                  ? 'Tap mic to interrupt and speak...'
+                  : `Reply to ${activeScenario.characterName}...`
+              }
+              className="flex-1 bg-slate-950/60 dark:bg-slate-950/60 light-mode:bg-white border border-white/10 dark:border-white/10 light-mode:border-slate-200 rounded-2xl px-4 py-3 text-xs text-slate-100 dark:text-slate-100 light-mode:text-slate-900 placeholder-slate-500 focus:outline-none focus:border-emerald-400 transition-colors"
+            />
 
-          {/* Send Button */}
-          <button
-            type="submit"
-            disabled={!inputText.trim() || isLoading}
-            className="p-3.5 rounded-2xl bg-gradient-to-r from-emerald-400 to-teal-400 text-slate-950 disabled:opacity-40 transition-all cursor-pointer shadow-md"
-          >
-            <Send className="w-4 h-4" />
-          </button>
-        </form>
-      </div>
+            {/* Send Button */}
+            <button
+              type="submit"
+              disabled={!inputText.trim() || isLoading}
+              className="p-3.5 rounded-2xl bg-gradient-to-r from-emerald-400 to-teal-400 text-slate-950 disabled:opacity-40 transition-all cursor-pointer shadow-md"
+            >
+              <Send className="w-4 h-4" />
+            </button>
+          </form>
+        </div>
+      )}
 
       {/* Session Summary Modal on Finish */}
       {showSummaryModal && (
@@ -608,6 +731,7 @@ export const ConversationView: React.FC = () => {
           }}
           onRestart={() => {
             setShowSummaryModal(false);
+            setHasStartedConversation(false);
             setMessages([
               {
                 id: `msg_init_${activeScenario.id}_${Date.now()}`,
@@ -619,12 +743,6 @@ export const ConversationView: React.FC = () => {
               }
             ]);
             setCompletedObjectives({});
-            speakText(
-              activeScenario.initialGreeting,
-              activeJourney?.targetLanguage,
-              activeScenario.characterName,
-              activeScenario.characterRole
-            );
           }}
           onGoHome={() => {
             setShowSummaryModal(false);

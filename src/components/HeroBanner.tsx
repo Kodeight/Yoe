@@ -1,7 +1,7 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
 import { VoiceBubble } from './VoiceBubble';
-import { Mic, ChevronRight, Sparkles } from 'lucide-react';
+import { Mic, ChevronRight, Radio } from 'lucide-react';
 import { SUPPORTED_LANGUAGES } from '../server/db';
 
 export const HeroBanner: React.FC = () => {
@@ -30,7 +30,7 @@ export const HeroBanner: React.FC = () => {
         </div>
 
         <div className="px-2.5 py-1 rounded-full glass-pill text-[10px] font-bold text-slate-300 dark:text-slate-300 light-mode:text-slate-700 flex items-center gap-1">
-          <Sparkles className="w-3 h-3 text-emerald-400" />
+          <Radio className="w-3 h-3 text-emerald-400" />
           <span>Live Audio Active</span>
         </div>
       </div>
@@ -47,7 +47,7 @@ export const HeroBanner: React.FC = () => {
       <p className="text-xs text-slate-400 dark:text-slate-400 light-mode:text-slate-600 max-w-xs mx-auto mb-5 leading-relaxed">
         {activeScenario
           ? `Step into "${activeScenario.title}" with ${activeScenario.characterName}`
-          : `Practice conversational ${currentLang.name} with your AI tutor`}
+          : `Practice conversational ${currentLang.name} with Yoe`}
       </p>
 
       {/* Primary Glowing Conversational Action Button */}

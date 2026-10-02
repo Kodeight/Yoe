@@ -1,72 +1,32 @@
 import { Router, Request, Response } from 'express';
+import rateLimit from 'express-rate-limit';
 import { db, SUPPORTED_LANGUAGES } from './db';
-import { processScenarioTurn, calibrateLearnerLevel, generateScenarioSpeech, getCharacterVoice } from './aiService';
+import { processScenarioTurn, calibrateLearnerLevel, generateScenarioSpeech, getCharacterVoice, createEphemeralLiveToken, LIVE_MODEL } from './aiService';
+import { registerHandler, loginHandler, meHandler, logoutHandler, requireAuth, AuthRequest } from './auth';
 import { User, LearningJourney } from '../types';
 
 export const apiRouter = Router();
 
-// Auth routes
-apiRouter.get('/auth/me', (req: Request, res: Response) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer usr_')) {
-    res.json({ user: null });
-    return;
-  }
-  const userId = authHeader.replace('Bearer ', '').trim();
-  const user = db.getUser(userId);
-  if (!user) {
-    res.json({ user: null });
-    return;
-  }
-  res.json({ user });
+// Rate limiting for sensitive authentication endpoints
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 40,
+  message: { error: 'Too many authentication requests. Please try again in 15 minutes.' },
+  standardHeaders: true,
+  legacyHeaders: false
 });
 
-apiRouter.post('/auth/login', (req: Request, res: Response) => {
-  const { email, password } = req.body;
-  if (!email || !password) {
-    res.status(400).json({ error: 'Email and password are required' });
-    return;
-  }
-
-  const user = db.validatePassword(email, password);
-  if (!user) {
-    res.status(401).json({ error: 'Invalid email or password' });
-    return;
-  }
-
-  const journeys = db.getJourneysForUser(user.id);
-  res.json({
-    user,
-    token: `Bearer ${user.id}`,
-    journeys
-  });
+// Database Health Check Endpoint
+apiRouter.get('/health/db', async (_req: Request, res: Response) => {
+  const health = await db.getHealthStatus();
+  res.json(health);
 });
 
-apiRouter.post('/auth/register', (req: Request, res: Response) => {
-  const { email, name, password } = req.body;
-  if (!email || !password) {
-    res.status(400).json({ error: 'Email and password are required' });
-    return;
-  }
-
-  const existing = db.getUserByEmail(email);
-  if (existing) {
-    res.status(409).json({ error: 'An account with this email already exists' });
-    return;
-  }
-
-  const user = db.createUser(name || 'Language Learner', email, password);
-
-  res.json({
-    user,
-    token: `Bearer ${user.id}`,
-    journeys: []
-  });
-});
-
-apiRouter.post('/auth/logout', (_req: Request, res: Response) => {
-  res.json({ success: true, message: 'Logged out successfully' });
-});
+// Production Auth Routes
+apiRouter.post('/auth/register', authLimiter, registerHandler);
+apiRouter.post('/auth/login', authLimiter, loginHandler);
+apiRouter.get('/auth/me', requireAuth, meHandler);
+apiRouter.post('/auth/logout', logoutHandler);
 
 // Languages
 apiRouter.get('/languages', (req: Request, res: Response) => {
@@ -277,6 +237,54 @@ apiRouter.post('/ai/tts', async (req: Request, res: Response) => {
   }
 });
 
+apiRouter.post('/api/ai/live/token', async (req: Request, res: Response) => {
+  try {
+    const { journeyId, scenarioId } = req.body;
+    const journey = db.getJourney(journeyId) || {
+      id: journeyId || 'temp_jrn',
+      userId: 'temp_user',
+      targetLanguage: 'es',
+      supportLanguage: 'en',
+      cefrLevel: 'A1',
+      streakDays: 0,
+      totalMinutesSpoken: 0,
+      points: 0,
+      createdAt: new Date().toISOString()
+    };
+    const scenario = db.getScenarioById(scenarioId) || db.getScenarios()[0];
+
+    const tokenConfig = await createEphemeralLiveToken(scenario, journey);
+    res.json(tokenConfig);
+  } catch (err: any) {
+    console.error('Live token generation error:', err);
+    res.status(500).json({ error: 'Failed to generate live session token', details: err.message });
+  }
+});
+
+apiRouter.post('/ai/live/token', async (req: Request, res: Response) => {
+  try {
+    const { journeyId, scenarioId } = req.body;
+    const journey = db.getJourney(journeyId) || {
+      id: journeyId || 'temp_jrn',
+      userId: 'temp_user',
+      targetLanguage: 'es',
+      supportLanguage: 'en',
+      cefrLevel: 'A1',
+      streakDays: 0,
+      totalMinutesSpoken: 0,
+      points: 0,
+      createdAt: new Date().toISOString()
+    };
+    const scenario = db.getScenarioById(scenarioId) || db.getScenarios()[0];
+
+    const tokenConfig = await createEphemeralLiveToken(scenario, journey);
+    res.json(tokenConfig);
+  } catch (err: any) {
+    console.error('Live token generation error:', err);
+    res.status(500).json({ error: 'Failed to generate live session token', details: err.message });
+  }
+});
+
 apiRouter.post('/ai/calibrate', async (req: Request, res: Response) => {
   try {
     const result = await calibrateLearnerLevel(req.body);
@@ -343,6 +351,6 @@ apiRouter.put('/settings', (req: Request, res: Response) => {
     return;
   }
   Object.assign(user, req.body);
-  db.updateUser(user);
+  db.updateUser(user.id, req.body);
   res.json({ user });
 });

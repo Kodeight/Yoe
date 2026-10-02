@@ -1,4 +1,31 @@
-import { Language, Scenario, User, LearningJourney, VocabularyItem, MistakeRecord, ChatMessage, CompetencyState } from '../types';
+import pg from 'pg';
+import fs from 'fs';
+import path from 'path';
+import { User, LearningJourney, VocabularyItem, MistakeRecord, ChatMessage, Language, Scenario } from '../types';
+
+const { Pool } = pg;
+
+// Database Configuration
+const DATABASE_URL = process.env.DATABASE_URL;
+const DATA_DIR = path.join(process.cwd(), 'data');
+const DB_FILE = path.join(DATA_DIR, 'yoe_store.json');
+
+export interface DatabaseUser {
+  id: string;
+  username: string;
+  email: string;
+  passwordHash: string;
+  name: string;
+  avatarUrl?: string;
+  uiLanguage: string;
+  theme: string;
+  subscriptionStatus: string;
+  emailVerified: boolean;
+  status: string;
+  lastLoginAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
 
 export const SUPPORTED_LANGUAGES: Language[] = [
   { code: 'en', name: 'English', nativeName: 'English', flag: '🇬🇧' },
@@ -12,7 +39,6 @@ export const SUPPORTED_LANGUAGES: Language[] = [
 ];
 
 export const STARTER_SCENARIOS: Scenario[] = [
-  // A1: Level Scenarios (Foundational communication)
   {
     id: 'scen_a1_intro_maya',
     title: 'Introduce Yourself & Make a Friend',
@@ -48,91 +74,9 @@ export const STARTER_SCENARIOS: Scenario[] = [
     vocabularyDomain: ['croissant', 'café au lait', 'l\'addition', 's\'il vous plaît', 'merci'],
     initialGreeting: 'Bonjour ! Bienvenue au Petit Café. Vous désirez une table en terrasse ou à l\'intérieur ?',
     objectives: [
-      { id: 'obj_fr_1', text: 'Choose seating preference', completed: false, hint: 'Say: Une table en terrasse, s\'il vous plaît.' },
-      { id: 'obj_fr_2', text: 'Order a croissant and hot coffee', completed: false, hint: 'Say: Je voudrais un croissant et un café, s\'il vous plaît.' },
-      { id: 'obj_fr_3', text: 'Ask for the bill politely', completed: false, hint: 'Say: L\'addition, s\'il vous plaît.' }
-    ]
-  },
-  {
-    id: 'scen_cafe_moscow',
-    title: 'Café in Moscow',
-    description: 'Order drinks and pastries politely, ask for recommendations and the bill in Russian.',
-    category: 'dining',
-    targetLanguage: 'ru',
-    cefrLevel: 'A1',
-    location: 'Cafe Pushkin, Moscow',
-    characterName: 'Dmitry',
-    characterRole: 'Friendly Cafe Waiter',
-    avatar: '☕',
-    imageUrl: 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?auto=format&fit=crop&w=600&q=80',
-    vocabularyDomain: ['кофе', 'пожалуйста', 'счет', 'выпечка', 'вкусный'],
-    initialGreeting: 'Здравствуйте! Добро пожаловать в наше кафе. Что желаете заказать?',
-    objectives: [
-      { id: 'obj_ru_1', text: 'Order a coffee or tea politely', completed: false, hint: 'Say: Я хочу один кофе, пожалуйста.' },
-      { id: 'obj_ru_2', text: 'Ask what pastry is fresh today', completed: false, hint: 'Say: Какая выпечка сегодня свежая?' },
-      { id: 'obj_ru_3', text: 'Ask for the bill', completed: false, hint: 'Say: Принесите счет, пожалуйста.' }
-    ]
-  },
-  {
-    id: 'scen_grocery_cairo',
-    title: 'Fruit Market in Cairo',
-    description: 'Ask for fresh fruits, inquire about prices per kilo, and make payment in Arabic.',
-    category: 'shopping',
-    targetLanguage: 'ar',
-    cefrLevel: 'A1',
-    location: 'Khan el-Khalili Market, Cairo',
-    characterName: 'Hassan',
-    characterRole: 'Market Vendor',
-    avatar: '🍉',
-    imageUrl: 'https://images.unsplash.com/photo-1533900298318-6b8da08a523e?auto=format&fit=crop&w=600&q=80',
-    vocabularyDomain: ['فاكهة', 'كم السعر', 'كيلو', 'شكرا', 'طازج'],
-    initialGreeting: 'أهلاً وسهلاً بَكَ في سوق القاهرة! لدينا فواكه طازجة ولذيذة اليوم. كيف أساعدك؟',
-    objectives: [
-      { id: 'obj_ar_1', text: 'Ask for fresh fruit politely', completed: false, hint: 'Say: أريد برتقالاً من فضلك.' },
-      { id: 'obj_ar_2', text: 'Ask how much one kilo costs', completed: false, hint: 'Say: كم سعر الكيلو؟' },
-      { id: 'obj_ar_3', text: 'Say thank you and goodbye', completed: false, hint: 'Say: شكراً جزيلاً، مع السلامة.' }
-    ]
-  },
-  {
-    id: 'scen_directions_london',
-    title: 'Asking for Directions in the City',
-    description: 'Find your way to the nearest subway station or landmark by asking locals on the street.',
-    category: 'travel',
-    targetLanguage: 'en',
-    cefrLevel: 'A1',
-    location: 'Covent Garden, Central London',
-    characterName: 'Sarah',
-    characterRole: 'Helpful Local Resident',
-    avatar: '🗺️',
-    imageUrl: 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?auto=format&fit=crop&w=600&q=80',
-    vocabularyDomain: ['excuse me', 'straight ahead', 'turn left', 'subway station', 'near'],
-    initialGreeting: 'Hello! You look like you might need some help finding your way. Where are you trying to go?',
-    objectives: [
-      { id: 'obj_dir_1', text: 'Ask where the nearest tube station is', completed: false, hint: 'Say: Excuse me, where is the nearest underground station?' },
-      { id: 'obj_dir_2', text: 'Clarify if it is within walking distance', completed: false, hint: 'Say: Can I walk there, or should I take a bus?' },
-      { id: 'obj_dir_3', text: 'Thank Sarah for her directions', completed: false, hint: 'Say: Thank you so much for your help!' }
-    ]
-  },
-
-  // A2: Travel, Dining & Practical Scenarios
-  {
-    id: 'scen_airport_01',
-    title: 'At the Airport Terminal',
-    description: 'Practice travel conversations, passport control, and finding your departure gate.',
-    category: 'travel',
-    targetLanguage: 'en',
-    cefrLevel: 'A2',
-    location: 'London Heathrow Airport Terminal 5',
-    characterName: 'Officer Davies',
-    characterRole: 'Border Control & Information Officer',
-    avatar: '🛫',
-    imageUrl: 'https://images.unsplash.com/photo-1530521954074-e64f6810b32d?auto=format&fit=crop&w=600&q=80',
-    vocabularyDomain: ['boarding pass', 'gate number', 'luggage', 'customs', 'delayed'],
-    initialGreeting: 'Good day! Passport and boarding pass please. Where are you traveling to today?',
-    objectives: [
-      { id: 'obj_air_1', text: 'State your destination and flight purpose', completed: false, hint: 'Say: I am flying to Paris for vacation.' },
-      { id: 'obj_air_2', text: 'Ask where to find gate or baggage claim', completed: false, hint: 'Say: Excuse me, which way to Gate 14?' },
-      { id: 'obj_air_3', text: 'Confirm departure time', completed: false, hint: 'Say: Is the flight on time?' }
+      { id: 'obj_fr_1', text: 'Greet the waiter politely and state your seating preference', completed: false, hint: 'Say: Bonjour! Je voudrais une table en terrasse, s\'il vous plaît.' },
+      { id: 'obj_fr_2', text: 'Order a croissant and a coffee', completed: false, hint: 'Say: Je voudrais un croissant et un café au lait, s\'il vous plaît.' },
+      { id: 'obj_fr_3', text: 'Ask for the check at the end of breakfast', completed: false, hint: 'Say: L\'addition, s\'il vous plaît.' }
     ]
   },
   {
@@ -143,7 +87,7 @@ export const STARTER_SCENARIOS: Scenario[] = [
     targetLanguage: 'es',
     cefrLevel: 'A2',
     location: 'Hotel Gran Vía, Madrid',
-    characterName: 'Carmen',
+    characterName: 'Sofia',
     characterRole: 'Hotel Receptionist',
     avatar: '🏨',
     imageUrl: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=600&q=80',
@@ -154,159 +98,333 @@ export const STARTER_SCENARIOS: Scenario[] = [
       { id: 'obj_es_2', text: 'Ask for the WiFi password and breakfast time', completed: false, hint: 'Say: ¿Cuál es la contraseña del WiFi y a qué hora es el desayuno?' },
       { id: 'obj_es_3', text: 'Inquire about keycard or room floor', completed: false, hint: 'Say: ¿En qué piso está la habitación?' }
     ]
-  },
-  {
-    id: 'scen_restaurant_rome',
-    title: 'Dinner at a Roman Trattoria',
-    description: 'Order authentic regional pasta, ask for house wine pairings, and comment on the meal in Italian.',
-    category: 'dining',
-    targetLanguage: 'it',
-    cefrLevel: 'A2',
-    location: 'Trattoria da Enzo, Trastevere, Rome',
-    characterName: 'Matteo',
-    characterRole: 'Host & Sommelier',
-    avatar: '🍝',
-    imageUrl: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=600&q=80',
-    vocabularyDomain: ['pasta', 'vino della casa', 'delizioso', 'il conto', 'consiglio'],
-    initialGreeting: 'Buonasera e benvenuti a Roma! Abbiamo piatti speciali oggi. Desidera accomodarsi?',
-    objectives: [
-      { id: 'obj_it_1', text: 'Ask for recommendations on fresh pasta', completed: false, hint: 'Say: Quale pasta fresca mi consiglia?' },
-      { id: 'obj_it_2', text: 'Order wine or sparkling water', completed: false, hint: 'Say: Vorrei un bicchiere di vino rosso e acqua naturale.' },
-      { id: 'obj_it_3', text: 'Compliment the chef and request the bill', completed: false, hint: 'Say: Era tutto delizioso! Il conto, per favore.' }
-    ]
-  },
-  {
-    id: 'scen_shopping_tokyo',
-    title: 'Boutique Shopping in Shibuya',
-    description: 'Ask for different sizes, try on clothes, and inquire about discounts or tax-free purchases.',
-    category: 'shopping',
-    targetLanguage: 'en',
-    cefrLevel: 'A2',
-    location: 'Shibuya Fashion Mall, Tokyo',
-    characterName: 'Kenji',
-    characterRole: 'Boutique Stylist',
-    avatar: '🛍️',
-    imageUrl: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=600&q=80',
-    vocabularyDomain: ['size', 'fitting room', 'discount', 'try on', 'receipt'],
-    initialGreeting: 'Welcome! Feel free to look around. Let me know if you need another size or color.',
-    objectives: [
-      { id: 'obj_shop_1', text: 'Ask if they have an item in a medium or large size', completed: false, hint: 'Say: Excuse me, do you have this in medium?' },
-      { id: 'obj_shop_2', text: 'Ask where the fitting room is located', completed: false, hint: 'Say: Where can I try this on?' },
-      { id: 'obj_shop_3', text: 'Confirm payment method (card or cash)', completed: false, hint: 'Say: Do you accept credit cards?' }
-    ]
-  },
-
-  // B1: Professional, Problem-solving & Conversational Mastery
-  {
-    id: 'scen_work_meeting',
-    title: 'Cross-Functional Team Meeting',
-    description: 'Present project status updates, negotiate deadlines, and propose innovative ideas in English.',
-    category: 'work',
-    targetLanguage: 'en',
-    cefrLevel: 'B1',
-    location: 'Innovation Tech Hub, London',
-    characterName: 'Elena Rostova',
-    characterRole: 'Senior Product Lead',
-    avatar: '💼',
-    imageUrl: 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=600&q=80',
-    vocabularyDomain: ['deadline', 'milestone', 'priorities', 'proposal', 'deliverables'],
-    initialGreeting: 'Thanks for joining today\'s sync. Let\'s review our Q3 launch milestones. Could you share your update?',
-    objectives: [
-      { id: 'obj_biz_1', text: 'Provide a structured summary of your progress', completed: false, hint: 'Say: Over the past week, we completed the primary phase and tested deliverables.' },
-      { id: 'obj_biz_2', text: 'Address a challenge or request more time', completed: false, hint: 'Say: We noticed a bottleneck, so we might need two more days to finalize QA.' },
-      { id: 'obj_biz_3', text: 'Propose a collaborative next action step', completed: false, hint: 'Say: Let\'s schedule a follow-up review on Friday.' }
-    ]
-  },
-  {
-    id: 'scen_travel_problem',
-    title: 'Resolving a Lost Baggage Issue',
-    description: 'Describe your lost luggage clearly, provide baggage claim details, and request immediate tracking.',
-    category: 'travel',
-    targetLanguage: 'en',
-    cefrLevel: 'B1',
-    location: 'Lost & Found Service Desk',
-    characterName: 'Agent Miller',
-    characterRole: 'Customer Relations Representative',
-    avatar: '🧳',
-    imageUrl: 'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=600&q=80',
-    vocabularyDomain: ['lost baggage', 'description', 'claim tag', 'delivery address', 'tracking number'],
-    initialGreeting: 'I understand your suitcase did not appear on the carousel. Please don\'t worry. Let\'s file a report.',
-    objectives: [
-      { id: 'obj_prob_1', text: 'Describe your suitcase appearance and color in detail', completed: false, hint: 'Say: It is a dark blue hard-case suitcase with four wheels and a red tag.' },
-      { id: 'obj_prob_2', text: 'Provide flight number and claim tag number', completed: false, hint: 'Say: My flight was BA245 from Madrid, tag number 89402.' },
-      { id: 'obj_prob_3', text: 'Give temporary hotel delivery address and phone number', completed: false, hint: 'Say: Please deliver it to Hotel Central at 42 Victoria Street.' }
-    ]
   }
 ];
 
-// Clean In-Memory data store (starts completely pristine, no fake users or progress)
-export class CleanMemoryDatabase {
-  private users: Map<string, User> = new Map();
-  private userPasswords: Map<string, string> = new Map();
-  private journeys: Map<string, LearningJourney> = new Map();
-  private vocabulary: Map<string, VocabularyItem[]> = new Map();
-  private mistakes: Map<string, MistakeRecord[]> = new Map();
-  private chatHistories: Map<string, ChatMessage[]> = new Map();
+class PersistentDatabase {
+  private pool: pg.Pool | null = null;
+  private isPostgresConnected = false;
+  private localStore: {
+    users: DatabaseUser[];
+    journeys: LearningJourney[];
+    vocabulary: Record<string, VocabularyItem[]>;
+    mistakes: Record<string, MistakeRecord[]>;
+    chatHistories: Record<string, ChatMessage[]>;
+  } = {
+    users: [],
+    journeys: [],
+    vocabulary: {},
+    mistakes: {},
+    chatHistories: {}
+  };
 
   constructor() {
-    // Fresh startup: zero fake accounts, zero fake streaks, zero fake vocabulary.
+    this.initFileStore();
+    this.initPostgresConnection();
   }
 
-  getUser(id: string): User | undefined {
-    return this.users.get(id);
+  private initFileStore() {
+    try {
+      if (!fs.existsSync(DATA_DIR)) {
+        fs.mkdirSync(DATA_DIR, { recursive: true });
+      }
+      if (fs.existsSync(DB_FILE)) {
+        const raw = fs.readFileSync(DB_FILE, 'utf8');
+        this.localStore = { ...this.localStore, ...JSON.parse(raw) };
+      } else {
+        this.saveFileStore();
+      }
+    } catch (e) {
+      console.warn('File store init note:', e);
+    }
   }
 
-  getUserByEmail(email: string): User | undefined {
-    const normalized = email.trim().toLowerCase();
-    for (const u of this.users.values()) {
-      if (u.email.toLowerCase() === normalized) {
-        return u;
+  private saveFileStore() {
+    try {
+      if (!fs.existsSync(DATA_DIR)) {
+        fs.mkdirSync(DATA_DIR, { recursive: true });
+      }
+      fs.writeFileSync(DB_FILE, JSON.stringify(this.localStore, null, 2));
+    } catch (e) {
+      console.warn('File store save note:', e);
+    }
+  }
+
+  private async initPostgresConnection() {
+    if (!DATABASE_URL || DATABASE_URL.includes('username:password')) {
+      console.log('[DB] Using persistent file storage engine (DATABASE_URL not configured)');
+      return;
+    }
+
+    try {
+      this.pool = new Pool({
+        connectionString: DATABASE_URL,
+        ssl: DATABASE_URL.includes('localhost') ? false : { rejectUnauthorized: false },
+        max: 10,
+        idleTimeoutMillis: 30000,
+        connectionTimeoutMillis: 5000
+      });
+
+      const client = await this.pool.connect();
+      this.isPostgresConnected = true;
+      client.release();
+
+      console.log('[DB] PostgreSQL Neon Database Connected Successfully!');
+
+      // Run DDL migrations to ensure database tables and indexes exist
+      await this.pool.query(`
+        CREATE TABLE IF NOT EXISTS users (
+          id VARCHAR(64) PRIMARY KEY,
+          username VARCHAR(64) UNIQUE NOT NULL,
+          email VARCHAR(255) UNIQUE NOT NULL,
+          password_hash TEXT NOT NULL,
+          name VARCHAR(128) NOT NULL,
+          avatar_url TEXT,
+          ui_language VARCHAR(16) DEFAULT 'en',
+          theme VARCHAR(16) DEFAULT 'dark',
+          subscription_status VARCHAR(32) DEFAULT 'TRIAL',
+          email_verified BOOLEAN DEFAULT false,
+          status VARCHAR(32) DEFAULT 'active',
+          last_login_at TIMESTAMP,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username ON users (LOWER(username));
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users (LOWER(email));
+
+        CREATE TABLE IF NOT EXISTS learning_journeys (
+          id VARCHAR(64) PRIMARY KEY,
+          user_id VARCHAR(64) REFERENCES users(id) ON DELETE CASCADE,
+          target_language_code VARCHAR(16) NOT NULL,
+          support_language_code VARCHAR(16) NOT NULL,
+          cefr_level VARCHAR(16) DEFAULT 'A1',
+          streak_days INT DEFAULT 0,
+          total_minutes_spoken INT DEFAULT 0,
+          points INT DEFAULT 0,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS vocabulary_items (
+          id VARCHAR(64) PRIMARY KEY,
+          journey_id VARCHAR(64) REFERENCES learning_journeys(id) ON DELETE CASCADE,
+          word TEXT NOT NULL,
+          translation TEXT NOT NULL,
+          phonetic TEXT,
+          example_sentence TEXT,
+          exposure_count INT DEFAULT 1,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS mistakes (
+          id VARCHAR(64) PRIMARY KEY,
+          journey_id VARCHAR(64) REFERENCES learning_journeys(id) ON DELETE CASCADE,
+          category TEXT NOT NULL,
+          pattern TEXT NOT NULL,
+          example_user_said TEXT NOT NULL,
+          corrected_form TEXT NOT NULL,
+          explanation TEXT NOT NULL,
+          occurrence_count INT DEFAULT 1,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+    } catch (err) {
+      console.warn('[DB] PostgreSQL connection note (falling back to file storage):', err);
+      this.isPostgresConnected = false;
+    }
+  }
+
+  // Diagnostic Endpoint Health
+  async getHealthStatus() {
+    if (this.isPostgresConnected && this.pool) {
+      try {
+        const res = await this.pool.query('SELECT 1 as connected;');
+        if (res.rows.length > 0) {
+          return { status: 'ok', database: 'connected', engine: 'postgresql' };
+        }
+      } catch (e) {
+        return { status: 'degraded', database: 'reconnecting', engine: 'file_backed' };
       }
     }
-    return undefined;
+    return { status: 'ok', database: 'connected', engine: 'file_backed' };
   }
 
-  validatePassword(email: string, password: string): User | null {
-    const user = this.getUserByEmail(email);
-    if (!user) return null;
-    const stored = this.userPasswords.get(user.id);
-    if (stored === password) {
-      return user;
-    }
-    return null;
-  }
+  // --- USER ACCOUNTS ---
+  async createUser(user: DatabaseUser): Promise<DatabaseUser> {
+    const normalizedUsername = user.username.trim().toLowerCase();
+    const normalizedEmail = user.email.trim().toLowerCase();
 
-  createUser(name: string, email: string, password: string, uiLanguage: any = 'en'): User {
-    const normalized = email.trim().toLowerCase();
-    const newUser: User = {
-      id: `usr_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-      name: name.trim() || 'Learner',
-      email: normalized,
-      uiLanguage,
-      theme: 'dark',
-      subscriptionStatus: 'trial',
-      trialEndsAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+    const preparedUser: DatabaseUser = {
+      ...user,
+      username: normalizedUsername,
+      email: normalizedEmail,
+      createdAt: user.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     };
-    this.users.set(newUser.id, newUser);
-    this.userPasswords.set(newUser.id, password);
-    return newUser;
+
+    if (this.isPostgresConnected && this.pool) {
+      try {
+        await this.pool.query(
+          `INSERT INTO users (id, username, email, password_hash, name, avatar_url, ui_language, theme, subscription_status, email_verified, status, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())`,
+          [
+            preparedUser.id,
+            preparedUser.username,
+            preparedUser.email,
+            preparedUser.passwordHash,
+            preparedUser.name,
+            preparedUser.avatarUrl || null,
+            preparedUser.uiLanguage || 'en',
+            preparedUser.theme || 'dark',
+            preparedUser.subscriptionStatus || 'TRIAL',
+            preparedUser.emailVerified || false,
+            preparedUser.status || 'active'
+          ]
+        );
+      } catch (err) {
+        console.error('PostgreSQL createUser error:', err);
+      }
+    }
+
+    // Always update file store for dual persistence
+    const idx = this.localStore.users.findIndex(u => u.id === preparedUser.id || u.username === preparedUser.username || u.email === preparedUser.email);
+    if (idx !== -1) {
+      this.localStore.users[idx] = preparedUser;
+    } else {
+      this.localStore.users.push(preparedUser);
+    }
+    this.saveFileStore();
+
+    return preparedUser;
   }
 
-  updateUser(user: User): User {
-    this.users.set(user.id, user);
-    return user;
+  async findUserByIdentifier(identifier: string): Promise<DatabaseUser | null> {
+    const norm = identifier.trim().toLowerCase();
+
+    if (this.isPostgresConnected && this.pool) {
+      try {
+        const res = await this.pool.query(
+          `SELECT id, username, email, password_hash as "passwordHash", name, avatar_url as "avatarUrl",
+                  ui_language as "uiLanguage", theme, subscription_status as "subscriptionStatus",
+                  email_verified as "emailVerified", status, last_login_at as "lastLoginAt",
+                  created_at as "createdAt", updated_at as "updatedAt"
+           FROM users
+           WHERE LOWER(username) = $1 OR LOWER(email) = $1 LIMIT 1`,
+          [norm]
+        );
+        if (res.rows.length > 0) {
+          return res.rows[0] as DatabaseUser;
+        }
+      } catch (err) {
+        console.warn('PostgreSQL findUserByIdentifier error:', err);
+      }
+    }
+
+    const localUser = this.localStore.users.find(
+      u => u.username.toLowerCase() === norm || u.email.toLowerCase() === norm
+    );
+    return localUser || null;
   }
 
-  getJourneysForUser(userId: string): LearningJourney[] {
-    return Array.from(this.journeys.values()).filter(j => j.userId === userId);
+  async findUserById(id: string): Promise<DatabaseUser | null> {
+    if (this.isPostgresConnected && this.pool) {
+      try {
+        const res = await this.pool.query(
+          `SELECT id, username, email, password_hash as "passwordHash", name, avatar_url as "avatarUrl",
+                  ui_language as "uiLanguage", theme, subscription_status as "subscriptionStatus",
+                  email_verified as "emailVerified", status, last_login_at as "lastLoginAt",
+                  created_at as "createdAt", updated_at as "updatedAt"
+           FROM users WHERE id = $1 LIMIT 1`,
+          [id]
+        );
+        if (res.rows.length > 0) {
+          return res.rows[0] as DatabaseUser;
+        }
+      } catch (err) {
+        console.warn('PostgreSQL findUserById error:', err);
+      }
+    }
+
+    return this.localStore.users.find(u => u.id === id) || null;
   }
 
-  getJourney(id: string): LearningJourney | undefined {
-    return this.journeys.get(id);
+  async updateLastLogin(id: string) {
+    const now = new Date().toISOString();
+    if (this.isPostgresConnected && this.pool) {
+      try {
+        await this.pool.query('UPDATE users SET last_login_at = NOW() WHERE id = $1', [id]);
+      } catch (e) {}
+    }
+    const user = this.localStore.users.find(u => u.id === id);
+    if (user) {
+      user.lastLoginAt = now;
+      this.saveFileStore();
+    }
   }
 
-  saveJourney(journey: LearningJourney): LearningJourney {
-    this.journeys.set(journey.id, journey);
+  // --- JOURNEYS & PROGRESS ---
+  async getJourneysForUser(userId: string): Promise<LearningJourney[]> {
+    if (this.isPostgresConnected && this.pool) {
+      try {
+        const res = await this.pool.query(
+          `SELECT id, user_id as "userId", target_language_code as "targetLanguage",
+                  support_language_code as "supportLanguage", cefr_level as "cefrLevel",
+                  streak_days as "streakDays", total_minutes_spoken as "totalMinutesSpoken",
+                  points, created_at as "createdAt"
+           FROM learning_journeys WHERE user_id = $1`,
+          [userId]
+        );
+        if (res.rows.length > 0) {
+          return res.rows.map(r => ({
+            ...r,
+            lastPracticeDate: new Date().toISOString()
+          })) as LearningJourney[];
+        }
+      } catch (err) {
+        console.warn('PostgreSQL getJourneysForUser error:', err);
+      }
+    }
+
+    return this.localStore.journeys.filter(j => j.userId === userId);
+  }
+
+  async saveJourney(journey: LearningJourney): Promise<LearningJourney> {
+    if (this.isPostgresConnected && this.pool) {
+      try {
+        await this.pool.query(
+          `INSERT INTO learning_journeys (id, user_id, target_language_code, support_language_code, cefr_level, streak_days, total_minutes_spoken, points, updated_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+           ON CONFLICT (id) DO UPDATE SET
+             cefr_level = EXCLUDED.cefr_level,
+             streak_days = EXCLUDED.streak_days,
+             total_minutes_spoken = EXCLUDED.total_minutes_spoken,
+             points = EXCLUDED.points,
+             updated_at = NOW()`,
+          [
+            journey.id,
+            journey.userId,
+            journey.targetLanguage,
+            journey.supportLanguage,
+            journey.cefrLevel,
+            journey.streakDays,
+            journey.totalMinutesSpoken,
+            journey.points
+          ]
+        );
+      } catch (err) {
+        console.warn('PostgreSQL saveJourney error:', err);
+      }
+    }
+
+    const idx = this.localStore.journeys.findIndex(j => j.id === journey.id);
+    if (idx !== -1) {
+      this.localStore.journeys[idx] = journey;
+    } else {
+      this.localStore.journeys.push(journey);
+    }
+    this.saveFileStore();
+
     return journey;
   }
 
@@ -317,24 +435,42 @@ export class CleanMemoryDatabase {
     return STARTER_SCENARIOS;
   }
 
+  getJourney(id: string): LearningJourney | undefined {
+    return this.localStore.journeys.find(j => j.id === id);
+  }
+
   getScenarioById(id: string): Scenario | undefined {
     return STARTER_SCENARIOS.find(s => s.id === id);
   }
 
+  getUser(id: string): DatabaseUser | undefined {
+    return this.localStore.users.find(u => u.id === id);
+  }
+
+  updateUser(id: string, updates: Partial<DatabaseUser>): DatabaseUser | undefined {
+    const user = this.localStore.users.find(u => u.id === id);
+    if (user) {
+      Object.assign(user, updates, { updatedAt: new Date().toISOString() });
+      this.saveFileStore();
+      return user;
+    }
+    return undefined;
+  }
+
   getVocabulary(journeyId: string): VocabularyItem[] {
-    return this.vocabulary.get(journeyId) || [];
+    return this.localStore.vocabulary[journeyId] || [];
   }
 
   addVocabulary(journeyId: string, item: Omit<VocabularyItem, 'id' | 'journeyId'>): VocabularyItem {
-    let list = this.vocabulary.get(journeyId);
+    let list = this.localStore.vocabulary[journeyId];
     if (!list) {
       list = [];
-      this.vocabulary.set(journeyId, list);
+      this.localStore.vocabulary[journeyId] = list;
     }
     const existing = list.find(v => v.word.toLowerCase() === item.word.toLowerCase());
     if (existing) {
       existing.exposureCount += 1;
-      existing.lastSeen = new Date().toISOString();
+      this.saveFileStore();
       return existing;
     }
     const newItem: VocabularyItem = {
@@ -343,23 +479,24 @@ export class CleanMemoryDatabase {
       journeyId
     };
     list.push(newItem);
+    this.saveFileStore();
     return newItem;
   }
 
   getMistakes(journeyId: string): MistakeRecord[] {
-    return this.mistakes.get(journeyId) || [];
+    return this.localStore.mistakes[journeyId] || [];
   }
 
   addMistake(journeyId: string, mistake: Omit<MistakeRecord, 'id' | 'journeyId'>): MistakeRecord {
-    let list = this.mistakes.get(journeyId);
+    let list = this.localStore.mistakes[journeyId];
     if (!list) {
       list = [];
-      this.mistakes.set(journeyId, list);
+      this.localStore.mistakes[journeyId] = list;
     }
     const existing = list.find(m => m.pattern.toLowerCase() === mistake.pattern.toLowerCase());
     if (existing) {
       existing.occurrenceCount += 1;
-      existing.lastOccurred = new Date().toISOString();
+      this.saveFileStore();
       return existing;
     }
     const newRecord: MistakeRecord = {
@@ -368,22 +505,24 @@ export class CleanMemoryDatabase {
       journeyId
     };
     list.push(newRecord);
+    this.saveFileStore();
     return newRecord;
   }
 
   getChatHistory(sessionId: string): ChatMessage[] {
-    return this.chatHistories.get(sessionId) || [];
+    return this.localStore.chatHistories[sessionId] || [];
   }
 
   saveChatMessage(sessionId: string, message: ChatMessage): ChatMessage {
-    let history = this.chatHistories.get(sessionId);
+    let history = this.localStore.chatHistories[sessionId];
     if (!history) {
       history = [];
-      this.chatHistories.set(sessionId, history);
+      this.localStore.chatHistories[sessionId] = history;
     }
     history.push(message);
+    this.saveFileStore();
     return message;
   }
 }
 
-export const db = new CleanMemoryDatabase();
+export const db = new PersistentDatabase();
