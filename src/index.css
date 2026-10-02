@@ -9,6 +9,7 @@
 :root {
   --font-brand: 'Manrope', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-primary: 'Manrope', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-signature: 'Caveat', cursive, sans-serif;
   --yoe-aqua: #00f0b5;
   --yoe-cyan: #00c2ff;
   --yoe-emerald: #10b981;
@@ -82,6 +83,16 @@
   --shadow-glass: 0 10px 30px -8px rgba(0, 0, 0, 0.08);
 }
 
+html {
+  background-color: var(--app-background);
+  color-scheme: dark;
+}
+
+html.light-mode {
+  background-color: var(--app-background);
+  color-scheme: light;
+}
+
 html, body, button, input, textarea, select {
   font-family: var(--font-brand);
 }
@@ -98,8 +109,19 @@ body {
   -webkit-touch-callout: none;
 }
 
+#root {
+  background-color: var(--app-background);
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
 .font-brand {
   font-family: var(--font-brand);
+}
+
+.font-signature {
+  font-family: var(--font-signature);
 }
 
 /* Prevent yellow autofill backgrounds across all browsers */

@@ -374,8 +374,8 @@ export const ConversationView: React.FC = () => {
                 {activeScenario.cefrLevel}
               </span>
             </h2>
-            <p className="text-[10px] text-slate-400 dark:text-slate-400 light-mode:text-slate-500 truncate max-w-[150px]">
-              Roleplaying: {activeScenario.characterName} ({activeScenario.characterRole})
+            <p className="text-[10px] text-slate-400 dark:text-slate-400 light-mode:text-slate-500 truncate max-w-[170px]">
+              {activeScenario.title}
             </p>
           </div>
         </div>
@@ -534,9 +534,9 @@ export const ConversationView: React.FC = () => {
           />
           <span>
             {!hasStartedConversation
-              ? `Ready to speak with Yoe (${activeScenario.characterName})`
+              ? 'Ready to speak with Yoe'
               : bubbleState === 'speaking'
-              ? `Yoe is speaking (${activeScenario.characterName})`
+              ? 'Yoe is speaking'
               : bubbleState === 'listening'
               ? 'Listening to your voice...'
               : bubbleState === 'thinking'
@@ -562,7 +562,7 @@ export const ConversationView: React.FC = () => {
               {activeScenario.title}
             </h3>
             <p className="text-xs text-slate-400 dark:text-slate-400 light-mode:text-slate-600 leading-relaxed">
-              You are meeting <span className="text-emerald-400 font-bold">{activeScenario.characterName}</span> ({activeScenario.characterRole}). Press Start to begin your live voice roleplay with Yoe.
+              Practice authentic dialogue at {activeScenario.location}. Press Start to begin speaking with Yoe.
             </p>
           </div>
 

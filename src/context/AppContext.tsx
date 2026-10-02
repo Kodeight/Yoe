@@ -176,16 +176,33 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   useEffect(() => {
     // Apply theme & RTL direction to document root
+    const themeColorMeta = document.querySelector('meta[name="theme-color"]');
+    const appleStatusBarMeta = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
+
     if (theme === 'light') {
       document.documentElement.classList.add('light-mode');
       document.documentElement.classList.remove('dark-mode');
       document.documentElement.classList.remove('dark');
       document.documentElement.style.colorScheme = 'light';
+      if (themeColorMeta) {
+        themeColorMeta.setAttribute('content', '#f8fafc');
+      }
+      if (appleStatusBarMeta) {
+        appleStatusBarMeta.setAttribute('content', 'default');
+      }
+      document.body.style.backgroundColor = '#f8fafc';
     } else {
       document.documentElement.classList.add('dark-mode');
       document.documentElement.classList.add('dark');
       document.documentElement.classList.remove('light-mode');
       document.documentElement.style.colorScheme = 'dark';
+      if (themeColorMeta) {
+        themeColorMeta.setAttribute('content', '#070b12');
+      }
+      if (appleStatusBarMeta) {
+        appleStatusBarMeta.setAttribute('content', 'black-translucent');
+      }
+      document.body.style.backgroundColor = '#070b12';
     }
 
     if (uiLanguage === 'ar') {

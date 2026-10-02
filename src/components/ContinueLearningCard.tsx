@@ -78,7 +78,7 @@ export const ContinueLearningCard: React.FC = () => {
           </h3>
 
           <p className="text-[11px] text-slate-400 dark:text-slate-400 light-mode:text-slate-500 truncate mb-1.5">
-            Roleplay with Yoe as {scenario.characterName} ({scenario.characterRole})
+            Interactive practice · {scenario.location}
           </p>
 
           <div className="text-[10px] font-semibold text-emerald-400 dark:text-emerald-400 light-mode:text-emerald-600">

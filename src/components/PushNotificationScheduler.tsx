@@ -90,18 +90,18 @@ export const PushNotificationScheduler: React.FC = () => {
   ];
 
   return (
-    <div className="rounded-3xl bg-slate-900/90 border border-white/10 p-5 shadow-xl space-y-4">
+    <div className="rounded-3xl glass-card p-4.5 shadow-md space-y-3">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400">
-            <Bell className="w-5 h-5" />
+            <Bell className="w-4 h-4" />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-slate-100 dark:text-slate-100 light-mode:text-slate-900 flex items-center gap-2">
+            <h3 className="text-xs font-bold text-[var(--text-primary)] flex items-center gap-2">
               <span>Daily Reminder Push Scheduler</span>
             </h3>
-            <p className="text-[11px] text-slate-400 dark:text-slate-400 light-mode:text-slate-500">
+            <p className="text-[10px] text-[var(--text-secondary)]">
               Personalized speaking habit reminders at your preferred time
             </p>
           </div>
@@ -126,8 +126,8 @@ export const PushNotificationScheduler: React.FC = () => {
       </div>
 
       {/* Permission Status Pill */}
-      <div className="flex items-center justify-between text-xs py-2 px-3 rounded-2xl bg-slate-950 border border-white/5">
-        <div className="flex items-center gap-2 text-slate-300">
+      <div className="flex items-center justify-between text-xs py-2 px-3 rounded-2xl glass-pill">
+        <div className="flex items-center gap-2 text-[var(--text-secondary)]">
           <Clock className="w-3.5 h-3.5 text-emerald-400" />
           <span>Next Reminder:</span>
           {config.enabled ? (
@@ -135,7 +135,7 @@ export const PushNotificationScheduler: React.FC = () => {
               {config.time} ({formatRemainingTime(config.time)})
             </span>
           ) : (
-            <span className="text-slate-500 font-medium">Paused</span>
+            <span className="text-[var(--text-muted)] font-medium">Paused</span>
           )}
         </div>
 
@@ -151,18 +151,18 @@ export const PushNotificationScheduler: React.FC = () => {
       </div>
 
       {/* Configurable Reminder Time */}
-      <div className="space-y-2 pt-1">
-        <label className="text-xs font-bold text-slate-300 block">
+      <div className="space-y-1.5 pt-0.5">
+        <label className="text-[11px] font-bold text-[var(--text-primary)] block">
           Select Notification Time (24h)
         </label>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
           <input
             type="time"
             value={config.time}
             onChange={(e) => handleTimeChange(e.target.value)}
             disabled={!config.enabled}
-            className="bg-slate-950 border border-white/10 rounded-2xl px-3.5 py-2 text-sm font-bold text-white focus:outline-none focus:border-emerald-400 disabled:opacity-40"
+            className="bg-slate-950/40 dark:bg-slate-950/40 light-mode:bg-white border border-[var(--border)] rounded-2xl px-3 py-1.5 text-xs font-bold text-[var(--text-primary)] focus:outline-none focus:border-emerald-400 disabled:opacity-40"
           />
 
           {/* Quick preset chips */}
@@ -175,8 +175,8 @@ export const PushNotificationScheduler: React.FC = () => {
                 onClick={() => handleTimeChange(p.time)}
                 className={`px-2.5 py-1 rounded-xl text-[10px] font-bold transition-all cursor-pointer disabled:opacity-40 ${
                   config.time === p.time
-                    ? 'bg-emerald-500 text-slate-950 font-black'
-                    : 'bg-slate-800 text-slate-300 hover:bg-slate-700 border border-white/5'
+                    ? 'bg-emerald-500 text-slate-950 font-black shadow-sm'
+                    : 'bg-slate-800/60 dark:bg-slate-800/60 light-mode:bg-slate-100 text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border)]'
                 }`}
               >
                 {p.label}
@@ -187,8 +187,8 @@ export const PushNotificationScheduler: React.FC = () => {
       </div>
 
       {/* Test Notification and Permission request action */}
-      <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-white/5">
-        <p className="text-[11px] text-slate-400 flex items-center gap-1">
+      <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-white/5 dark:border-white/5 light-mode:border-slate-200">
+        <p className="text-[10px] text-[var(--text-secondary)] flex items-center gap-1">
           <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
           <span>Local & Service Worker push reminders (no spam).</span>
         </p>
@@ -197,12 +197,12 @@ export const PushNotificationScheduler: React.FC = () => {
           type="button"
           onClick={handleTestNotification}
           disabled={isSending}
-          className="w-full sm:w-auto px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-95 text-xs font-bold text-emerald-400 flex items-center justify-center gap-1.5 border border-white/10 cursor-pointer transition-all disabled:opacity-50"
+          className="w-full sm:w-auto px-3 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 active:scale-95 text-[11px] font-bold text-emerald-400 flex items-center justify-center gap-1.5 border border-emerald-500/25 cursor-pointer transition-all disabled:opacity-50"
         >
           {isSending ? (
-            <div className="w-3.5 h-3.5 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
+            <div className="w-3 h-3 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
           ) : (
-            <Send className="w-3.5 h-3.5" />
+            <Send className="w-3 h-3" />
           )}
           <span>Send Test Push</span>
         </button>

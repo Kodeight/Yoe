@@ -57,12 +57,12 @@ export const AppBootLoader: React.FC = () => {
           />
         </div>
 
-        {/* Official Slogan with character typing animation — Pure Manrope */}
-        <div className="relative z-10 text-center h-7 flex items-center justify-center">
-          <p className="font-brand text-xs sm:text-sm font-extrabold uppercase tracking-widest text-emerald-400 dark:text-emerald-400 light-mode:text-emerald-600">
+        {/* Official Slogan with character typing animation — Signature Font */}
+        <div className="relative z-10 text-center h-8 flex items-center justify-center">
+          <p className="font-signature text-2xl sm:text-3xl font-bold tracking-wide text-emerald-400 dark:text-emerald-400 light-mode:text-emerald-600">
             {displayedText}
             {!isTypingComplete && (
-              <span className="inline-block w-1.5 h-3.5 ml-1 bg-emerald-400/80 rounded-sm animate-pulse align-middle" />
+              <span className="inline-block w-1 h-5 ml-1 bg-emerald-400/80 rounded-sm animate-pulse align-middle" />
             )}
           </p>
         </div>
