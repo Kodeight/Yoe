@@ -1,7 +1,7 @@
 /**
  * Client-Side Gemini Live API Web Audio & WebSocket Manager
- * Implements real-time bidirectional streaming, 16kHz microphone capture, 24kHz native playback,
- * Voice Activity Detection (VAD), Instantaneous Barge-In / Interruption, and Analyser integration.
+ * Bridges real-time bidirectional audio streaming with server-backed Gemini Live endpoint.
+ * Works seamlessly in both Safari browser and installed standalone PWA.
  */
 
 export interface LiveSessionConfig {
@@ -34,12 +34,14 @@ export class GeminiLiveSession {
 
   async start(): Promise<boolean> {
     try {
+      console.log('[YOE LIVE] requesting token and session parameters...');
       this.config.onStateChange?.('connecting');
 
-      // 1. Fetch ephemeral token from secure server endpoint
+      // 1. Fetch token and session config from server
       const res = await fetch('/api/ai/live/token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           journeyId: this.config.journeyId,
           scenarioId: this.config.scenarioId
@@ -47,19 +49,21 @@ export class GeminiLiveSession {
       });
 
       if (!res.ok) {
-        throw new Error(`Token endpoint error: ${res.status}`);
+        console.error('[YOE LIVE] token request failed with status:', res.status);
+        throw new Error(`Live token endpoint returned status ${res.status}`);
       }
 
       const tokenData = await res.json();
-      const { token, model, voiceName, systemInstruction } = tokenData;
+      console.log('[YOE LIVE] token received:', { model: tokenData.model, hasToken: !!tokenData.token });
 
-      // If ephemeral token is unavailable, return false to use seamless fallback
-      if (!token) {
-        console.warn('Live token not available, utilizing resilient audio turn fallback');
+      if (!tokenData || !tokenData.token) {
+        console.error('[YOE LIVE] token unavailable in response');
+        this.config.onStateChange?.('error');
+        this.config.onError?.('Live session token unavailable');
         return false;
       }
 
-      // 2. Initialize AudioContexts
+      // 2. Initialize AudioContexts on explicit user interaction
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
       this.inputAudioCtx = new AudioCtx({ sampleRate: 16000 });
       this.outputAudioCtx = new AudioCtx({ sampleRate: 24000 });
@@ -76,86 +80,71 @@ export class GeminiLiveSession {
       this.outputAnalyser = this.outputAudioCtx.createAnalyser();
       this.outputAnalyser.fftSize = 128;
 
-      // 3. Connect to Gemini Live API via WebSocket
-      const wsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${encodeURIComponent(token)}`;
+      // 3. Connect to server-backed Gemini Live WebSocket bridge
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsUrl = `${protocol}//${window.location.host}/api/ai/live/socket`;
+      console.log('[YOE LIVE] connecting websocket:', wsUrl);
+
       this.ws = new WebSocket(wsUrl);
 
       this.ws.onopen = () => {
+        console.log('[YOE LIVE] connected to server websocket bridge');
         this.isConnected = true;
         this.config.onStateChange?.('listening');
-
-        // Send initial setup frame
-        const setupMessage = {
-          setup: {
-            model: `models/${model || 'gemini-3.8-live'}`,
-            generationConfig: {
-              responseModalities: ['AUDIO'],
-              speechConfig: {
-                voiceConfig: {
-                  prebuiltVoiceConfig: {
-                    voiceName: voiceName || 'Kore'
-                  }
-                }
-              }
-            },
-            systemInstruction: {
-              parts: [{ text: systemInstruction || 'You are Yoe, the language-learning tutor roleplaying a scenario character. Stay on topic and teach using the learner\'s support language whenever explanation is needed.' }]
-            }
-          }
-        };
-        this.ws?.send(JSON.stringify(setupMessage));
-
-        // Begin microphone streaming
         this.startMicrophoneCapture();
       };
 
       this.ws.onmessage = async (event) => {
         try {
-          let data: any;
-          if (typeof event.data === 'string') {
-            data = JSON.parse(event.data);
-          } else if (event.data instanceof Blob) {
-            const text = await event.data.text();
-            data = JSON.parse(text);
+          const data = JSON.parse(event.data);
+
+          if (data.type === 'connected') {
+            console.log('[YOE LIVE] Gemini Live session connected');
+            this.config.onStateChange?.('listening');
+            return;
           }
 
-          if (!data) return;
-
-          // Handle Barge-in / Interruption signal from Gemini
-          if (data.serverContent?.interrupted) {
+          if (data.type === 'interrupted') {
+            console.log('[YOE LIVE] Gemini detected interruption');
             this.handleInterruption();
             return;
           }
 
-          // Handle incoming model audio parts
-          const parts = data.serverContent?.modelTurn?.parts;
-          if (parts && Array.isArray(parts)) {
-            for (const part of parts) {
-              if (part.inlineData?.data) {
-                this.isSpeaking = true;
-                this.config.onStateChange?.('speaking');
-                this.playPcmChunk(part.inlineData.data);
-              }
-              if (part.text) {
-                this.config.onTranscriptChunk?.('tutor', part.text, false);
-              }
-            }
+          if (data.type === 'audio' && data.audio) {
+            console.log('[YOE LIVE] audio chunk received, length:', data.audio.length);
+            this.isSpeaking = true;
+            this.config.onStateChange?.('speaking');
+            this.playPcmChunk(data.audio);
           }
 
-          if (data.serverContent?.turnComplete) {
+          if (data.type === 'text' && data.text) {
+            console.log('[YOE LIVE] response received text:', data.text);
+            this.config.onTranscriptChunk?.('tutor', data.text, false);
+          }
+
+          if (data.type === 'turnComplete') {
+            console.log('[YOE LIVE] user turn ended / model turn complete');
             this.config.onTranscriptChunk?.('tutor', '', true);
           }
+
+          if (data.type === 'error') {
+            console.error('[YOE LIVE] connection failed:', data.error);
+            this.config.onStateChange?.('error');
+            this.config.onError?.(data.error);
+          }
         } catch (e) {
-          console.warn('Live API message decode note:', e);
+          console.warn('[YOE LIVE] WebSocket message decode note:', e);
         }
       };
 
       this.ws.onerror = (err) => {
-        console.warn('Live WebSocket note:', err);
+        console.error('[YOE LIVE] websocket connection error:', err);
+        this.config.onStateChange?.('error');
         this.config.onError?.(err);
       };
 
       this.ws.onclose = () => {
+        console.log('[YOE LIVE] websocket connection closed');
         this.isConnected = false;
         this.config.onStateChange?.('idle');
       };
@@ -164,8 +153,10 @@ export class GeminiLiveSession {
       this.startEnergyLoop();
 
       return true;
-    } catch (error) {
-      console.warn('Gemini Live API initiation note:', error);
+    } catch (error: any) {
+      console.error('[YOE LIVE] connection failed:', error);
+      this.config.onStateChange?.('error');
+      this.config.onError?.(error?.message || error);
       this.cleanup();
       return false;
     }
@@ -174,6 +165,7 @@ export class GeminiLiveSession {
   // Captures microphone stream at 16kHz PCM
   private async startMicrophoneCapture() {
     try {
+      console.log('[YOE LIVE] microphone ready, requesting userMedia...');
       this.micStream = await navigator.mediaDevices.getUserMedia({
         audio: {
           sampleRate: 16000,
@@ -184,6 +176,8 @@ export class GeminiLiveSession {
         }
       });
 
+      console.log('[YOE LIVE] audio input active');
+
       if (!this.inputAudioCtx || !this.micAnalyser) return;
 
       const source = this.inputAudioCtx.createMediaStreamSource(this.micStream);
@@ -192,22 +186,20 @@ export class GeminiLiveSession {
       source.connect(this.micAnalyser);
       this.micAnalyser.connect(this.scriptProcessor);
 
-      // CRITICAL AUDIO FIX: Route scriptProcessor to a muted GainNode (0 gain) before destination
-      // to ensure microphone input is NEVER passed through to device speakers/headphones.
+      // Muted gain node to prevent microphone audio loopback to device speaker
       const silenceGain = this.inputAudioCtx.createGain();
       silenceGain.gain.value = 0;
       this.scriptProcessor.connect(silenceGain);
       silenceGain.connect(this.inputAudioCtx.destination);
 
       this.scriptProcessor.onaudioprocess = (e) => {
-        // Zero out the output buffer to guarantee absolute silence on microphone output path
         const outputData = e.outputBuffer.getChannelData(0);
         outputData.fill(0);
 
         if (!this.isConnected || this.ws?.readyState !== WebSocket.OPEN) return;
 
         const inputData = e.inputBuffer.getChannelData(0);
-        
+
         // Convert Float32 to Int16 PCM
         const pcm16 = new Int16Array(inputData.length);
         for (let i = 0; i < inputData.length; i++) {
@@ -224,22 +216,16 @@ export class GeminiLiveSession {
         }
         const base64Audio = btoa(binary);
 
-        // Send realtime input chunk to Gemini
-        const realtimeMsg = {
-          realtimeInput: {
-            mediaChunks: [
-              {
-                mimeType: 'audio/pcm;rate=16000',
-                data: base64Audio
-              }
-            ]
-          }
-        };
-
-        this.ws.send(JSON.stringify(realtimeMsg));
+        // Send PCM audio chunk to server WebSocket bridge
+        this.ws.send(JSON.stringify({
+          type: 'audio',
+          audio: base64Audio
+        }));
       };
-    } catch (e) {
-      console.warn('Microphone stream initialization note:', e);
+    } catch (e: any) {
+      console.error('[YOE LIVE] microphone failed:', e);
+      this.config.onStateChange?.('error');
+      this.config.onError?.(e?.message || 'Microphone access failed');
     }
   }
 
@@ -277,23 +263,29 @@ export class GeminiLiveSession {
 
       this.activeSources.push(source);
 
+      if (this.activeSources.length === 1) {
+        console.log('[YOE LIVE] playback started');
+      }
+
       source.onended = () => {
         const idx = this.activeSources.indexOf(source);
         if (idx !== -1) this.activeSources.splice(idx, 1);
         if (this.activeSources.length === 0 && this.outputAudioCtx) {
           if (this.outputAudioCtx.currentTime >= this.nextStartTime - 0.05) {
+            console.log('[YOE LIVE] playback ended');
             this.isSpeaking = false;
             this.config.onStateChange?.('listening');
           }
         }
       };
     } catch (e) {
-      console.warn('PCM chunk playback note:', e);
+      console.error('[YOE LIVE] playback failed:', e);
     }
   }
 
   // Instantaneous Barge-In / Interruption
   handleInterruption() {
+    console.log('[YOE LIVE] user turn started / interruption requested');
     this.activeSources.forEach((src) => {
       try {
         src.stop();
@@ -306,9 +298,14 @@ export class GeminiLiveSession {
     }
     this.isSpeaking = false;
     this.config.onStateChange?.('interrupted');
+
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify({ type: 'interrupt' }));
+    }
+
     setTimeout(() => {
       this.config.onStateChange?.('listening');
-    }, 400);
+    }, 300);
   }
 
   // High-performance energy monitoring loop
