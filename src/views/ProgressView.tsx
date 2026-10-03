@@ -95,7 +95,7 @@ export const ProgressView: React.FC = () => {
   }, [last7DaysData]);
 
   return (
-    <div className="pb-28 pt-5 px-5 sm:px-6 max-w-md mx-auto space-y-5 animate-in fade-in duration-300">
+    <div className="pb-28 pt-2 space-y-5 animate-in fade-in duration-300">
 
       {/* Header with comfortable breathing room */}
       <div className="pt-1">
@@ -177,15 +177,15 @@ export const ProgressView: React.FC = () => {
             </div>
           </div>
 
-          {/* Metric Switcher */}
+          {/* Metric Switcher - text-white on active state in both light & dark mode */}
           <div className="p-0.5 rounded-xl glass-pill flex items-center text-[10px] font-bold">
             <button
               type="button"
               onClick={() => setActiveMetric('minutes')}
               className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
                 activeMetric === 'minutes'
-                  ? 'bg-emerald-500 text-slate-950 font-black shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'bg-emerald-500 text-white font-bold shadow-sm'
+                  : 'text-slate-400 dark:text-slate-400 light-mode:text-slate-600 hover:text-slate-200'
               }`}
             >
               Speaking
@@ -195,8 +195,8 @@ export const ProgressView: React.FC = () => {
               onClick={() => setActiveMetric('words')}
               className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
                 activeMetric === 'words'
-                  ? 'bg-emerald-500 text-slate-950 font-black shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'bg-emerald-500 text-white font-bold shadow-sm'
+                  : 'text-slate-400 dark:text-slate-400 light-mode:text-slate-600 hover:text-slate-200'
               }`}
             >
               Vocab
@@ -205,8 +205,8 @@ export const ProgressView: React.FC = () => {
         </div>
 
         {/* Recharts Bar Container */}
-        <div className="h-44 w-full pt-2">
-          <ResponsiveContainer width="100%" height="100%">
+        <div className="h-44 min-h-[176px] w-full pt-2 relative">
+          <ResponsiveContainer width="100%" height={176}>
             <BarChart
               data={last7DaysData}
               margin={{ top: 10, right: 8, left: -24, bottom: 0 }}
@@ -215,15 +215,14 @@ export const ProgressView: React.FC = () => {
                 dataKey="day"
                 axisLine={false}
                 tickLine={false}
-                tick={{ fontSize: 10, fill: 'currentColor' }}
-                className="text-slate-400 dark:text-slate-400 light-mode:text-slate-500"
+                tick={{ fontSize: 10, fill: '#94a3b8' }}
               />
               <YAxis
                 axisLine={false}
                 tickLine={false}
                 allowDecimals={false}
-                tick={{ fontSize: 9, fill: 'currentColor' }}
-                className="text-slate-500 dark:text-slate-500 light-mode:text-slate-400"
+                domain={[0, (dataMax: number) => Math.max(dataMax || 0, 10)]}
+                tick={{ fontSize: 9, fill: '#64748b' }}
               />
               <Tooltip
                 cursor={{ fill: 'rgba(16, 185, 129, 0.08)', radius: 8 }}
@@ -231,8 +230,8 @@ export const ProgressView: React.FC = () => {
                   if (active && payload && payload.length) {
                     const data = payload[0].payload;
                     return (
-                      <div className="p-2.5 rounded-2xl glass-card border border-emerald-500/30 text-xs shadow-2xl space-y-1 backdrop-blur-md">
-                        <div className="font-bold text-slate-100 dark:text-slate-100 light-mode:text-slate-900 flex items-center justify-between gap-3">
+                      <div className="p-2.5 rounded-2xl glass-card border border-emerald-500/30 text-xs shadow-2xl space-y-1 backdrop-blur-md bg-slate-900/95 text-slate-100">
+                        <div className="font-bold flex items-center justify-between gap-3">
                           <span>{data.fullDate}</span>
                           {data.isToday && (
                             <span className="px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-400 text-[9px] uppercase font-black">
@@ -258,6 +257,7 @@ export const ProgressView: React.FC = () => {
                 dataKey={activeMetric}
                 radius={[6, 6, 2, 2]}
                 maxBarSize={28}
+                isAnimationActive={false}
               >
                 {last7DaysData.map((entry, index) => (
                   <Cell
@@ -267,9 +267,9 @@ export const ProgressView: React.FC = () => {
                         ? '#10b981'
                         : entry.isActive
                         ? activeMetric === 'minutes'
-                          ? '#00c2ff'
+                          ? '#06b6d4'
                           : '#a855f7'
-                        : 'rgba(148, 163, 184, 0.2)'
+                        : 'rgba(148, 163, 184, 0.25)'
                     }
                   />
                 ))}

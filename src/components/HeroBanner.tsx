@@ -99,7 +99,7 @@ export const HeroBanner: React.FC = () => {
       <h1 className="text-2xl font-black tracking-tight text-slate-100 dark:text-slate-100 light-mode:text-slate-900 mb-1">
         Ready to Speak Today?
       </h1>
-      <p className="text-xs text-slate-400 dark:text-slate-400 light-mode:text-slate-600 max-w-xs mx-auto mb-4 leading-relaxed">
+      <p className="text-xs text-slate-400 dark:text-slate-400 light-mode:text-slate-600 max-w-xs mx-auto mb-4 leading-relaxed text-balance">
         {activeScenario
           ? `Step into "${activeScenario.title}" with Yoe`
           : `Practice conversational ${currentLang.name} with Yoe`}
@@ -110,22 +110,29 @@ export const HeroBanner: React.FC = () => {
         onClick={() => setActiveView('chat')}
         className="w-full relative group overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 p-[1px] shadow-xl shadow-emerald-500/25 hover:shadow-emerald-500/40 transition-all cursor-pointer transform hover:-translate-y-0.5 active:translate-y-0"
       >
-        <div className="w-full h-full bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 rounded-[15px] px-5 py-4 flex items-center justify-between text-white">
-          <div className="flex items-center gap-3.5">
-            <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30 group-hover:scale-105 transition-transform text-white shadow-sm">
+        <div className="w-full h-full bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 rounded-[15px] px-4 sm:px-5 py-3.5 sm:py-4 flex items-center justify-between text-white gap-2.5">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30 group-hover:scale-105 transition-transform text-white shadow-sm shrink-0">
               <Mic className="w-5 h-5 text-white" />
             </div>
-            <div className="text-left">
-              <div className="text-sm font-extrabold text-white tracking-tight drop-shadow-sm">
-                {activeScenario ? `Enter: ${activeScenario.title}` : 'Start Conversation'}
+            <div className="text-left min-w-0 flex-1">
+              <div className="text-xs sm:text-sm font-extrabold text-white tracking-tight drop-shadow-sm truncate leading-tight">
+                {activeScenario ? (
+                  <span>
+                    <span className="opacity-80 font-bold">Enter: </span>
+                    {activeScenario.title}
+                  </span>
+                ) : (
+                  'Start Conversation'
+                )}
               </div>
-              <div className="text-[11px] text-white/90 font-medium">
-                {activeScenario ? `Live Voice Practice with Yoe` : 'Begin interactive speaking session'}
+              <div className="text-[11px] text-white/90 font-medium truncate mt-0.5">
+                {activeScenario ? 'Live Voice Practice with Yoe' : 'Begin interactive speaking session'}
               </div>
             </div>
           </div>
 
-          <div className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white group-hover:translate-x-1 group-hover:bg-white/30 transition-all border border-white/20">
+          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white group-hover:translate-x-1 group-hover:bg-white/30 transition-all border border-white/20 shrink-0">
             <ChevronRight className="w-4 h-4 text-white stroke-[2.5]" />
           </div>
         </div>

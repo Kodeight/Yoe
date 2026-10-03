@@ -52,6 +52,7 @@ class PersistentDatabase {
     vocabulary: Record<string, VocabularyItem[]>;
     mistakes: Record<string, MistakeRecord[]>;
     chatHistories: Record<string, ChatMessage[]>;
+    sessions: any[];
   } = {
     users: [],
     journeys: [],
@@ -60,7 +61,8 @@ class PersistentDatabase {
     completedScenarios: {},
     vocabulary: {},
     mistakes: {},
-    chatHistories: {}
+    chatHistories: {},
+    sessions: []
   };
 
   constructor() {
@@ -454,8 +456,8 @@ class PersistentDatabase {
     userId: string,
     journeyId: string,
     scenarioId: string,
-    stats: { xpEarned: number; durationMinutes: number }
-  ): Promise<{ journey: LearningJourney | undefined; nextRecommended: Scenario[] }> {
+    stats: { xpEarned: number; durationMinutes: number; durationSeconds?: number; errorCount?: number }
+  ): Promise<{ journey: LearningJourney | undefined; nextRecommended: Scenario[]; sessionRecord?: any }> {
     // 1. Mark scenario as completed in user's completed history
     let completed = this.localStore.completedScenarios[userId];
     if (!completed) {
@@ -466,21 +468,43 @@ class PersistentDatabase {
       completed.push(scenarioId);
     }
 
+    const durationMins = stats.durationMinutes || (stats.durationSeconds ? Math.max(1, Math.round(stats.durationSeconds / 60)) : 2);
+    const errors = typeof stats.errorCount === 'number' ? stats.errorCount : 0;
+    const earnedXp = Math.max(stats.xpEarned || 50, 10);
+
     // 2. Update user journey points and minutes
     const journey = this.getJourney(journeyId);
     if (journey) {
-      journey.points += Math.max(stats.xpEarned || 50, 10);
-      journey.totalMinutesSpoken += Math.max(stats.durationMinutes || 2, 1);
+      journey.points += earnedXp;
+      journey.totalMinutesSpoken += durationMins;
       journey.streakDays = Math.max(journey.streakDays, 1);
       await this.saveJourney(journey);
     }
 
+    // 3. Create Session Record in history
+    const sessionRecord = {
+      id: `sess_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      userId,
+      journeyId,
+      scenarioId,
+      completedAt: new Date().toISOString(),
+      durationSeconds: stats.durationSeconds || durationMins * 60,
+      durationMinutes: durationMins,
+      errorCount: errors,
+      xpEarned: earnedXp
+    };
+
+    if (!this.localStore.sessions) {
+      this.localStore.sessions = [];
+    }
+    this.localStore.sessions.push(sessionRecord);
+
     this.saveFileStore();
 
-    // 3. Generate dynamic next scenario recommendations (Never force completed scenario!)
+    // 4. Generate dynamic next scenario recommendations (Never force completed scenario!)
     const nextRecommended = this.getRecommendations(userId, journey?.targetLanguage, journey?.cefrLevel);
 
-    return { journey, nextRecommended };
+    return { journey, nextRecommended, sessionRecord };
   }
 
   getRecommendations(userId: string, targetLang?: string, cefrLevel?: string): Scenario[] {

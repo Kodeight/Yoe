@@ -63,7 +63,7 @@ export const INITIAL_DATABASE_SCENARIOS: Scenario[] = [
     characterName: 'Yoe',
     characterRole: 'Flight Attendant',
     avatar: '🛫',
-    imageUrl: 'https://images.unsplash.com/photo-1519074069444-1ba4fff16def?auto=format&fit=crop&w=600&q=80',
+    imageUrl: 'https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?auto=format&fit=crop&w=600&q=80',
     vocabularyDomain: ['siège', 'bagage', 'coffre à bagages', 'couverture', 'verre d\'eau'],
     initialGreeting: 'Bonjour et bienvenue à bord ! Puis-je voir votre carte d\'embarquement pour vous indiquer votre rangée ?',
     initialGreetingTranslation: 'Hello and welcome on board! May I see your boarding pass to direct you to your row?',
@@ -753,6 +753,90 @@ export const INITIAL_DATABASE_SCENARIOS: Scenario[] = [
       { id: 'obj_pdl_3', text: 'Agree on a revised quality validation milestone', completed: false, hint: 'Say: Ainsi, nous garantissons une qualité irréprochable pour la version de lancement.' }
     ]
   },
+  {
+    id: 'scen_work_asking_clarification',
+    title: 'Asking for Task Clarification & Technical Specs',
+    description: 'Ask a colleague to clarify requirements on a design brief or technical document without hesitation.',
+    category: 'work',
+    targetLanguage: 'es',
+    cefrLevel: 'A2',
+    location: 'Engineering Hub, Madrid',
+    characterName: 'Yoe',
+    characterRole: 'Senior Tech Lead',
+    avatar: '💡',
+    imageUrl: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=600&q=80',
+    vocabularyDomain: ['duda', 'especificaciones', 'requisito', 'explicación', 'diseño'],
+    initialGreeting: '¡Hola! He subido el documento de requisitos del módulo. ¿Tienes alguna duda antes de empezar a programar?',
+    initialGreetingTranslation: 'Hello! I have uploaded the module requirements document. Do you have any questions before starting to code?',
+    objectives: [
+      { id: 'obj_ac_1', text: 'State which specific section needs clarification', completed: false, hint: 'Say: Hola Yoe, tengo una duda sobre el apartado de autenticación de usuarios.' },
+      { id: 'obj_ac_2', text: 'Ask about the expected input format', completed: false, hint: 'Say: ¿Cuál es el formato exacto que debe devolver la función?' },
+      { id: 'obj_ac_3', text: 'Confirm when you will send the first draft', completed: false, hint: 'Say: Perfecto, te enviaré un primer borrador mañana por la tarde.' }
+    ]
+  },
+  {
+    id: 'scen_work_client_support',
+    title: 'Handling a Priority Client Consultation',
+    description: 'Listen attentively to a client\'s software issue, troubleshoot politely, and offer a quick resolution.',
+    category: 'work',
+    targetLanguage: 'es',
+    cefrLevel: 'B1',
+    location: 'Customer Success Hub, Barcelona',
+    characterName: 'Yoe',
+    characterRole: 'Corporate Client',
+    avatar: '🎧',
+    imageUrl: 'https://images.unsplash.com/photo-1534536281715-e28d76689b4d?auto=format&fit=crop&w=600&q=80',
+    vocabularyDomain: ['asistencia', 'incidencia', 'resolución', 'cuenta', 'actualización'],
+    initialGreeting: 'Hola, buenos días. No podemos acceder a nuestro panel de control desde esta mañana y tenemos una presentación urgente.',
+    initialGreetingTranslation: 'Hello, good morning. We cannot access our dashboard since this morning and we have an urgent presentation.',
+    objectives: [
+      { id: 'obj_cs_1', text: 'Acknowledge the urgency and reassure the client calmly', completed: false, hint: 'Say: Buenos días. Lamento mucho el inconveniente, voy a revisar el estado de su cuenta inmediatamente.' },
+      { id: 'obj_cs_2', text: 'Ask for the error code or account email', completed: false, hint: 'Say: ¿Podría indicarme el correo electrónico asociado a su cuenta de empresa?' },
+      { id: 'obj_cs_3', text: 'Explain the fix and confirm access is restored', completed: false, hint: 'Say: Ya hemos restablecido los permisos de acceso. Por favor, pruebe a iniciar sesión de nuevo.' }
+    ]
+  },
+  {
+    id: 'scen_work_contract_negotiation',
+    title: 'Freelance Scope & Rate Negotiation',
+    description: 'Discuss freelance project deliverables, timeline milestones, and agree on professional payment terms.',
+    category: 'work',
+    targetLanguage: 'es',
+    cefrLevel: 'B2',
+    location: 'Consulting Suite, Valencia',
+    characterName: 'Yoe',
+    characterRole: 'Project Manager',
+    avatar: '🤝',
+    imageUrl: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=600&q=80',
+    vocabularyDomain: ['presupuesto', 'plazos', 'entregables', 'tarifa', 'contrato'],
+    initialGreeting: 'Hola. Hemos revisado tu propuesta para el rediseño digital. Nos gusta mucho, pero quisiéramos ajustar el presupuesto total.',
+    initialGreetingTranslation: 'Hello. We have reviewed your proposal for the digital redesign. We really like it, but we would like to adjust the total budget.',
+    objectives: [
+      { id: 'obj_cn_1', text: 'Explain the value and comprehensive scope of the deliverables', completed: false, hint: 'Say: Comprendo su punto. Mi presupuesto incluye la investigación de usuarios, el prototipado y soporte técnico post-lanzamiento.' },
+      { id: 'obj_cn_2', text: 'Propose flexible milestones or phased delivery', completed: false, hint: 'Say: Podríamos dividir el proyecto en dos fases para adaptarnos a su flujo financiero.' },
+      { id: 'obj_cn_3', text: 'Reach an agreement and outline next contractual steps', completed: false, hint: 'Say: Si están de acuerdo con estos términos, prepararé el contrato de servicios hoy mismo.' }
+    ]
+  },
+  {
+    id: 'scen_work_business_lunch',
+    title: 'Professional Business Lunch Etiquette',
+    description: 'Engage in polite professional small talk, discuss industry trends, and conclude with next collaboration steps.',
+    category: 'work',
+    targetLanguage: 'es',
+    cefrLevel: 'B1',
+    location: 'Executive Bistro, Salamanca, Madrid',
+    characterName: 'Yoe',
+    characterRole: 'Partner Director',
+    avatar: '🍽️',
+    imageUrl: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=600&q=80',
+    vocabularyDomain: ['almuerzo', 'sector', 'oportunidades', 'colaboración', 'brindis'],
+    initialGreeting: '¡Qué placer reunirnos hoy! El restaurante tiene un menú excelente. ¿Cómo ha ido la semana de conferencias?',
+    initialGreetingTranslation: 'What a pleasure to meet today! The restaurant has an excellent menu. How has your conference week been?',
+    objectives: [
+      { id: 'obj_bl_1', text: 'Share positive impressions of the industry conference', completed: false, hint: 'Say: Ha sido muy productiva, he asistido a varias charlas muy inspiradoras sobre inteligencia artificial.' },
+      { id: 'obj_bl_2', text: 'Express enthusiasm for future collaborative opportunities', completed: false, hint: 'Say: Creo que nuestras empresas tienen grandes sinergias para desarrollar proyectos conjuntos.' },
+      { id: 'obj_bl_3', text: 'Suggest follow-up calendar invite for next week', completed: false, hint: 'Say: Le enviaré una invitación formal para agendar una videollamada el próximo martes.' }
+    ]
+  },
 
   // ==========================================
   // 4. SOCIAL & CULTURE (8 Situations)
@@ -799,9 +883,93 @@ export const INITIAL_DATABASE_SCENARIOS: Scenario[] = [
       { id: 'obj_tm_3', text: 'Recommend a gripping series you watched recently', completed: false, hint: 'Say: Te recomiendo ver la última serie de misterio que estrenaron el mes pasado.' }
     ]
   },
+  {
+    id: 'scen_social_dinner_friends',
+    title: 'Dinner with Friends & Splitting the Bill',
+    description: 'Catch up on personal news over dinner, praise the food, and easily calculate splitting the restaurant bill.',
+    category: 'social',
+    targetLanguage: 'es',
+    cefrLevel: 'A1',
+    location: 'Tapas Bistro, Gràcia, Barcelona',
+    characterName: 'Yoe',
+    characterRole: 'Close Friend',
+    avatar: '🥘',
+    imageUrl: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=600&q=80',
+    vocabularyDomain: ['cena', 'amigos', 'tapas', 'cuenta', 'compartir'],
+    initialGreeting: '¡Qué alegría vernos después de tanto tiempo! He pedido una tabla de quesos para empezar. ¿Qué tal tu semana?',
+    initialGreetingTranslation: 'So great to see each other after so long! I ordered a cheese platter to start. How was your week?',
+    objectives: [
+      { id: 'obj_df_1', text: 'Share a quick highlight from your past week', completed: false, hint: 'Say: ¡Hola Yoe! Mi semana ha sido genial, empecé unas clases de natación.' },
+      { id: 'obj_df_2', text: 'Praise the tapas dishes you are sharing', completed: false, hint: 'Say: La comida está deliciosa, especialmente las croquetas.' },
+      { id: 'obj_df_3', text: 'Propose splitting the bill equally between everyone', completed: false, hint: 'Say: Dividimos la cuenta a partes iguales, ¿te parece bien?' }
+    ]
+  },
+  {
+    id: 'scen_social_language_exchange',
+    title: 'Language Exchange Mixer at a Cozy Café',
+    description: 'Meet conversation partners, practice switching languages smoothly, and exchange study tips.',
+    category: 'social',
+    targetLanguage: 'es',
+    cefrLevel: 'A2',
+    location: 'Café de las Lenguas, Valencia',
+    characterName: 'Yoe',
+    characterRole: 'Exchange Partner',
+    avatar: '🗣️',
+    imageUrl: 'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=600&q=80',
+    vocabularyDomain: ['intercambio', 'aprender', 'idiomas', 'práctica', 'vocabulario'],
+    initialGreeting: '¡Hola! Es mi primera vez en este intercambio de idiomas. ¿Llevas mucho tiempo aprendiendo español?',
+    initialGreetingTranslation: 'Hello! It\'s my first time at this language exchange. Have you been learning Spanish for long?',
+    objectives: [
+      { id: 'obj_le_1', text: 'Explain how long you have been learning and your goals', completed: false, hint: 'Say: Llevo unos meses estudiando y quiero mejorar mi fluidez al hablar.' },
+      { id: 'obj_le_2', text: 'Ask what methods your partner uses to memorize vocabulary', completed: false, hint: 'Say: ¿Qué aplicación o método usas tú para aprender nuevas palabras?' },
+      { id: 'obj_le_3', text: 'Suggest practicing 15 minutes in Spanish then in your native tongue', completed: false, hint: 'Say: Hablamos quince minutos en español y luego cambiamos, ¿de acuerdo?' }
+    ]
+  },
+  {
+    id: 'scen_social_weekend_hiking',
+    title: 'Planning a Weekend Mountain Hike',
+    description: 'Coordinate departure times, mountain trail routes, backpack essentials, and weather forecasts with a friend.',
+    category: 'social',
+    targetLanguage: 'es',
+    cefrLevel: 'B1',
+    location: 'Outdoor Enthusiasts Club, Granada',
+    characterName: 'Yoe',
+    characterRole: 'Hiking Companion',
+    avatar: '🏔️',
+    imageUrl: 'https://images.unsplash.com/photo-1551632811-561732d1e306?auto=format&fit=crop&w=600&q=80',
+    vocabularyDomain: ['senderismo', 'montaña', 'mochila', 'ruta', 'tiempo'],
+    initialGreeting: '¡Hola! El pronóstico del tiempo para el sábado en Sierra Nevada es perfecto. ¿Qué ruta prefieres hacer?',
+    initialGreetingTranslation: 'Hello! The weather forecast for Saturday in Sierra Nevada is perfect. Which trail do you prefer to take?',
+    objectives: [
+      { id: 'obj_wh_1', text: 'Select a moderate scenic trail through pine forests', completed: false, hint: 'Say: Me gustaría hacer la ruta circular de los pinares, tiene vistas increíbles.' },
+      { id: 'obj_wh_2', text: 'Confirm what gear and snacks each person will bring', completed: false, hint: 'Say: Yo llevaré agua, fruta y un botiquín básico en mi mochila.' },
+      { id: 'obj_wh_3', text: 'Set an early meeting time at the trailhead', completed: false, hint: 'Say: Quedamos a las ocho de la mañana en la entrada del parque para evitar el calor.' }
+    ]
+  },
+  {
+    id: 'scen_social_birthday_toast',
+    title: 'Birthday Celebration & Giving a Toast',
+    description: 'Celebrate a close friend\'s birthday, give a heartfelt toast, and compliment the party decorations.',
+    category: 'social',
+    targetLanguage: 'es',
+    cefrLevel: 'A2',
+    location: 'Garden Party, Madrid',
+    characterName: 'Yoe',
+    characterRole: 'Birthday Host',
+    avatar: '🎂',
+    imageUrl: 'https://images.unsplash.com/photo-1464349095431-e9a21285b5f3?auto=format&fit=crop&w=600&q=80',
+    vocabularyDomain: ['cumpleaños', 'brindis', 'regalo', 'felicidades', 'celebración'],
+    initialGreeting: '¡Muchísimas gracias por venir a mi fiesta de cumpleaños! ¿Te apetece una copa para brindar?',
+    initialGreetingTranslation: 'Thank you so much for coming to my birthday party! Would you like a drink for the toast?',
+    objectives: [
+      { id: 'obj_bt_1', text: 'Wish a warm Happy Birthday and hand over a gift', completed: false, hint: 'Say: ¡Feliz cumpleaños Yoe! Espero que disfrutes mucho este día. Aquí tienes un pequeño detalle.' },
+      { id: 'obj_bt_2', text: 'Propose a cheerful toast with the guests', completed: false, hint: 'Say: ¡Un brindis por Yoe y por muchos años más de amistad y salud!' },
+      { id: 'obj_bt_3', text: 'Compliment the delicious birthday cake', completed: false, hint: 'Say: La tarta de chocolate tiene una pinta increíble.' }
+    ]
+  },
 
   // ==========================================
-  // 5. PRACTICAL & EMERGENCY (6 Situations)
+  // 5. PRACTICAL & EMERGENCY (8 Situations)
   // ==========================================
   {
     id: 'scen_practical_emergency_dispatch',
@@ -822,6 +990,27 @@ export const INITIAL_DATABASE_SCENARIOS: Scenario[] = [
       { id: 'obj_ed_1', text: 'State clearly that you witnessed a minor traffic collision', completed: false, hint: 'Say: Buenas tardes, ha habido un accidente leve entre dos coches en la calle Mayor.' },
       { id: 'obj_ed_2', text: 'Give exact street name and nearby landmark', completed: false, hint: 'Say: Estamos frente al número 45, cerca de la estación de metro.' },
       { id: 'obj_ed_3', text: 'Clarify that both drivers are conscious but need checkup', completed: false, hint: 'Say: Los conductores están conscientes, pero se requiere una ambulancia por precaución.' }
+    ]
+  },
+  {
+    id: 'scen_practical_lost_passport',
+    title: 'Reporting a Lost Passport at Police Station',
+    description: 'File an official police report (denuncia) for a misplaced passport and request an incident certificate.',
+    category: 'practical',
+    targetLanguage: 'es',
+    cefrLevel: 'B1',
+    location: 'Comisaría de Policía Nacional, Madrid',
+    characterName: 'Yoe',
+    characterRole: 'Police Officer',
+    avatar: '🛂',
+    imageUrl: 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=600&q=80',
+    vocabularyDomain: ['pasaporte', 'denuncia', 'comisaría', 'pérdida', 'documento'],
+    initialGreeting: 'Buenos días. Tome asiento. ¿Viene a tramitar una denuncia por extravío o robo de documentación?',
+    initialGreetingTranslation: 'Good morning. Take a seat. Are you here to file a report for lost or stolen documents?',
+    objectives: [
+      { id: 'obj_lpass_1', text: 'Explain that you lost your passport in the city center yesterday', completed: false, hint: 'Say: Buenos días, agente. He extraviado mi pasaporte ayer por la tarde en la zona centro.' },
+      { id: 'obj_lpass_2', text: 'Provide your nationality, full name, and passport number', completed: false, hint: 'Say: Soy de nacionalidad británica y tengo una fotocopia del documento original aquí.' },
+      { id: 'obj_lpass_3', text: 'Request a stamped copy of the police certificate for your embassy', completed: false, hint: 'Say: ¿Podría facilitarme una copia sellada de la denuncia para presentarla en mi consulado?' }
     ]
   },
   {
@@ -846,6 +1035,69 @@ export const INITIAL_DATABASE_SCENARIOS: Scenario[] = [
     ]
   },
   {
+    id: 'scen_practical_car_breakdown',
+    title: 'Roadside Assistance for Highway Flat Tire',
+    description: 'Contact roadside assistance, describe highway kilometer marker, hazard lighting, and tow truck request.',
+    category: 'practical',
+    targetLanguage: 'es',
+    cefrLevel: 'A2',
+    location: 'Highway Assistance Operator, AP-7 Spain',
+    characterName: 'Yoe',
+    characterRole: 'Roadside Assistance Coordinator',
+    avatar: '🚗',
+    imageUrl: 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=600&q=80',
+    vocabularyDomain: ['avería', 'grúa', 'autopista', 'rueda', 'arcén'],
+    initialGreeting: 'Asistencia en Carretera, dígame. ¿Se encuentra usted y su vehículo en una zona segura?',
+    initialGreetingTranslation: 'Roadside Assistance, go ahead. Are you and your vehicle in a safe location?',
+    objectives: [
+      { id: 'obj_cb_1', text: 'Confirm vehicle is stopped on the shoulder with hazards on', completed: false, hint: 'Say: Hola. He pinchado una rueda y estoy detenido en el arcén con las luces de emergencia puestas.' },
+      { id: 'obj_cb_2', text: 'Give exact highway number and kilometer post', completed: false, hint: 'Say: Me encuentro en la autopista AP-7, a la altura del kilómetro ciento veinticuatro.' },
+      { id: 'obj_cb_3', text: 'Ask estimated arrival time of the assistance tow truck', completed: false, hint: 'Say: ¿Cuánto tiempo tardará en llegar la grúa de asistencia?' }
+    ]
+  },
+  {
+    id: 'scen_practical_apartment_leak',
+    title: 'Reporting a Water Leak to Building Maintenance',
+    description: 'Explain an urgent plumbing leak under the kitchen sink, request immediate repair, and turn off water valve.',
+    category: 'practical',
+    targetLanguage: 'es',
+    cefrLevel: 'B1',
+    location: 'Property Management Office, Valencia',
+    characterName: 'Yoe',
+    characterRole: 'Building Maintenance Manager',
+    avatar: '🔧',
+    imageUrl: 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=600&q=80',
+    vocabularyDomain: ['fuga de agua', 'fontanero', 'tubería', 'llave de paso', 'urgente'],
+    initialGreeting: 'Servicio de Mantenimiento de la finca. ¿Cuál es el problema en su piso?',
+    initialGreetingTranslation: 'Building Maintenance Service. What is the issue in your apartment?',
+    objectives: [
+      { id: 'obj_al_1', text: 'Describe a significant water leak under the kitchen pipe', completed: false, hint: 'Say: Buenos días. Tengo una fuga de agua importante debajo del fregadero de la cocina.' },
+      { id: 'obj_al_2', text: 'Confirm you have shut off the main water valve', completed: false, hint: 'Say: Ya he cerrado la llave de paso general para evitar que se inunde el suelo.' },
+      { id: 'obj_al_3', text: 'Ask for an emergency plumber to visit this morning', completed: false, hint: 'Say: ¿Podría enviar a un fontanero de urgencia esta misma mañana?' }
+    ]
+  },
+  {
+    id: 'scen_practical_urgent_clinic',
+    title: 'Urgent Care Walk-In Clinic Consultation',
+    description: 'Check in at an urgent medical clinic, explain severe migraine and throat pain, and present insurance card.',
+    category: 'practical',
+    targetLanguage: 'es',
+    cefrLevel: 'A1',
+    location: 'Centro de Salud de Urgencias, Zaragoza',
+    characterName: 'Yoe',
+    characterRole: 'Clinic Receptionist',
+    avatar: '🏥',
+    imageUrl: 'https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&w=600&q=80',
+    vocabularyDomain: ['urgencias', 'médico', 'tarjeta sanitaria', 'consulta', 'dolor'],
+    initialGreeting: 'Buenas tardes. Bienvenida al centro de salud. ¿Tiene tarjeta sanitaria o seguro privado de viaje?',
+    initialGreetingTranslation: 'Good afternoon. Welcome to the health center. Do you have a health card or private travel insurance?',
+    objectives: [
+      { id: 'obj_uc_1', text: 'Show European health card or travel insurance policy', completed: false, hint: 'Say: Buenas tardes. Aquí tiene mi tarjeta sanitaria europea y mi pasaporte.' },
+      { id: 'obj_uc_2', text: 'Explain you need to see a doctor for intense throat pain and fever', completed: false, hint: 'Say: Necesito ver a un médico porque tengo un dolor fuerte de garganta y fiebre alta.' },
+      { id: 'obj_uc_3', text: 'Ask which waiting room number you should sit in', completed: false, hint: 'Say: ¿En qué sala de espera debo aguardar a que me llamen?' }
+    ]
+  },
+  {
     id: 'scen_practical_feeling_sick',
     title: 'Describing Symptoms to a University Nurse',
     description: 'Explain fever, fatigue, and throat discomfort, and receive medical guidance on hydration and rest.',
@@ -864,6 +1116,98 @@ export const INITIAL_DATABASE_SCENARIOS: Scenario[] = [
       { id: 'obj_fs_1', text: 'Explain that you have had a mild fever since yesterday morning', completed: false, hint: 'Say: Tengo fiebre leve y dolor de cabeza desde ayer por la mañana.' },
       { id: 'obj_fs_2', text: 'Describe feeling very tired with muscle aches', completed: false, hint: 'Say: Me siento muy cansado y me duelen los músculos.' },
       { id: 'obj_fs_3', text: 'Ask if you should take medication and rest for two days', completed: false, hint: 'Say: ¿Qué medicamento me recomienda tomar y cuántos días de reposo necesito?' }
+    ]
+  },
+
+  // ==========================================
+  // 6. DINING & CULINARY (4 Situations)
+  // ==========================================
+  {
+    id: 'scen_dining_tapas_bar',
+    title: 'Ordering Tapas & Regional Wine in Madrid',
+    description: 'Order authentic tapas specialties, ask about local house wines, and request recommendations.',
+    category: 'dining',
+    targetLanguage: 'es',
+    cefrLevel: 'A1',
+    location: 'Taberna La Latina, Madrid',
+    characterName: 'Yoe',
+    characterRole: 'Taberna Bartender',
+    avatar: '🍷',
+    imageUrl: 'https://images.unsplash.com/photo-1514933651103-005eec06c04b?auto=format&fit=crop&w=600&q=80',
+    vocabularyDomain: ['tapas', 'vino tinto', 'ración', 'patatas bravas', 'recomendar'],
+    initialGreeting: '¡Buenas! ¿Qué os pongo de beber para empezar mientras miráis la carta de tapas?',
+    initialGreetingTranslation: 'Hello! What can I get you to drink to start while you look over the tapas menu?',
+    objectives: [
+      { id: 'obj_dt_1', text: 'Order a glass of Rioja red wine and sparkling water', completed: false, hint: 'Say: Hola, una copa de vino tinto Rioja y un agua con gas, por favor.' },
+      { id: 'obj_dt_2', text: 'Ask what the house specialty tapa is', completed: false, hint: 'Say: ¿Cuál es la especialidad de la casa que más nos recomienda?' },
+      { id: 'obj_dt_3', text: 'Order a portion of patatas bravas and jamón ibérico', completed: false, hint: 'Say: Pónganos una ración de patatas bravas y una de jamón ibérico.' }
+    ]
+  },
+  {
+    id: 'scen_dining_gluten_free',
+    title: 'Inquiring About Gluten-Free & Vegan Menu Options',
+    description: 'Ask the waiter about allergen cross-contamination, lactose-free substitutes, and plant-based dishes.',
+    category: 'dining',
+    targetLanguage: 'es',
+    cefrLevel: 'A2',
+    location: 'Bistro Orgánico, Palma de Mallorca',
+    characterName: 'Yoe',
+    characterRole: 'Restaurant Server',
+    avatar: '🥗',
+    imageUrl: 'https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=600&q=80',
+    vocabularyDomain: ['sin gluten', 'vegano', 'alergia', 'ingredientes', 'lácteos'],
+    initialGreeting: '¡Buenas tardes! Aquí tienen la carta. ¿Tienen alguna alergia o preferencia alimentaria que debamos saber?',
+    initialGreetingTranslation: 'Good afternoon! Here is the menu. Do you have any allergies or dietary preferences we should know about?',
+    objectives: [
+      { id: 'obj_gf_1', text: 'Explain that you are gluten intolerant (celiac)', completed: false, hint: 'Say: Sí, soy celíaco y no puedo consumir nada con gluten ni trazas de trigo.' },
+      { id: 'obj_gf_2', text: 'Ask if the risotto or salads can be made completely vegan', completed: false, hint: 'Say: ¿El risotto de setas se puede preparar sin queso ni mantequilla?' },
+      { id: 'obj_gf_3', text: 'Confirm separate kitchen preparation to avoid cross-contact', completed: false, hint: 'Say: ¿Tienen cuidado en la cocina con la contaminación cruzada? Muchas gracias.' }
+    ]
+  },
+
+  // ==========================================
+  // 7. SHOPPING & FASHION (4 Situations)
+  // ==========================================
+  {
+    id: 'scen_shopping_clothes_size',
+    title: 'Trying on Clothes & Inquiring for Sizes',
+    description: 'Ask store staff for a different garment size, inquire about fitting room locations, and check color choices.',
+    category: 'shopping',
+    targetLanguage: 'es',
+    cefrLevel: 'A1',
+    location: 'Boutique de Moda, Passeig de Gràcia, Barcelona',
+    characterName: 'Yoe',
+    characterRole: 'Fashion Store Associate',
+    avatar: '👗',
+    imageUrl: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=600&q=80',
+    vocabularyDomain: ['talla', 'probador', 'color', 'camisa', 'quedar bien'],
+    initialGreeting: '¡Hola! Si necesitas probarte alguna prenda, los probadores están al fondo a la izquierda. ¿Buscas alguna talla?',
+    initialGreetingTranslation: 'Hello! If you need to try on any garment, the fitting rooms are at the back on the left. Are you looking for a size?',
+    objectives: [
+      { id: 'obj_scs_1', text: 'Ask if this jacket is available in size Medium', completed: false, hint: 'Say: Hola, ¿tienen esta chaqueta en la talla mediana?' },
+      { id: 'obj_scs_2', text: 'Ask where the fitting rooms are located', completed: false, hint: 'Say: ¿Dónde están los probadores para probármela?' },
+      { id: 'obj_scs_3', text: 'Say that you love how it fits and will take it', completed: false, hint: 'Say: Me queda genial, me la llevo. ¿Dónde puedo pagar?' }
+    ]
+  },
+  {
+    id: 'scen_shopping_flea_market',
+    title: 'Vintage Bargaining at El Rastro Flea Market',
+    description: 'Browse antique book and handicraft stalls, ask about vintage histories, and negotiate a friendly price discount.',
+    category: 'shopping',
+    targetLanguage: 'es',
+    cefrLevel: 'B1',
+    location: 'El Rastro Market, La Latina, Madrid',
+    characterName: 'Yoe',
+    characterRole: 'Antique Vendor',
+    avatar: '🏺',
+    imageUrl: 'https://images.unsplash.com/photo-1528698827591-e19ccd7bc23d?auto=format&fit=crop&w=600&q=80',
+    vocabularyDomain: ['antigüedades', 'regatear', 'precio', 'descuento', 'artesanía'],
+    initialGreeting: '¡Hola! Echa un vistazo sin compromiso. Tenemos piezas de cerámica y libros antiguos muy bien conservados.',
+    initialGreetingTranslation: 'Hello! Take a look with no obligation. We have beautifully preserved ceramics and vintage books.',
+    objectives: [
+      { id: 'obj_fm_1', text: 'Ask about the origins of a vintage ceramic vase', completed: false, hint: 'Say: Buenos días. ¿De qué año y región es este jarrón de cerámica?' },
+      { id: 'obj_fm_2', text: 'Ask if the vendor can give a small discount for buying two items', completed: false, hint: 'Say: Si me llevo el jarrón y este libro antiguo, ¿me podría hacer un pequeño descuento?' },
+      { id: 'obj_fm_3', text: 'Agree on a fair price and pay in cash', completed: false, hint: 'Say: Me parece un trato justo. Aquí tiene treinta euros en efectivo.' }
     ]
   }
 ];

@@ -91,6 +91,33 @@ export const ConversationView: React.FC = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const liveSessionRef = useRef<GeminiLiveSession | null>(null);
   const tutorPcmChunksRef = useRef<Uint8Array[]>([]);
+  const touchStartXRef = useRef<number | null>(null);
+  const touchStartYRef = useRef<number | null>(null);
+
+  // Swipe right gesture to close chat and go back to previous page
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartXRef.current = e.touches[0].clientX;
+    touchStartYRef.current = e.touches[0].clientY;
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartXRef.current === null || touchStartYRef.current === null) return;
+    const deltaX = e.changedTouches[0].clientX - touchStartXRef.current;
+    const deltaY = e.changedTouches[0].clientY - touchStartYRef.current;
+    touchStartXRef.current = null;
+    touchStartYRef.current = null;
+
+    // Detect intentional swipe right gesture (> 75px horizontal and primarily horizontal)
+    if (deltaX > 75 && Math.abs(deltaX) > Math.abs(deltaY) * 1.3) {
+      if (liveSessionRef.current) {
+        liveSessionRef.current.stop();
+        liveSessionRef.current = null;
+      }
+      stopSpeaking();
+      stopListening();
+      setActiveView('home');
+    }
+  };
 
   // Objectives Checker for Spoken Dialogue
   const checkUserObjectives = useCallback((userText: string) => {
@@ -521,7 +548,11 @@ export const ConversationView: React.FC = () => {
   const bubbleSize = !hasStartedConversation ? 'xl' : '2xl';
 
   return (
-    <div className="flex flex-col h-[100dvh] w-full max-w-lg mx-auto bg-[var(--app-background)] text-[var(--text-primary)] relative overflow-hidden">
+    <div
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+      className="flex flex-col h-[100dvh] w-full max-w-lg mx-auto bg-[var(--app-background)] text-[var(--text-primary)] relative overflow-hidden"
+    >
 
       {/* Top Compact Scenario Glass Header Bar */}
       <div className="shrink-0 z-30 glass-header px-4 py-3 flex items-center justify-between safe-top-padding border-b border-white/10 dark:border-white/10 light-mode:border-slate-200">
@@ -999,15 +1030,23 @@ export const ConversationView: React.FC = () => {
           allScenarios={scenarios}
           onSelectScenario={(newScenarioId) => {
             setShowSummaryModal(false);
+            const durationSecs = Math.max(1, Math.round((Date.now() - sessionStartTime) / 1000));
             completeScenario(activeScenario.id, {
-              durationMinutes: Math.max(1, Math.round((Date.now() - sessionStartTime) / 60000))
+              durationSeconds: durationSecs,
+              durationMinutes: Math.max(1, Math.round(durationSecs / 60)),
+              errorCount: sessionMistakes.length,
+              xpEarned: 50 + (Object.keys(completedObjectives).length * 15)
             });
             setActiveScenarioId(newScenarioId);
           }}
           onClose={() => {
             setShowSummaryModal(false);
+            const durationSecs = Math.max(1, Math.round((Date.now() - sessionStartTime) / 1000));
             completeScenario(activeScenario.id, {
-              durationMinutes: Math.max(1, Math.round((Date.now() - sessionStartTime) / 60000))
+              durationSeconds: durationSecs,
+              durationMinutes: Math.max(1, Math.round(durationSecs / 60)),
+              errorCount: sessionMistakes.length,
+              xpEarned: 50 + (Object.keys(completedObjectives).length * 15)
             });
             refreshProgress();
             setActiveView('home');
@@ -1029,8 +1068,12 @@ export const ConversationView: React.FC = () => {
           }}
           onGoHome={() => {
             setShowSummaryModal(false);
+            const durationSecs = Math.max(1, Math.round((Date.now() - sessionStartTime) / 1000));
             completeScenario(activeScenario.id, {
-              durationMinutes: Math.max(1, Math.round((Date.now() - sessionStartTime) / 60000))
+              durationSeconds: durationSecs,
+              durationMinutes: Math.max(1, Math.round(durationSecs / 60)),
+              errorCount: sessionMistakes.length,
+              xpEarned: 50 + (Object.keys(completedObjectives).length * 15)
             });
             refreshProgress();
             setActiveView('home');

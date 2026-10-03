@@ -87,14 +87,14 @@ export const LearnView: React.FC = () => {
   };
 
   return (
-    <div className="pb-24 pt-3 px-4 max-w-md mx-auto space-y-4 animate-in fade-in duration-300">
+    <div className="pb-24 pt-3 px-5 sm:px-6 max-w-md mx-auto space-y-4 animate-in fade-in duration-300">
 
-      {/* Top Segmented Navigation Tab Control */}
-      <div className="p-1 rounded-2xl glass-pill flex items-center shadow-md">
+      {/* Top Segmented Navigation Tab Control with balanced button widths */}
+      <div className="p-1 rounded-2xl glass-pill flex items-center gap-1 shadow-md">
         <button
           type="button"
           onClick={() => setActiveTab('course')}
-          className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+          className={`flex-1 px-3 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
             activeTab === 'course'
               ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-extrabold shadow-md'
               : 'text-slate-400 dark:text-slate-400 light-mode:text-slate-600 hover:text-slate-100'
@@ -107,7 +107,7 @@ export const LearnView: React.FC = () => {
         <button
           type="button"
           onClick={() => setActiveTab('review')}
-          className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+          className={`flex-1 px-3 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
             activeTab === 'review'
               ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-extrabold shadow-md'
               : 'text-slate-400 dark:text-slate-400 light-mode:text-slate-600 hover:text-slate-100'
@@ -120,7 +120,7 @@ export const LearnView: React.FC = () => {
         <button
           type="button"
           onClick={() => setActiveTab('progress')}
-          className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+          className={`px-2.5 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1 shrink-0 ${
             activeTab === 'progress'
               ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-extrabold shadow-md'
               : 'text-slate-400 dark:text-slate-400 light-mode:text-slate-600 hover:text-slate-100'

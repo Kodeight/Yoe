@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, LearningJourney, Scenario, VocabularyItem, MistakeRecord, LanguageCode, Language, CourseUnit } from '../types';
 import { applyDocumentDirection } from '../utils/i18n';
+import { persistScenarioCompletion } from '../services/progressService';
 
 export type AppView = 'home' | 'chat' | 'learn' | 'explore' | 'profile' | 'profile-settings' | 'vocab' | 'grammar' | 'auth';
 
@@ -27,7 +28,10 @@ interface AppContextType {
   setActiveView: (view: AppView) => void;
   setActiveJourney: (journey: LearningJourney) => void;
   setActiveScenarioId: (scenarioId: string) => void;
-  completeScenario: (scenarioId: string, stats?: { xpEarned?: number; durationMinutes?: number }) => Promise<Scenario[]>;
+  completeScenario: (
+    scenarioId: string,
+    stats?: { xpEarned?: number; durationMinutes?: number; durationSeconds?: number; errorCount?: number }
+  ) => Promise<Scenario[]>;
   toggleTheme: () => void;
   setThemeMode: (mode: 'dark' | 'light') => void;
   setUiLanguage: (lang: LanguageCode) => void;
@@ -349,7 +353,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const completeScenario = async (
     scenarioId: string,
-    stats: { xpEarned?: number; durationMinutes?: number } = {}
+    stats: { xpEarned?: number; durationMinutes?: number; durationSeconds?: number; errorCount?: number } = {}
   ): Promise<Scenario[]> => {
     // 1. Update local completed list
     const updatedCompleted = Array.from(new Set([...completedScenarioIds, scenarioId]));
@@ -358,33 +362,52 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       localStorage.setItem('yoe_completed_scenarios', JSON.stringify(updatedCompleted));
     }
 
-    // 2. Persist to server database
-    try {
-      const res = await fetch('/api/progress/complete-scenario', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
-        body: JSON.stringify({
-          userId: user?.id || 'guest_user',
-          journeyId: activeJourney?.id,
-          scenarioId,
-          xpEarned: stats.xpEarned || 50,
-          durationMinutes: stats.durationMinutes || 3
-        })
-      });
-      const data = await res.json();
-      if (data.journey && activeJourney) {
-        setActiveJourneyState(data.journey);
+    // Optimistically update journey points and minutes for instantaneous UI progress bar response
+    const addedMinutes = stats.durationMinutes || (stats.durationSeconds ? Math.max(1, Math.round(stats.durationSeconds / 60)) : 3);
+    const addedXp = stats.xpEarned || 50;
+
+    if (activeJourney) {
+      const optimisticallyUpdated: LearningJourney = {
+        ...activeJourney,
+        points: (activeJourney.points || 0) + addedXp,
+        totalMinutesSpoken: (activeJourney.totalMinutesSpoken || 0) + addedMinutes,
+        streakDays: Math.max(activeJourney.streakDays || 0, 1)
+      };
+      setActiveJourneyState(optimisticallyUpdated);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('yoe_active_journey', JSON.stringify(optimisticallyUpdated));
       }
-      if (data.nextRecommended && data.nextRecommended.length > 0) {
-        setRecommendations(data.nextRecommended);
-        return data.nextRecommended;
+    }
+
+    // 2. Persist to server database via the dedicated service layer
+    try {
+      const result = await persistScenarioCompletion({
+        userId: user?.id || 'guest_user',
+        journeyId: activeJourney?.id,
+        scenarioId,
+        durationSeconds: stats.durationSeconds,
+        durationMinutes: stats.durationMinutes || addedMinutes,
+        errorCount: stats.errorCount || 0,
+        xpEarned: addedXp
+      });
+
+      if (result.journey) {
+        setActiveJourneyState(result.journey);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('yoe_active_journey', JSON.stringify(result.journey));
+        }
+      }
+
+      if (result.nextRecommended && result.nextRecommended.length > 0) {
+        setRecommendations(result.nextRecommended);
+        return result.nextRecommended;
       }
     } catch (e) {
       console.warn('Could not sync completed scenario with server:', e);
     }
 
     // Fallback dynamic next recommendations
-    const remaining = scenarios.filter(s => !updatedCompleted.includes(s.id));
+    const remaining = scenarios.filter((s) => !updatedCompleted.includes(s.id));
     const nextList = remaining.length > 0 ? remaining.slice(0, 6) : scenarios.slice(0, 6);
     setRecommendations(nextList);
     return nextList;

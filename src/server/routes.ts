@@ -208,17 +208,23 @@ apiRouter.get('/recommendations', (req: Request, res: Response) => {
 // Scenario Completion & Progress Tracking (Database Persistence)
 apiRouter.post('/progress/complete-scenario', async (req: Request, res: Response) => {
   try {
-    const { userId, journeyId, scenarioId, xpEarned, durationMinutes } = req.body;
+    const { userId, journeyId, scenarioId, xpEarned, durationMinutes, durationSeconds, errorCount } = req.body;
     const result = await db.recordCompletedScenario(
       userId || 'guest_user',
       journeyId,
       scenarioId,
-      { xpEarned: Number(xpEarned) || 50, durationMinutes: Number(durationMinutes) || 3 }
+      {
+        xpEarned: Number(xpEarned) || 50,
+        durationMinutes: Number(durationMinutes) || (durationSeconds ? Math.max(1, Math.round(Number(durationSeconds) / 60)) : 3),
+        durationSeconds: Number(durationSeconds) || undefined,
+        errorCount: typeof errorCount === 'number' ? errorCount : 0
+      }
     );
     res.json({
       success: true,
       journey: result.journey,
-      nextRecommended: result.nextRecommended
+      nextRecommended: result.nextRecommended,
+      sessionRecord: result.sessionRecord
     });
   } catch (err: any) {
     console.error('[COMPLETE SCENARIO ERROR]:', err);

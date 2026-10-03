@@ -37,7 +37,7 @@ export const ScenariosView: React.FC = () => {
 
       {/* Filter Pills */}
       <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
-        {['all', 'A1', 'A2', 'B1', 'travel', 'dining', 'shopping', 'social', 'business'].map((f) => (
+        {['all', 'daily', 'work', 'social', 'practical', 'dining', 'shopping', 'travel', 'A1', 'A2', 'B1', 'B2'].map((f) => (
           <button
             key={f}
             onClick={() => setSelectedFilter(f)}
@@ -47,7 +47,7 @@ export const ScenariosView: React.FC = () => {
                 : 'glass-pill text-slate-300 dark:text-slate-300 light-mode:text-slate-700 hover:border-emerald-500/40'
             }`}
           >
-            {f}
+            {f === 'daily' ? 'Daily Life' : f}
           </button>
         ))}
       </div>
@@ -77,6 +77,9 @@ export const ScenariosView: React.FC = () => {
                 <img
                   src={scen.imageUrl}
                   alt={scen.title}
+                  onError={(e) => {
+                    e.currentTarget.src = 'https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?auto=format&fit=crop&w=600&q=80';
+                  }}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
