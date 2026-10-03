@@ -96,9 +96,9 @@ export const ConversationView: React.FC = () => {
     });
   }, [activeScenario, completedObjectives]);
 
-  // Handle explicit STOP of active conversation (P0 Requirement)
+  // Handle explicit STOP of active voice call (halts call, keeps chat room open to read and interact)
   const handleStopConversation = useCallback(() => {
-    console.log('[YOE LIVE] Stopping active voice conversation session...');
+    console.log('[YOE LIVE] Stopping active voice call session (retaining chat history)...');
     if (liveSessionRef.current) {
       liveSessionRef.current.stop();
       liveSessionRef.current = null;
@@ -107,7 +107,6 @@ export const ConversationView: React.FC = () => {
     stopSpeaking();
     stopListening();
     setIsLiveApiActive(false);
-    setHasStartedConversation(false);
     setLiveState('idle');
     setLiveEnergy(0);
     clearAudioError();
@@ -532,15 +531,15 @@ export const ConversationView: React.FC = () => {
             <ArrowLeft className="w-4 h-4" />
           </button>
 
-        <div className="flex items-center gap-2 min-w-0 px-2">
-          <div className="min-w-0 text-center">
-            <h2 className="text-xs font-black text-slate-100 dark:text-slate-100 light-mode:text-slate-900 flex items-center justify-center gap-1.5 truncate">
+        <div className="flex items-center gap-2 min-w-0 px-2 flex-1 ml-1">
+          <div className="min-w-0 text-left">
+            <h2 className="text-xs font-black text-slate-100 dark:text-slate-100 light-mode:text-slate-900 flex items-center justify-start gap-1.5 truncate tracking-tight">
               <span>YOE</span>
-              <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 text-[9px] font-extrabold uppercase">
+              <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 text-[9px] font-extrabold uppercase tracking-wide">
                 {activeJourney?.cefrLevel || activeScenario.cefrLevel || 'A1'}
               </span>
             </h2>
-            <p className="text-[10px] text-slate-400 dark:text-slate-400 light-mode:text-slate-500 truncate max-w-[180px]">
+            <p className="text-[10px] text-slate-400 dark:text-slate-400 light-mode:text-slate-500 truncate max-w-[180px] text-left">
               {activeScenario.title}
             </p>
           </div>
@@ -657,7 +656,7 @@ export const ConversationView: React.FC = () => {
       <div className="shrink-0 flex flex-col items-center justify-center pt-2 pb-1 select-none relative">
         <div
           onClick={() => {
-            if (!hasStartedConversation) {
+            if (!hasStartedConversation || !isLiveApiActive) {
               handleStartConversation();
             } else if (isLiveApiActive && liveSessionRef.current) {
               if (liveState === 'speaking') {
@@ -665,15 +664,10 @@ export const ConversationView: React.FC = () => {
               }
             } else if (isSpeaking) {
               stopSpeaking();
-              startListening(activeJourney?.targetLanguage);
-            } else if (!isListening) {
-              startListening(activeJourney?.targetLanguage);
-            } else {
-              stopListening();
             }
           }}
           className="cursor-pointer transition-transform hover:scale-102 active:scale-98"
-          title={!hasStartedConversation ? t.startConversation : isSpeaking || liveState === 'speaking' ? t.tapToInterrupt : t.tapToSpeak}
+          title={!hasStartedConversation || !isLiveApiActive ? t.startConversation : isSpeaking || liveState === 'speaking' ? t.tapToInterrupt : t.tapToSpeak}
         >
           <VoiceBubble
             size={bubbleSize}
@@ -689,6 +683,8 @@ export const ConversationView: React.FC = () => {
             className={`w-2 h-2 rounded-full inline-block ${
               !hasStartedConversation
                 ? 'bg-emerald-400'
+                : !isLiveApiActive
+                ? 'bg-slate-500'
                 : bubbleState === 'speaking'
                 ? 'bg-emerald-400 animate-pulse'
                 : bubbleState === 'listening'
@@ -703,6 +699,8 @@ export const ConversationView: React.FC = () => {
           <p className="text-xs font-semibold text-slate-200 dark:text-slate-200 light-mode:text-slate-800 tracking-wide">
             {!hasStartedConversation
               ? t.readyToSpeak
+              : !isLiveApiActive
+              ? 'Voice call stopped • Tap mic or bubble to resume'
               : bubbleState === 'speaking'
               ? t.yoeIsSpeaking
               : bubbleState === 'listening'
@@ -714,7 +712,7 @@ export const ConversationView: React.FC = () => {
               : t.tapToSpeak}
           </p>
           {isLiveApiActive && (
-            <span className="text-emerald-400 text-[10px] font-black uppercase flex items-center gap-0.5 ml-1">
+            <span className="text-emerald-400 text-[10px] font-black uppercase flex items-center gap-0.5 ml-1 tracking-wider">
               <Radio className="w-2.5 h-2.5" />
               <span>{t.live}</span>
             </span>
@@ -743,9 +741,15 @@ export const ConversationView: React.FC = () => {
           </button>
         </div>
       ) : (
-        /* Main Conversation Messages Scroll Area after Start */
+        /* Main Conversation Messages Scroll Area after Start with Smooth Gradient Mask at Top */
         showTranscript ? (
-          <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3.5 no-scrollbar">
+          <div
+            className="flex-1 overflow-y-auto px-4 pt-3 pb-3 space-y-3.5 no-scrollbar relative"
+            style={{
+              maskImage: 'linear-gradient(to bottom, transparent 0%, black 28px, black calc(100% - 8px), black 100%)',
+              WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 28px, black calc(100% - 8px), black 100%)'
+            }}
+          >
             {messages.map((msg) => {
               const isUser = msg.sender === 'user';
               const isCurrentlyPlaying = playingMessageId === msg.id && isSpeaking;
@@ -760,7 +764,7 @@ export const ConversationView: React.FC = () => {
                     }`}
                   >
                     <div className="flex items-center justify-between gap-3 mb-1">
-                      <span className={`text-[10px] font-extrabold uppercase tracking-wider ${isUser ? 'text-white/80' : 'text-emerald-400'}`}>
+                      <span className={`text-[11px] font-bold ${isUser ? 'text-white/90' : 'text-emerald-400'}`}>
                         {isUser ? t.you : t.yoe}
                       </span>
                       {!isUser && (
@@ -813,7 +817,7 @@ export const ConversationView: React.FC = () => {
                   {/* Gentle Structured Correction Note */}
                   {msg.correction && (
                     <div className="max-w-[85%] rounded-2xl bg-amber-500/10 border border-amber-500/25 p-3 text-xs space-y-1.5 animate-in fade-in">
-                      <div className="flex items-center gap-1.5 text-amber-400 font-bold text-[10px] uppercase">
+                      <div className="flex items-center gap-1.5 text-amber-400 font-bold text-[10px]">
                         <Lightbulb className="w-3.5 h-3.5" />
                         <span>{t.yoeCoaching}</span>
                       </div>
@@ -885,41 +889,55 @@ export const ConversationView: React.FC = () => {
             }}
             className="glass-nav p-2 rounded-3xl flex items-center gap-2 shadow-2xl border border-white/10 dark:border-white/10 light-mode:border-slate-200"
           >
-            {/* Real Microphone Mute/Unmute Button (Part 5) */}
-            <button
-              type="button"
-              onClick={() => {
-                const next = !isMicMuted;
-                setIsMicMuted(next);
-                if (liveSessionRef.current) {
-                  liveSessionRef.current.setMuted(next);
-                }
-              }}
-              className={`p-3 rounded-2xl transition-all cursor-pointer shadow-lg shrink-0 ${
-                isMicMuted
-                  ? 'bg-rose-500/25 border border-rose-500/50 text-rose-400 shadow-rose-500/20'
-                  : 'bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/30 shadow-emerald-500/20'
-              }`}
-              title={isMicMuted ? t.unmuteMic : t.muteMic}
-              aria-label={isMicMuted ? t.unmuteMic : t.muteMic}
-            >
-              {isMicMuted ? (
-                <MicOff className="w-5 h-5 text-rose-400" />
-              ) : (
-                <Mic className="w-5 h-5 text-emerald-400" />
-              )}
-            </button>
+            {/* Real Microphone / Call Controls */}
+            {isLiveApiActive ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = !isMicMuted;
+                    setIsMicMuted(next);
+                    if (liveSessionRef.current) {
+                      liveSessionRef.current.setMuted(next);
+                    }
+                  }}
+                  className={`p-3 rounded-2xl transition-all cursor-pointer shadow-lg shrink-0 ${
+                    isMicMuted
+                      ? 'bg-rose-500/25 border border-rose-500/50 text-rose-400 shadow-rose-500/20'
+                      : 'bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/30 shadow-emerald-500/20'
+                  }`}
+                  title={isMicMuted ? t.unmuteMic : t.muteMic}
+                  aria-label={isMicMuted ? t.unmuteMic : t.muteMic}
+                >
+                  {isMicMuted ? (
+                    <MicOff className="w-5 h-5 text-rose-400" />
+                  ) : (
+                    <Mic className="w-5 h-5 text-emerald-400" />
+                  )}
+                </button>
 
-            {/* Stop Voice Session Button */}
-            <button
-              type="button"
-              onClick={handleStopConversation}
-              className="p-3 rounded-2xl glass-pill text-rose-400 hover:bg-rose-500/20 hover:border-rose-500/40 transition-all cursor-pointer shadow-md shrink-0 flex items-center justify-center"
-              title={t.stopSession}
-              aria-label={t.stopSession}
-            >
-              <Square className="w-4 h-4 fill-current text-rose-400" />
-            </button>
+                {/* Stop Voice Session Button (Stops call, keeps chat room open) */}
+                <button
+                  type="button"
+                  onClick={handleStopConversation}
+                  className="p-3 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-400 hover:bg-rose-500/25 transition-all cursor-pointer shadow-md shrink-0 flex items-center justify-center"
+                  title="Stop voice call (re-read chat)"
+                  aria-label="Stop voice call"
+                >
+                  <Square className="w-4 h-4 fill-current text-rose-400" />
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={handleStartConversation}
+                className="p-3 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/30 shadow-emerald-500/20 transition-all cursor-pointer shadow-md shrink-0 flex items-center justify-center"
+                title="Resume Voice Call"
+                aria-label="Resume Voice Call"
+              >
+                <Mic className="w-5 h-5 text-emerald-400" />
+              </button>
+            )}
 
             {/* Text Input */}
             <input
