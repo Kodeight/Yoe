@@ -184,50 +184,82 @@ Respond strictly in JSON:
   }
 }
 
+export function pcmToWav(pcmData: Buffer, sampleRate = 24000, numChannels = 1, bitsPerSample = 16): Buffer {
+  const byteRate = (sampleRate * numChannels * bitsPerSample) / 8;
+  const blockAlign = (numChannels * bitsPerSample) / 8;
+  const dataSize = pcmData.length;
+  const chunkSize = 36 + dataSize;
+
+  const header = Buffer.alloc(44);
+  header.write('RIFF', 0);
+  header.writeUInt32LE(chunkSize, 4);
+  header.write('WAVE', 8);
+  header.write('fmt ', 12);
+  header.writeUInt32LE(16, 16);
+  header.writeUInt16LE(1, 20);
+  header.writeUInt16LE(numChannels, 22);
+  header.writeUInt32LE(sampleRate, 24);
+  header.writeUInt32LE(byteRate, 28);
+  header.writeUInt16LE(blockAlign, 32);
+  header.writeUInt16LE(bitsPerSample, 34);
+  header.write('data', 36);
+  header.writeUInt32LE(dataSize, 40);
+
+  return Buffer.concat([header, pcmData]);
+}
+
 export async function generateScenarioSpeech(text: string, voiceName = 'Kore'): Promise<string | null> {
   if (!text || !text.trim()) return null;
-
-  const ttsModels = ['gemini-3.8-flash-tts', 'gemini-3.8-flash-lite-tts', 'gemini-3.8-flash'];
   const client = getGeminiClient();
 
-  for (const model of ttsModels) {
-    try {
-      const response = await client.models.generateContent({
-        model,
-        contents: [
-          {
-            role: 'user',
-            parts: [
-              {
-                text: text.trim(),
-                speechMetadata: {
-                  style: 'Natural, warm, engaging conversational speaker'
-                }
-              }
-            ]
+  try {
+    const pcmChunks: Buffer[] = [];
+    const session = await client.live.connect({
+      model: LIVE_MODEL,
+      config: {
+        responseModalities: [Modality.AUDIO],
+        speechConfig: {
+          voiceConfig: {
+            prebuiltVoiceConfig: { voiceName }
           }
-        ],
-        config: {
-          responseModalities: ['AUDIO'],
-          speechConfig: {
-            voiceConfig: {
-              prebuiltVoiceConfig: { voiceName }
+        },
+        systemInstruction: {
+          parts: [{ text: 'You are an accurate voice synthesizer for language tutoring. Read the requested text aloud clearly and naturally.' }]
+        }
+      },
+      callbacks: {
+        onmessage: (msg) => {
+          const parts = msg.serverContent?.modelTurn?.parts || [];
+          for (const p of parts) {
+            if (p.inlineData?.data) {
+              pcmChunks.push(Buffer.from(p.inlineData.data, 'base64'));
             }
           }
         }
-      });
-
-      const audioData = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-      if (audioData) {
-        return audioData;
       }
-    } catch (err: any) {
-      console.warn(`[GEMINI TTS] Model ${model} generation note:`, err?.message || err);
-    }
-  }
+    });
 
-  console.error('[GEMINI TTS] All Gemini TTS models failed');
-  return null;
+    session.sendClientContent({
+      turns: [
+        {
+          role: 'user',
+          parts: [{ text: `Say clearly: ${text.trim()}` }]
+        }
+      ],
+      turnComplete: true
+    });
+
+    await new Promise((r) => setTimeout(r, 2200));
+    try { session.close(); } catch (e) {}
+
+    if (pcmChunks.length === 0) return null;
+    const fullPcm = Buffer.concat(pcmChunks);
+    const wav = pcmToWav(fullPcm, 24000);
+    return wav.toString('base64');
+  } catch (err: any) {
+    console.error('[GEMINI TTS] Speech synthesis error:', err?.message || err);
+    return null;
+  }
 }
 
 export async function createEphemeralLiveToken(scenario?: Scenario, journey?: LearningJourney) {

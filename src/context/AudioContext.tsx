@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
+import { decodeAudioPayload } from '../utils/audioHelpers';
 
 export type MicStatus = 'idle' | 'requesting' | 'ready' | 'listening' | 'speaking' | 'denied' | 'unavailable' | 'error';
 
@@ -13,12 +14,15 @@ export interface AudioContextType {
   audioError: string | null;
   notificationSoundsEnabled: boolean;
   speechFeedbackEnabled: boolean;
+  playingMessageId: string | null;
   requestMicrophoneAccess: () => Promise<boolean>;
   startListening: (langCode?: string) => Promise<boolean>;
   stopListening: () => void;
-  playGeminiAudio: (base64Wav: string, onEnded?: () => void) => Promise<void>;
+  playGeminiAudio: (base64Audio: string, onEnded?: () => void) => Promise<void>;
   speakText: (text: string, langCode?: string, characterName?: string, role?: string, onEnded?: () => void) => Promise<void>;
+  replayMessage: (messageId: string, text: string, audioUrl?: string, characterName?: string, role?: string, onEnded?: () => void) => Promise<void>;
   stopSpeaking: () => void;
+  stopReplay: () => void;
   toggleNotificationSounds: () => void;
   toggleSpeechFeedback: () => void;
   playNotificationSound: () => void;
@@ -37,6 +41,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isInterrupted, setIsInterrupted] = useState(false);
   const [audioEnergy, setAudioEnergy] = useState<number>(0);
+  const [playingMessageId, setPlayingMessageId] = useState<string | null>(null);
 
   const [micStatus, setMicStatus] = useState<MicStatus>('idle');
   const [micPermissionDenied, setMicPermissionDenied] = useState(false);
@@ -257,10 +262,15 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       window.speechSynthesis.cancel();
     }
     setIsSpeaking(false);
+    setPlayingMessageId(null);
   }, []);
 
-  // Play native Gemini Audio (WAV base64) with AnalyserNode connection
-  const playGeminiAudio = useCallback(async (base64Wav: string, onEnded?: () => void): Promise<void> => {
+  const stopReplay = useCallback(() => {
+    stopSpeaking();
+  }, [stopSpeaking]);
+
+  // Play native Gemini Audio (WAV or raw PCM base64) with AnalyserNode connection
+  const playGeminiAudio = useCallback(async (base64Audio: string, onEnded?: () => void): Promise<void> => {
     try {
       stopSpeaking();
       const ctx = getOrCreateAudioContext();
@@ -271,16 +281,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         await ctx.resume();
       }
 
-      // Remove data URL prefix if present
-      const rawBase64 = base64Wav.includes('base64,') ? base64Wav.split('base64,')[1] : base64Wav;
-      const binaryStr = atob(rawBase64);
-      const len = binaryStr.length;
-      const bytes = new Uint8Array(len);
-      for (let i = 0; i < len; i++) {
-        bytes[i] = binaryStr.charCodeAt(i);
-      }
-
-      const audioBuffer = await ctx.decodeAudioData(bytes.buffer.slice(0));
+      const audioBuffer = await decodeAudioPayload(ctx, base64Audio, 24000);
       const source = ctx.createBufferSource();
       source.buffer = audioBuffer;
 
@@ -294,6 +295,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       source.onended = () => {
         setIsSpeaking(false);
+        setPlayingMessageId(null);
         currentSourceRef.current = null;
         if (onEnded) onEnded();
       };
@@ -302,6 +304,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     } catch (err) {
       console.warn('Native audio playback error:', err);
       setIsSpeaking(false);
+      setPlayingMessageId(null);
       if (onEnded) onEnded();
     }
   }, [getOrCreateAudioContext, stopSpeaking]);
@@ -539,10 +542,12 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       utterance.onstart = () => setIsSpeaking(true);
       utterance.onend = () => {
         setIsSpeaking(false);
+        setPlayingMessageId(null);
         if (onEnded) onEnded();
       };
       utterance.onerror = () => {
         setIsSpeaking(false);
+        setPlayingMessageId(null);
         if (onEnded) onEnded();
       };
       window.speechSynthesis.speak(utterance);
@@ -550,6 +555,36 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (onEnded) onEnded();
     }
   }, [playGeminiAudio, stopSpeaking]);
+
+  // Centralized Replay System for all Yoe messages across the app
+  const replayMessage = useCallback(async (
+    messageId: string,
+    text: string,
+    audioUrl?: string,
+    characterName?: string,
+    role?: string,
+    onEnded?: () => void
+  ): Promise<void> => {
+    if (playingMessageId === messageId && isSpeaking) {
+      stopSpeaking();
+      return;
+    }
+
+    stopSpeaking();
+    setPlayingMessageId(messageId);
+
+    const onComplete = () => {
+      setPlayingMessageId((curr) => (curr === messageId ? null : curr));
+      if (onEnded) onEnded();
+    };
+
+    if (audioUrl && audioUrl.length > 50) {
+      await playGeminiAudio(audioUrl, onComplete);
+      return;
+    }
+
+    await speakText(text, undefined, characterName, role, onComplete);
+  }, [playingMessageId, isSpeaking, stopSpeaking, playGeminiAudio, speakText]);
 
   return (
     <AudioContextState.Provider
@@ -564,12 +599,15 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         audioError,
         notificationSoundsEnabled,
         speechFeedbackEnabled,
+        playingMessageId,
         requestMicrophoneAccess,
         startListening,
         stopListening,
         playGeminiAudio,
         speakText,
+        replayMessage,
         stopSpeaking,
+        stopReplay,
         toggleNotificationSounds,
         toggleSpeechFeedback,
         playNotificationSound,

@@ -51,7 +51,7 @@ export const AppBootLoader: React.FC = () => {
           <img
             src="/logo.png"
             alt="Yoe"
-            className="w-20 h-20 md:w-24 md:h-24 object-contain drop-shadow-xl"
+            className="w-[92px] h-[92px] md:w-[110px] md:h-[110px] object-contain drop-shadow-xl"
           />
         </div>
 

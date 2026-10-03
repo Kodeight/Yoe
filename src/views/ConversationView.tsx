@@ -39,16 +39,17 @@ export const ConversationView: React.FC = () => {
     audioEnergy,
     micPermissionDenied,
     audioError,
+    playingMessageId,
     requestMicrophoneAccess,
     startListening,
     stopListening,
     playGeminiAudio,
     speakText,
+    replayMessage,
     stopSpeaking,
     playNotificationSound,
     resumeAudioContext,
-    clearAudioError,
-    setOnSpeechEndCallback
+    clearAudioError
   } = useAudio();
 
   const t = getTranslation(uiLanguage);
@@ -76,36 +77,37 @@ export const ConversationView: React.FC = () => {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const liveSessionRef = useRef<GeminiLiveSession | null>(null);
-  const [playingMsgId, setPlayingMsgId] = useState<string | null>(null);
+  const tutorAudioBufferRef = useRef<string>('');
 
-  // Sync playingMsgId with audioContext isSpeaking
-  useEffect(() => {
-    if (!isSpeaking) {
-      setPlayingMsgId(null);
-    }
-  }, [isSpeaking]);
+  // Objectives Checker for Spoken Dialogue
+  const checkUserObjectives = useCallback((userText: string) => {
+    if (!activeScenario || !userText) return;
+    const lower = userText.toLowerCase();
+    activeScenario.objectives.forEach((obj) => {
+      if (completedObjectives[obj.id]) return;
+      const textMatch = obj.text.toLowerCase().split(' ').some(w => w.length > 3 && lower.includes(w));
+      const vocabMatch = activeScenario.vocabularyDomain?.some(v => lower.includes(v.toLowerCase()));
+      if (textMatch || vocabMatch) {
+        setCompletedObjectives(prev => ({ ...prev, [obj.id]: true }));
+      }
+    });
+  }, [activeScenario, completedObjectives]);
 
-  // Speaker Icon Replay Handler (Requirement 13)
-  const handlePlayMessageAudio = async (msg: ChatMessage) => {
-    if (playingMsgId === msg.id && isSpeaking) {
-      stopSpeaking();
-      setPlayingMsgId(null);
-      return;
+  // Handle explicit STOP of active conversation (P0 Requirement)
+  const handleStopConversation = useCallback(() => {
+    console.log('[YOE LIVE] Stopping active voice conversation session...');
+    if (liveSessionRef.current) {
+      liveSessionRef.current.stop();
+      liveSessionRef.current = null;
     }
-
-    setPlayingMsgId(msg.id);
-    if (msg.audioUrl) {
-      await playGeminiAudio(msg.audioUrl, () => setPlayingMsgId(null));
-    } else {
-      await speakText(
-        msg.text,
-        activeJourney?.targetLanguage,
-        activeScenario?.characterName,
-        activeScenario?.characterRole,
-        () => setPlayingMsgId(null)
-      );
-    }
-  };
+    stopSpeaking();
+    stopListening();
+    setIsLiveApiActive(false);
+    setHasStartedConversation(false);
+    setLiveState('idle');
+    setLiveEnergy(0);
+    clearAudioError();
+  }, [stopSpeaking, stopListening, clearAudioError]);
 
   // Prepare initial scenario state on mount with LIVE AI-generated greeting
   useEffect(() => {
@@ -162,20 +164,13 @@ export const ConversationView: React.FC = () => {
     return () => {
       isCancelled = true;
       if (liveSessionRef.current) {
-        liveSessionRef.current.cleanup();
+        liveSessionRef.current.stop();
         liveSessionRef.current = null;
       }
       stopSpeaking();
       stopListening();
     };
   }, [activeScenario]);
-
-  // Sync speech recognition transcript into text input for live display
-  useEffect(() => {
-    if (transcript) {
-      setInputText(transcript);
-    }
-  }, [transcript]);
 
   // Scroll to bottom on new messages
   useEffect(() => {
@@ -295,32 +290,22 @@ export const ConversationView: React.FC = () => {
     startListening
   ]);
 
-  // Connect Automatic Turn Detection Callback to AudioContext
-  useEffect(() => {
-    if (hasStartedConversation) {
-      setOnSpeechEndCallback((finalText) => {
-        if (finalText && finalText.trim()) {
-          handleSendMessage(finalText.trim());
-        }
-      });
-    } else {
-      setOnSpeechEndCallback(null);
-    }
-
-    return () => {
-      setOnSpeechEndCallback(null);
-    };
-  }, [hasStartedConversation, setOnSpeechEndCallback, handleSendMessage]);
-
   // Handle explicit user gesture to START the conversation
   const handleStartConversation = async () => {
     if (!activeScenario || !activeJourney) return;
+
+    // Clean up any stale session completely before starting fresh
+    if (liveSessionRef.current) {
+      liveSessionRef.current.stop();
+      liveSessionRef.current = null;
+    }
 
     await resumeAudioContext();
     clearAudioError();
     setLiveError(null);
     setHasStartedConversation(true);
     playNotificationSound();
+    tutorAudioBufferRef.current = '';
 
     // 1. Attempt Gemini Live API connection
     const live = new GeminiLiveSession({
@@ -334,25 +319,71 @@ export const ConversationView: React.FC = () => {
       onAudioEnergy: (energy) => {
         setLiveEnergy(energy);
       },
-      onTranscriptChunk: (sender, chunkText) => {
-        if (chunkText) {
-          setMessages(prev => {
-            const last = prev[prev.length - 1];
-            if (last && last.sender === sender && !last.id.includes('final')) {
-              return [...prev.slice(0, -1), { ...last, text: last.text + chunkText }];
-            }
-            return [
-              ...prev,
-              {
-                id: `live_${Date.now()}`,
+      onTranscriptChunk: (sender, text, isFinal) => {
+        if (!text && !isFinal) return;
+
+        setMessages((prev) => {
+          // USER TURN: Stream into single interim buffer; commit exactly ONE message when finalized
+          if (sender === 'user') {
+            const withoutInterim = prev.filter((m) => m.id !== 'interim_user_voice');
+            if (isFinal) {
+              if (!text || !text.trim()) return withoutInterim;
+              const committed: ChatMessage = {
+                id: `usr_${Date.now()}`,
                 sessionId: activeScenario.id,
-                sender,
-                text: chunkText,
+                sender: 'user',
+                text: text.trim(),
                 timestamp: new Date().toISOString()
+              };
+              checkUserObjectives(text.trim());
+              return [...withoutInterim, committed];
+            } else {
+              const interimMsg: ChatMessage = {
+                id: 'interim_user_voice',
+                sessionId: activeScenario.id,
+                sender: 'user',
+                text: text.trim(),
+                timestamp: new Date().toISOString()
+              };
+              return [...withoutInterim, interimMsg];
+            }
+          }
+
+          // TUTOR TURN: Stream parts, then commit with audioUrl on turn completion
+          if (sender === 'tutor') {
+            const last = prev[prev.length - 1];
+            if (isFinal) {
+              if (last && last.sender === 'tutor' && last.id.startsWith('live_tutor_stream')) {
+                const finalized: ChatMessage = {
+                  ...last,
+                  id: `tutor_${Date.now()}`,
+                  audioUrl: tutorAudioBufferRef.current ? `data:audio/wav;base64,${tutorAudioBufferRef.current}` : undefined
+                };
+                tutorAudioBufferRef.current = '';
+                return [...prev.slice(0, -1), finalized];
               }
-            ];
-          });
-        }
+              tutorAudioBufferRef.current = '';
+              return prev;
+            } else {
+              if (last && last.sender === 'tutor' && last.id.startsWith('live_tutor_stream')) {
+                return [...prev.slice(0, -1), { ...last, text: last.text + text }];
+              }
+              const newTutorMsg: ChatMessage = {
+                id: `live_tutor_stream_${Date.now()}`,
+                sessionId: activeScenario.id,
+                sender: 'tutor',
+                text: text,
+                timestamp: new Date().toISOString()
+              };
+              return [...prev, newTutorMsg];
+            }
+          }
+
+          return prev;
+        });
+      },
+      onAudioChunk: (pcmBase64) => {
+        tutorAudioBufferRef.current = (tutorAudioBufferRef.current || '') + pcmBase64;
       },
       onError: (err) => {
         console.warn('Live API connection note:', err);
@@ -387,7 +418,8 @@ export const ConversationView: React.FC = () => {
 
   const handleOpenSummary = () => {
     if (liveSessionRef.current) {
-      liveSessionRef.current.cleanup();
+      liveSessionRef.current.stop();
+      liveSessionRef.current = null;
     }
     stopSpeaking();
     stopListening();
@@ -461,20 +493,21 @@ export const ConversationView: React.FC = () => {
 
       {/* Top Compact Scenario Glass Header Bar */}
       <div className="shrink-0 z-30 glass-header px-4 py-3 flex items-center justify-between safe-top-padding border-b border-white/10 dark:border-white/10 light-mode:border-slate-200">
-        <button
-          onClick={() => {
-            if (liveSessionRef.current) {
-              liveSessionRef.current.cleanup();
-            }
-            stopSpeaking();
-            stopListening();
-            setActiveView('home');
-          }}
-          className="p-2 rounded-full glass-pill hover:border-emerald-500/40 text-slate-300 dark:text-slate-300 light-mode:text-slate-700 transition-colors cursor-pointer"
-          title={t.backToHome}
-        >
-          <ArrowLeft className="w-4 h-4" />
-        </button>
+          <button
+            onClick={() => {
+              if (liveSessionRef.current) {
+                liveSessionRef.current.stop();
+                liveSessionRef.current = null;
+              }
+              stopSpeaking();
+              stopListening();
+              setActiveView('home');
+            }}
+            className="p-2 rounded-full glass-pill hover:border-emerald-500/40 text-slate-300 dark:text-slate-300 light-mode:text-slate-700 transition-colors cursor-pointer"
+            title={t.backToHome}
+          >
+            <ArrowLeft className="w-4 h-4" />
+          </button>
 
         <div className="flex items-center gap-2 min-w-0 px-2">
           <div className="min-w-0 text-center">
@@ -491,6 +524,18 @@ export const ConversationView: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-1.5 shrink-0">
+          {hasStartedConversation && (
+            <button
+              type="button"
+              onClick={handleStopConversation}
+              className="px-2.5 py-1.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/40 text-[10px] font-bold text-rose-300 flex items-center gap-1 cursor-pointer shadow-md transition-all active:scale-95"
+              title={t.stopSession}
+            >
+              <Square className="w-3 h-3 fill-current text-rose-400" />
+              <span>{t.stop}</span>
+            </button>
+          )}
+
           <button
             onClick={() => setShowTranscript(!showTranscript)}
             className={`p-1.5 rounded-full transition-colors cursor-pointer ${
@@ -692,7 +737,7 @@ export const ConversationView: React.FC = () => {
           <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3.5 no-scrollbar">
             {messages.map((msg) => {
               const isUser = msg.sender === 'user';
-              const isCurrentlyPlaying = playingMsgId === msg.id && isSpeaking;
+              const isCurrentlyPlaying = playingMessageId === msg.id && isSpeaking;
 
               return (
                 <div key={msg.id} className={`flex flex-col ${isUser ? 'items-end' : 'items-start'} space-y-1`}>
@@ -710,15 +755,15 @@ export const ConversationView: React.FC = () => {
                       {!isUser && (
                         <button
                           type="button"
-                          onClick={() => handlePlayMessageAudio(msg)}
-                          className={`p-1 rounded-lg transition-colors cursor-pointer ${
-                            isCurrentlyPlaying
+                          onClick={() => replayMessage(msg.id, msg.text, msg.audioUrl, activeScenario?.characterName, activeScenario?.characterRole)}
+                          className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                            playingMessageId === msg.id && isSpeaking
                               ? 'text-emerald-400 bg-emerald-500/20 animate-pulse'
                               : 'text-slate-400 hover:text-emerald-400 hover:bg-white/5'
                           }`}
-                          title={isCurrentlyPlaying ? t.stopPlayback : t.listenToYoe}
+                          title={playingMessageId === msg.id && isSpeaking ? t.stopPlayback : t.listenToYoe}
                         >
-                          <Volume2 className={`w-3.5 h-3.5 ${isCurrentlyPlaying ? 'stroke-[2.5]' : ''}`} />
+                          <Volume2 className={`w-3.5 h-3.5 ${playingMessageId === msg.id && isSpeaking ? 'stroke-[2.5] text-emerald-400' : ''}`} />
                         </button>
                       )}
                     </div>
@@ -857,6 +902,16 @@ export const ConversationView: React.FC = () => {
               ) : (
                 <Mic className="w-5 h-5" />
               )}
+            </button>
+
+            {/* Stop Voice Session Button (P0 Requirement) */}
+            <button
+              type="button"
+              onClick={handleStopConversation}
+              className="p-3 rounded-2xl glass-pill text-rose-400 hover:bg-rose-500/20 hover:border-rose-500/40 transition-all cursor-pointer shadow-md shrink-0 flex items-center justify-center"
+              title={t.stopSession}
+            >
+              <Square className="w-4 h-4 fill-current text-rose-400" />
             </button>
 
             {/* Text Input */}

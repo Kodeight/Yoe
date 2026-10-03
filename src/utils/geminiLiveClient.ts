@@ -3,7 +3,7 @@ import { GoogleGenAI, Modality, LiveServerMessage } from '@google/genai';
 /**
  * Client-Side Gemini Live API Web Audio & Session Manager
  * Uses ephemeral token from /api/ai/live/token to establish real live bidirectional voice session.
- * Compatible with Safari browser and installed standalone PWA.
+ * Features deterministic lifecycle, robust interruption handling, and clean resource release.
  */
 
 export interface LiveSessionConfig {
@@ -12,6 +12,7 @@ export interface LiveSessionConfig {
   onAudioEnergy?: (energy: number) => void;
   onStateChange?: (state: 'idle' | 'connecting' | 'listening' | 'thinking' | 'speaking' | 'interrupted' | 'error') => void;
   onTranscriptChunk?: (sender: 'user' | 'tutor', text: string, isFinal: boolean) => void;
+  onAudioChunk?: (base64Pcm: string) => void;
   onError?: (err: any) => void;
 }
 
@@ -27,6 +28,7 @@ export class GeminiLiveSession {
   private outputAnalyser: AnalyserNode | null = null;
   private isConnected = false;
   private isSpeaking = false;
+  private isStopping = false;
   private nextStartTime = 0;
   private activeSources: AudioBufferSourceNode[] = [];
   private animFrame: number | null = null;
@@ -37,6 +39,7 @@ export class GeminiLiveSession {
 
   async start(): Promise<boolean> {
     try {
+      this.isStopping = false;
       console.log('[YOE LIVE] requesting token and session parameters...');
       this.config.onStateChange?.('connecting');
 
@@ -73,6 +76,8 @@ export class GeminiLiveSession {
         return false;
       }
 
+      if (this.isStopping) return false;
+
       // 2. Initialize AudioContexts on explicit user interaction
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
       this.inputAudioCtx = new AudioCtx({ sampleRate: 16000 });
@@ -103,6 +108,8 @@ export class GeminiLiveSession {
           model: data.model || 'gemini-3.8-live',
           config: {
             responseModalities: [Modality.AUDIO],
+            inputAudioTranscription: {},
+            outputAudioTranscription: {},
             speechConfig: {
               voiceConfig: {
                 prebuiltVoiceConfig: { voiceName: data.voiceName || 'Kore' }
@@ -111,31 +118,52 @@ export class GeminiLiveSession {
           },
           callbacks: {
             onmessage: (msg: LiveServerMessage) => {
-              // Handle Model Audio
-              const parts = msg.serverContent?.modelTurn?.parts;
+              if (this.isStopping) return;
+              const content = msg.serverContent;
+              if (!content) return;
+
+              // 1. User Input Transcription (Interim streaming while user speaks)
+              if (content.interimInputTranscription?.text) {
+                const interimText = content.interimInputTranscription.text;
+                this.config.onTranscriptChunk?.('user', interimText, false);
+              }
+
+              // 2. User Input Transcription (Finalized when user finishes speaking)
+              if (content.inputTranscription?.text) {
+                const finalText = content.inputTranscription.text;
+                console.log('[YOE LIVE] user speech finalized:', finalText);
+                this.config.onTranscriptChunk?.('user', finalText, true);
+              }
+
+              // 3. Tutor Output Audio & Text Parts
+              const parts = content.modelTurn?.parts;
               if (parts && Array.isArray(parts)) {
                 for (const part of parts) {
                   if (part.inlineData?.data) {
-                    console.log('[YOE LIVE] audio chunk received, length:', part.inlineData.data.length);
                     this.isSpeaking = true;
                     this.config.onStateChange?.('speaking');
                     this.playPcmChunk(part.inlineData.data);
+                    this.config.onAudioChunk?.(part.inlineData.data);
                   }
                   if (part.text) {
-                    console.log('[YOE LIVE] response received text:', part.text);
                     this.config.onTranscriptChunk?.('tutor', part.text, false);
                   }
                 }
               }
 
-              // Handle Interruption / Barge-In
-              if (msg.serverContent?.interrupted) {
+              // 4. Tutor Output Transcription
+              if (content.outputTranscription?.text) {
+                this.config.onTranscriptChunk?.('tutor', content.outputTranscription.text, false);
+              }
+
+              // 5. Interruption / Barge-In
+              if (content.interrupted) {
                 console.log('[YOE LIVE] Gemini detected interruption');
                 this.handleInterruption();
               }
 
-              // Handle Turn Completion
-              if (msg.serverContent?.turnComplete) {
+              // 6. Turn Completion
+              if (content.turnComplete) {
                 console.log('[YOE LIVE] user turn ended / model turn complete');
                 this.config.onTranscriptChunk?.('tutor', '', true);
               }
@@ -143,12 +171,16 @@ export class GeminiLiveSession {
             onclose: () => {
               console.log('[YOE LIVE] Gemini Live session closed');
               this.isConnected = false;
-              this.config.onStateChange?.('idle');
+              if (!this.isStopping) {
+                this.config.onStateChange?.('idle');
+              }
             },
             onerror: (err: any) => {
               console.error('[YOE LIVE] Gemini Live session error:', err);
-              this.config.onStateChange?.('error');
-              this.config.onError?.(err?.message || 'Live session error');
+              if (!this.isStopping) {
+                this.config.onStateChange?.('error');
+                this.config.onError?.(err?.message || 'Live session error');
+              }
             }
           }
         });
@@ -159,7 +191,6 @@ export class GeminiLiveSession {
         await this.startMicrophoneCapture();
       } catch (directConnectErr: any) {
         console.warn('[YOE LIVE] Direct client connect note, attempting server-bridge fallback:', directConnectErr?.message || directConnectErr);
-        // Seamless fallback to server-side WebSocket bridge
         await this.connectServerBridge();
       }
 
@@ -192,6 +223,7 @@ export class GeminiLiveSession {
     };
 
     this.wsBridge.onmessage = async (event) => {
+      if (this.isStopping) return;
       try {
         const msgData = JSON.parse(event.data);
 
@@ -208,19 +240,17 @@ export class GeminiLiveSession {
         }
 
         if (msgData.type === 'audio' && msgData.audio) {
-          console.log('[YOE LIVE] audio chunk received, length:', msgData.audio.length);
           this.isSpeaking = true;
           this.config.onStateChange?.('speaking');
           this.playPcmChunk(msgData.audio);
+          this.config.onAudioChunk?.(msgData.audio);
         }
 
         if (msgData.type === 'text' && msgData.text) {
-          console.log('[YOE LIVE] response received text:', msgData.text);
           this.config.onTranscriptChunk?.('tutor', msgData.text, false);
         }
 
         if (msgData.type === 'turnComplete') {
-          console.log('[YOE LIVE] user turn ended / model turn complete');
           this.config.onTranscriptChunk?.('tutor', '', true);
         }
 
@@ -236,14 +266,18 @@ export class GeminiLiveSession {
 
     this.wsBridge.onerror = (err) => {
       console.error('[YOE LIVE] bridge websocket error:', err);
-      this.config.onStateChange?.('error');
-      this.config.onError?.(err);
+      if (!this.isStopping) {
+        this.config.onStateChange?.('error');
+        this.config.onError?.(err);
+      }
     };
 
     this.wsBridge.onclose = () => {
       console.log('[YOE LIVE] bridge websocket closed');
       this.isConnected = false;
-      this.config.onStateChange?.('idle');
+      if (!this.isStopping) {
+        this.config.onStateChange?.('idle');
+      }
     };
   }
 
@@ -281,7 +315,7 @@ export class GeminiLiveSession {
         const outputData = e.outputBuffer.getChannelData(0);
         outputData.fill(0);
 
-        if (!this.isConnected) return;
+        if (!this.isConnected || this.isStopping) return;
 
         const inputData = e.inputBuffer.getChannelData(0);
 
@@ -325,7 +359,7 @@ export class GeminiLiveSession {
 
   // Gapless playback of 24kHz PCM chunks
   private playPcmChunk(base64Data: string) {
-    if (!this.outputAudioCtx || !this.outputAnalyser) return;
+    if (!this.outputAudioCtx || !this.outputAnalyser || this.isStopping) return;
 
     try {
       const binaryStr = atob(base64Data);
@@ -364,7 +398,7 @@ export class GeminiLiveSession {
       source.onended = () => {
         const idx = this.activeSources.indexOf(source);
         if (idx !== -1) this.activeSources.splice(idx, 1);
-        if (this.activeSources.length === 0 && this.outputAudioCtx) {
+        if (this.activeSources.length === 0 && this.outputAudioCtx && !this.isStopping) {
           if (this.outputAudioCtx.currentTime >= this.nextStartTime - 0.05) {
             console.log('[YOE LIVE] playback ended');
             this.isSpeaking = false;
@@ -398,7 +432,9 @@ export class GeminiLiveSession {
     }
 
     setTimeout(() => {
-      this.config.onStateChange?.('listening');
+      if (!this.isStopping) {
+        this.config.onStateChange?.('listening');
+      }
     }, 200);
   }
 
@@ -407,6 +443,7 @@ export class GeminiLiveSession {
     const dataArray = new Uint8Array(64);
 
     const check = () => {
+      if (this.isStopping) return;
       let energy = 0;
       const activeAnalyser = this.isSpeaking ? this.outputAnalyser : this.micAnalyser;
 
@@ -426,11 +463,60 @@ export class GeminiLiveSession {
     this.animFrame = requestAnimationFrame(check);
   }
 
+  // Explicit Stop Method (P0 Requirement)
+  stop() {
+    console.log('[YOE LIVE] Stop requested. Cleaning up all audio, mic, and session resources...');
+    this.isStopping = true;
+    this.cleanup();
+  }
+
   cleanup() {
+    this.isStopping = true;
+
+    // 1. Cancel energy animation loop
     if (this.animFrame) {
       cancelAnimationFrame(this.animFrame);
       this.animFrame = null;
     }
+
+    // 2. Stop and release microphone hardware
+    if (this.micStream) {
+      this.micStream.getTracks().forEach((track) => {
+        try {
+          track.stop();
+          track.enabled = false;
+        } catch (e) {}
+      });
+      this.micStream = null;
+    }
+
+    // 3. Disconnect audio processor and analysers
+    if (this.scriptProcessor) {
+      try {
+        this.scriptProcessor.disconnect();
+        this.scriptProcessor.onaudioprocess = null;
+      } catch (e) {}
+      this.scriptProcessor = null;
+    }
+    if (this.micAnalyser) {
+      try { this.micAnalyser.disconnect(); } catch (e) {}
+      this.micAnalyser = null;
+    }
+    if (this.outputAnalyser) {
+      try { this.outputAnalyser.disconnect(); } catch (e) {}
+      this.outputAnalyser = null;
+    }
+
+    // 4. Halt and disconnect all active audio output sources immediately
+    this.activeSources.forEach((s) => {
+      try {
+        s.stop();
+        s.disconnect();
+      } catch (e) {}
+    });
+    this.activeSources = [];
+
+    // 5. Close Live session & bridge WebSocket
     if (this.liveSession) {
       try { this.liveSession.close(); } catch (e) {}
       this.liveSession = null;
@@ -439,25 +525,22 @@ export class GeminiLiveSession {
       try { this.wsBridge.close(); } catch (e) {}
       this.wsBridge = null;
     }
-    if (this.micStream) {
-      this.micStream.getTracks().forEach(t => t.stop());
-      this.micStream = null;
-    }
-    if (this.scriptProcessor) {
-      this.scriptProcessor.disconnect();
-      this.scriptProcessor = null;
-    }
-    this.activeSources.forEach((s) => {
-      try { s.stop(); } catch (e) {}
-    });
-    this.activeSources = [];
+
+    // 6. Close AudioContexts cleanly
     if (this.inputAudioCtx && this.inputAudioCtx.state !== 'closed') {
-      this.inputAudioCtx.close().catch(() => {});
+      try { this.inputAudioCtx.close(); } catch (e) {}
+      this.inputAudioCtx = null;
     }
     if (this.outputAudioCtx && this.outputAudioCtx.state !== 'closed') {
-      this.outputAudioCtx.close().catch(() => {});
+      try { this.outputAudioCtx.close(); } catch (e) {}
+      this.outputAudioCtx = null;
     }
+
+    // 7. Reset state to idle
     this.isConnected = false;
     this.isSpeaking = false;
+    this.nextStartTime = 0;
+    this.config.onAudioEnergy?.(0);
+    this.config.onStateChange?.('idle');
   }
 }

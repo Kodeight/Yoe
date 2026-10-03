@@ -28,7 +28,7 @@ import {
 
 export const LearnView: React.FC = () => {
   const { activeJourney, vocabulary, mistakes, setActiveView, setActiveScenarioId } = useApp();
-  const { speakText, isSpeaking, playFeedbackSound } = useAudio();
+  const { speakText, replayMessage, playingMessageId, isSpeaking, playFeedbackSound } = useAudio();
 
   const [activeTab, setActiveTab] = useState<'course' | 'progress' | 'review'>('course');
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
@@ -214,11 +214,13 @@ export const LearnView: React.FC = () => {
                           <div className="flex items-center justify-between">
                             <span className="font-bold text-amber-400 uppercase text-[10px]">{m.pattern}</span>
                             <button
-                              onClick={() => speakText(m.correctedForm, activeJourney?.targetLanguage)}
-                              className="text-slate-400 hover:text-emerald-400 cursor-pointer p-1"
+                              onClick={() => replayMessage(m.id, m.correctedForm)}
+                              className={`p-1 rounded-lg transition-colors cursor-pointer ${
+                                playingMessageId === m.id && isSpeaking ? 'text-emerald-400 animate-pulse bg-emerald-500/20' : 'text-slate-400 hover:text-emerald-400'
+                              }`}
                               title="Listen"
                             >
-                              <Volume2 className="w-3.5 h-3.5" />
+                              <Volume2 className={`w-3.5 h-3.5 ${playingMessageId === m.id && isSpeaking ? 'stroke-[2.5]' : ''}`} />
                             </button>
                           </div>
                           <div className="text-slate-300">
@@ -243,14 +245,18 @@ export const LearnView: React.FC = () => {
                       {vocabulary.slice(0, 6).map((v) => (
                         <div
                           key={v.id}
-                          onClick={() => speakText(v.word, activeJourney?.targetLanguage)}
-                          className="p-2.5 rounded-xl glass-pill cursor-pointer hover:border-emerald-500/40 transition-colors flex items-center justify-between group"
+                          onClick={() => replayMessage(v.id, v.word)}
+                          className={`p-2.5 rounded-xl glass-pill cursor-pointer transition-colors flex items-center justify-between group ${
+                            playingMessageId === v.id && isSpeaking ? 'border-emerald-500/60 bg-emerald-500/10' : 'hover:border-emerald-500/40'
+                          }`}
                         >
                           <div className="min-w-0 pr-1">
                             <div className="font-bold text-xs text-slate-100 truncate">{v.word}</div>
                             <div className="text-[10px] text-slate-400 truncate">{v.translation}</div>
                           </div>
-                          <Volume2 className="w-3.5 h-3.5 text-slate-400 group-hover:text-emerald-400 shrink-0" />
+                          <Volume2 className={`w-3.5 h-3.5 shrink-0 ${
+                            playingMessageId === v.id && isSpeaking ? 'text-emerald-400 animate-pulse stroke-[2.5]' : 'text-slate-400 group-hover:text-emerald-400'
+                          }`} />
                         </div>
                       ))}
                     </div>

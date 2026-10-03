@@ -30,6 +30,8 @@ export interface Translations {
   completeAndReview: string;
   listenToYoe: string;
   stopPlayback: string;
+  stop: string;
+  stopSession: string;
   readyToSpeakPrompt: string;
   exploreScenarioWorlds: string;
   quickStart: string;
@@ -67,6 +69,8 @@ export const translations: Record<LanguageCode, Translations> = {
     completeAndReview: 'Complete and review session',
     listenToYoe: 'Listen to Yoe',
     stopPlayback: 'Stop playback',
+    stop: 'Stop',
+    stopSession: 'Stop Session',
     readyToSpeakPrompt: 'Ready to Speak?',
     exploreScenarioWorlds: 'Explore Scenario Worlds',
     quickStart: 'Quick Start',
@@ -102,6 +106,8 @@ export const translations: Record<LanguageCode, Translations> = {
     completeAndReview: 'Completar y revisar sesión',
     listenToYoe: 'Escuchar a Yoe',
     stopPlayback: 'Detener reproducción',
+    stop: 'Detener',
+    stopSession: 'Detener sesión',
     readyToSpeakPrompt: '¿Listo para hablar?',
     exploreScenarioWorlds: 'Explorar escenarios',
     quickStart: 'Inicio rápido',
@@ -137,6 +143,8 @@ export const translations: Record<LanguageCode, Translations> = {
     completeAndReview: 'Terminer et revoir la session',
     listenToYoe: 'Écouter Yoe',
     stopPlayback: 'Arrêter la lecture',
+    stop: 'Arrêter',
+    stopSession: 'Arrêter la session',
     readyToSpeakPrompt: 'Prêt à parler ?',
     exploreScenarioWorlds: 'Explorer les scénarios',
     quickStart: 'Démarrage rapide',
@@ -172,6 +180,8 @@ export const translations: Record<LanguageCode, Translations> = {
     completeAndReview: 'إكمال ومراجعة الجلسة',
     listenToYoe: 'الاستماع إلى يو',
     stopPlayback: 'إيقاف التشغيل',
+    stop: 'إيقاف',
+    stopSession: 'إيقاف الجلسة',
     readyToSpeakPrompt: 'جاهز للتحدث؟',
     exploreScenarioWorlds: 'استكشاف السيناريوهات',
     quickStart: 'بدء سريع',
@@ -207,6 +217,8 @@ export const translations: Record<LanguageCode, Translations> = {
     completeAndReview: 'Завершить и просмотреть',
     listenToYoe: 'Слушать Yoe',
     stopPlayback: 'Остановить',
+    stop: 'Стоп',
+    stopSession: 'Остановить сессию',
     readyToSpeakPrompt: 'Готовы говорить?',
     exploreScenarioWorlds: 'Исследовать сценарии',
     quickStart: 'Быстрый старт',
@@ -242,6 +254,8 @@ export const translations: Record<LanguageCode, Translations> = {
     completeAndReview: 'Completa e rivedi la sessione',
     listenToYoe: 'Ascolta Yoe',
     stopPlayback: 'Interrompi riproduzione',
+    stop: 'Ferma',
+    stopSession: 'Interrompi sessione',
     readyToSpeakPrompt: 'Pronto a parlare?',
     exploreScenarioWorlds: 'Esplora scenari',
     quickStart: 'Avvio rapido',
@@ -277,6 +291,8 @@ export const translations: Record<LanguageCode, Translations> = {
     completeAndReview: 'Oturumu tamamla ve incele',
     listenToYoe: 'Yoe\'yi dinle',
     stopPlayback: 'Oynatmayı durdur',
+    stop: 'Durdur',
+    stopSession: 'Oturumu Durdur',
     readyToSpeakPrompt: 'Konuşmaya hazır mısın?',
     exploreScenarioWorlds: 'Senaryoları Keşfet',
     quickStart: 'Hızlı Başlangıç',
@@ -312,6 +328,8 @@ export const translations: Record<LanguageCode, Translations> = {
     completeAndReview: 'Concluir e revisar sessão',
     listenToYoe: 'Ouvir Yoe',
     stopPlayback: 'Parar reprodução',
+    stop: 'Parar',
+    stopSession: 'Parar sessão',
     readyToSpeakPrompt: 'Pronto para falar?',
     exploreScenarioWorlds: 'Explorar cenários',
     quickStart: 'Início rápido',
