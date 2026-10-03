@@ -29,12 +29,28 @@ export class GeminiLiveSession {
   private isConnected = false;
   private isSpeaking = false;
   private isStopping = false;
+  private isMuted = false;
   private nextStartTime = 0;
   private activeSources: AudioBufferSourceNode[] = [];
   private animFrame: number | null = null;
 
   constructor(config: LiveSessionConfig) {
     this.config = config;
+  }
+
+  // Real Microphone Mute / Unmute (Part 5)
+  setMuted(muted: boolean) {
+    this.isMuted = muted;
+    if (this.micStream) {
+      this.micStream.getAudioTracks().forEach((track) => {
+        track.enabled = !muted;
+      });
+    }
+    console.log(`[YOE LIVE] microphone ${muted ? 'MUTED' : 'UNMUTED'} (track.enabled=${!muted})`);
+  }
+
+  getIsMuted(): boolean {
+    return this.isMuted;
   }
 
   async start(): Promise<boolean> {
@@ -136,6 +152,7 @@ export class GeminiLiveSession {
               }
 
               // 3. Tutor Output Audio & Text Parts
+              let tutorText = '';
               const parts = content.modelTurn?.parts;
               if (parts && Array.isArray(parts)) {
                 for (const part of parts) {
@@ -146,14 +163,20 @@ export class GeminiLiveSession {
                     this.config.onAudioChunk?.(part.inlineData.data);
                   }
                   if (part.text) {
-                    this.config.onTranscriptChunk?.('tutor', part.text, false);
+                    tutorText += part.text;
                   }
                 }
               }
 
               // 4. Tutor Output Transcription
               if (content.outputTranscription?.text) {
-                this.config.onTranscriptChunk?.('tutor', content.outputTranscription.text, false);
+                if (!tutorText) {
+                  tutorText = content.outputTranscription.text;
+                }
+              }
+
+              if (tutorText) {
+                this.config.onTranscriptChunk?.('tutor', tutorText, false);
               }
 
               // 5. Interruption / Barge-In
@@ -315,7 +338,7 @@ export class GeminiLiveSession {
         const outputData = e.outputBuffer.getChannelData(0);
         outputData.fill(0);
 
-        if (!this.isConnected || this.isStopping) return;
+        if (!this.isConnected || this.isStopping || this.isMuted) return;
 
         const inputData = e.inputBuffer.getChannelData(0);
 

@@ -214,6 +214,11 @@ export async function generateScenarioSpeech(text: string, voiceName = 'Kore'): 
 
   try {
     const pcmChunks: Buffer[] = [];
+    let onDoneCallback: (() => void) | null = null;
+    const donePromise = new Promise<void>((resolve) => {
+      onDoneCallback = resolve;
+    });
+
     const session = await client.live.connect({
       model: LIVE_MODEL,
       config: {
@@ -235,6 +240,9 @@ export async function generateScenarioSpeech(text: string, voiceName = 'Kore'): 
               pcmChunks.push(Buffer.from(p.inlineData.data, 'base64'));
             }
           }
+          if (msg.serverContent?.turnComplete && onDoneCallback) {
+            setTimeout(onDoneCallback, 200);
+          }
         }
       }
     });
@@ -249,7 +257,7 @@ export async function generateScenarioSpeech(text: string, voiceName = 'Kore'): 
       turnComplete: true
     });
 
-    await new Promise((r) => setTimeout(r, 2200));
+    await Promise.race([donePromise, new Promise((r) => setTimeout(r, 4500))]);
     try { session.close(); } catch (e) {}
 
     if (pcmChunks.length === 0) return null;
@@ -285,6 +293,8 @@ export async function createEphemeralLiveToken(scenario?: Scenario, journey?: Le
         model: LIVE_MODEL,
         config: {
           responseModalities: [Modality.AUDIO],
+          inputAudioTranscription: {},
+          outputAudioTranscription: {},
           speechConfig: {
             voiceConfig: {
               prebuiltVoiceConfig: { voiceName }

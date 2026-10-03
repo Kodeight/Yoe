@@ -1,5 +1,8 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, LearningJourney, Scenario, VocabularyItem, MistakeRecord, LanguageCode, Language } from '../types';
+import { applyDocumentDirection } from '../utils/i18n';
+
+export type AppView = 'home' | 'chat' | 'learn' | 'explore' | 'profile' | 'profile-settings' | 'vocab' | 'grammar' | 'auth';
 
 interface AppContextType {
   user: User | null;
@@ -9,7 +12,7 @@ interface AppContextType {
   scenarios: Scenario[];
   vocabulary: VocabularyItem[];
   mistakes: MistakeRecord[];
-  activeView: 'home' | 'chat' | 'learn' | 'explore' | 'profile' | 'vocab' | 'grammar' | 'auth';
+  activeView: AppView;
   theme: 'dark' | 'light';
   uiLanguage: LanguageCode;
   isRtl: boolean;
@@ -18,7 +21,7 @@ interface AppContextType {
   showOnboarding: boolean;
   showAuthModal: boolean;
   pwaInstallPrompt: any;
-  setActiveView: (view: 'home' | 'chat' | 'learn' | 'explore' | 'profile' | 'vocab' | 'grammar' | 'auth') => void;
+  setActiveView: (view: AppView) => void;
   setActiveJourney: (journey: LearningJourney) => void;
   setActiveScenarioId: (scenarioId: string) => void;
   toggleTheme: () => void;
@@ -46,7 +49,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [activeScenario, setActiveScenario] = useState<Scenario | null>(null);
   const [vocabulary, setVocabulary] = useState<VocabularyItem[]>([]);
   const [mistakes, setMistakes] = useState<MistakeRecord[]>([]);
-  const [activeView, setActiveView] = useState<'home' | 'chat' | 'learn' | 'explore' | 'profile' | 'vocab' | 'grammar' | 'auth'>('auth');
+  const [activeView, setActiveView] = useState<AppView>('auth');
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('yoe_theme');
@@ -54,7 +57,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
     return 'dark';
   });
-  const [uiLanguage, setUiLanguageState] = useState<LanguageCode>('en');
+  const [uiLanguage, setUiLanguageState] = useState<LanguageCode>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('yoe_ui_language') as LanguageCode | null;
+      if (saved && ['en', 'fr', 'ar', 'es', 'ru', 'it', 'tr', 'pt'].includes(saved)) {
+        return saved;
+      }
+      const navLang = (navigator.language || '').split('-')[0].toLowerCase();
+      if (['en', 'fr', 'ar', 'es', 'ru', 'it', 'tr', 'pt'].includes(navLang)) {
+        return navLang as LanguageCode;
+      }
+    }
+    return 'en';
+  });
   const [isRtl, setIsRtl] = useState<boolean>(false);
   const [isOnline, setIsOnline] = useState<boolean>(() => {
     return typeof navigator !== 'undefined' ? navigator.onLine : true;
@@ -229,13 +244,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       document.body.style.backgroundColor = '#070b12';
     }
 
-    if (uiLanguage === 'ar') {
-      document.documentElement.setAttribute('dir', 'rtl');
-      setIsRtl(true);
-    } else {
-      document.documentElement.setAttribute('dir', 'ltr');
-      setIsRtl(false);
-    }
+    applyDocumentDirection(uiLanguage);
+    setIsRtl(uiLanguage === 'ar');
   }, [theme, uiLanguage]);
 
   const cacheLearnedLessonsForOffline = () => {
@@ -405,6 +415,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const setUiLanguage = (lang: LanguageCode) => {
     setUiLanguageState(lang);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('yoe_ui_language', lang);
+    }
+    applyDocumentDirection(lang);
+    setIsRtl(lang === 'ar');
     if (user) {
       fetch('/api/settings', {
         method: 'PUT',

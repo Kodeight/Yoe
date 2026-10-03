@@ -28,7 +28,7 @@ import {
 
 export const LearnView: React.FC = () => {
   const { activeJourney, vocabulary, mistakes, setActiveView, setActiveScenarioId } = useApp();
-  const { speakText, replayMessage, playingMessageId, isSpeaking, playFeedbackSound } = useAudio();
+  const { speakText, replayMessage, playingMessageId, isSpeaking, replayErrorId, playFeedbackSound } = useAudio();
 
   const [activeTab, setActiveTab] = useState<'course' | 'progress' | 'review'>('course');
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
@@ -426,10 +426,16 @@ export const LearnView: React.FC = () => {
                         <div className="text-[11px] text-slate-400">{ex.translation}</div>
                       </div>
                       <button
-                        onClick={() => speakText(ex.original, activeJourney?.targetLanguage)}
-                        className="p-2 rounded-xl bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 transition-colors cursor-pointer"
+                        type="button"
+                        onClick={() => replayMessage(`theory_${selectedLesson.id}_${i}`, ex.original)}
+                        className={`p-2 rounded-xl transition-colors cursor-pointer ${
+                          playingMessageId === `theory_${selectedLesson.id}_${i}` && isSpeaking
+                            ? 'bg-emerald-500/25 text-emerald-400 animate-pulse'
+                            : 'bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25'
+                        }`}
+                        title={playingMessageId === `theory_${selectedLesson.id}_${i}` && isSpeaking ? 'Stop playback' : 'Listen'}
                       >
-                        <Volume2 className="w-4 h-4" />
+                        <Volume2 className={`w-4 h-4 ${playingMessageId === `theory_${selectedLesson.id}_${i}` && isSpeaking ? 'stroke-[2.5]' : ''}`} />
                       </button>
                     </div>
                   ))}
@@ -467,11 +473,18 @@ export const LearnView: React.FC = () => {
                       {q.audioText && (
                         <div className="p-4 rounded-2xl bg-cyan-500/10 border border-cyan-500/25 text-center space-y-2">
                           <button
-                            onClick={() => speakText(q.audioText!, activeJourney?.targetLanguage)}
-                            className="py-2 px-4 rounded-xl bg-cyan-500 text-white font-bold text-xs inline-flex items-center gap-2 shadow-md cursor-pointer hover:opacity-95"
+                            type="button"
+                            onClick={() => replayMessage(`quiz_${selectedLesson.id}_${currentQuizIndex}`, q.audioText!)}
+                            className={`py-2 px-4 rounded-xl text-white font-bold text-xs inline-flex items-center gap-2 shadow-md cursor-pointer hover:opacity-95 ${
+                              playingMessageId === `quiz_${selectedLesson.id}_${currentQuizIndex}` && isSpeaking
+                                ? 'bg-cyan-600 animate-pulse'
+                                : 'bg-cyan-500'
+                            }`}
                           >
-                            <Volume2 className="w-4 h-4 text-white" />
-                            <span className="text-white">Listen to Phrase</span>
+                            <Volume2 className={`w-4 h-4 text-white ${playingMessageId === `quiz_${selectedLesson.id}_${currentQuizIndex}` && isSpeaking ? 'stroke-[2.5]' : ''}`} />
+                            <span className="text-white">
+                              {playingMessageId === `quiz_${selectedLesson.id}_${currentQuizIndex}` && isSpeaking ? 'Stop playback' : 'Listen to Phrase'}
+                            </span>
                           </button>
                         </div>
                       )}

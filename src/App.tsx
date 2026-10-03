@@ -10,7 +10,8 @@ import { ConversationView } from './views/ConversationView';
 import { LearnView } from './views/LearnView';
 import { ProgressView } from './views/ProgressView';
 import { ScenariosView } from './views/ScenariosView';
-import { ProfileSettingsView } from './views/ProfileSettingsView';
+import { ProfileView } from './views/ProfileView';
+import { SettingsView } from './views/SettingsView';
 import { VocabularyView } from './views/VocabularyView';
 import { GrammarView } from './views/GrammarView';
 import { AuthView } from './views/AuthView';
@@ -45,7 +46,8 @@ export default function App() {
         {activeView === 'chat' && <ConversationView />}
         {activeView === 'learn' && <LearnView />}
         {activeView === 'explore' && <ScenariosView />}
-        {activeView === 'profile' && <ProfileSettingsView />}
+        {activeView === 'profile' && <ProfileView />}
+        {activeView === 'profile-settings' && <SettingsView />}
         {activeView === 'vocab' && <VocabularyView />}
         {activeView === 'grammar' && <GrammarView />}
       </main>

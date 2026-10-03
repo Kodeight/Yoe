@@ -50,3 +50,60 @@ export async function decodeAudioPayload(
   audioBuffer.getChannelData(0).set(float32);
   return audioBuffer;
 }
+
+export function pcmChunksToWavDataUrl(
+  chunks: Uint8Array[],
+  sampleRate = 24000,
+  numChannels = 1,
+  bitsPerSample = 16
+): string {
+  if (!chunks || chunks.length === 0) return '';
+  let totalLength = 0;
+  for (const c of chunks) totalLength += c.length;
+  if (totalLength === 0) return '';
+
+  const pcm = new Uint8Array(totalLength);
+  let offset = 0;
+  for (const c of chunks) {
+    pcm.set(c, offset);
+    offset += c.length;
+  }
+
+  const byteRate = (sampleRate * numChannels * bitsPerSample) / 8;
+  const blockAlign = (numChannels * bitsPerSample) / 8;
+  const dataSize = pcm.length;
+  const chunkSize = 36 + dataSize;
+
+  const wavHeader = new ArrayBuffer(44);
+  const view = new DataView(wavHeader);
+  // 'RIFF'
+  view.setUint32(0, 0x52494646, false);
+  view.setUint32(4, chunkSize, true);
+  // 'WAVE'
+  view.setUint32(8, 0x57415645, false);
+  // 'fmt '
+  view.setUint32(12, 0x666d7420, false);
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true); // PCM format
+  view.setUint16(22, numChannels, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, byteRate, true);
+  view.setUint16(32, blockAlign, true);
+  view.setUint16(34, bitsPerSample, true);
+  // 'data'
+  view.setUint32(36, 0x64617461, false);
+  view.setUint32(40, dataSize, true);
+
+  const fullBytes = new Uint8Array(44 + dataSize);
+  fullBytes.set(new Uint8Array(wavHeader), 0);
+  fullBytes.set(pcm, 44);
+
+  let binary = '';
+  const len = fullBytes.byteLength;
+  const chunkSizeBinary = 8192;
+  for (let i = 0; i < len; i += chunkSizeBinary) {
+    const slice = fullBytes.subarray(i, Math.min(i + chunkSizeBinary, len));
+    binary += String.fromCharCode.apply(null, Array.from(slice));
+  }
+  return `data:audio/wav;base64,${btoa(binary)}`;
+}

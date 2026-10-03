@@ -5,6 +5,7 @@ import { ChatMessage, CorrectionDetail } from '../types';
 import { VoiceBubble, VoiceBubbleState } from '../components/VoiceBubble';
 import { GeminiLiveSession } from '../utils/geminiLiveClient';
 import { getTranslation } from '../utils/i18n';
+import { base64ToUint8Array, pcmChunksToWavDataUrl } from '../utils/audioHelpers';
 import {
   ArrowLeft,
   Mic,
@@ -40,6 +41,7 @@ export const ConversationView: React.FC = () => {
     micPermissionDenied,
     audioError,
     playingMessageId,
+    replayErrorId,
     requestMicrophoneAccess,
     startListening,
     stopListening,
@@ -74,10 +76,11 @@ export const ConversationView: React.FC = () => {
   const [sessionMistakes, setSessionMistakes] = useState<CorrectionDetail[]>([]);
   const [sessionVocab, setSessionVocab] = useState<Array<{ word: string; translation: string; phonetic?: string }>>([]);
   const [showSummaryModal, setShowSummaryModal] = useState(false);
+  const [isMicMuted, setIsMicMuted] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const liveSessionRef = useRef<GeminiLiveSession | null>(null);
-  const tutorAudioBufferRef = useRef<string>('');
+  const tutorPcmChunksRef = useRef<Uint8Array[]>([]);
 
   // Objectives Checker for Spoken Dialogue
   const checkUserObjectives = useCallback((userText: string) => {
@@ -100,6 +103,7 @@ export const ConversationView: React.FC = () => {
       liveSessionRef.current.stop();
       liveSessionRef.current = null;
     }
+    tutorPcmChunksRef.current = [];
     stopSpeaking();
     stopListening();
     setIsLiveApiActive(false);
@@ -305,7 +309,7 @@ export const ConversationView: React.FC = () => {
     setLiveError(null);
     setHasStartedConversation(true);
     playNotificationSound();
-    tutorAudioBufferRef.current = '';
+    tutorPcmChunksRef.current = [];
 
     // 1. Attempt Gemini Live API connection
     const live = new GeminiLiveSession({
@@ -351,22 +355,38 @@ export const ConversationView: React.FC = () => {
 
           // TUTOR TURN: Stream parts, then commit with audioUrl on turn completion
           if (sender === 'tutor') {
-            const last = prev[prev.length - 1];
+            // Commit any active interim user message if tutor starts speaking
+            let baseList = prev;
+            const hadInterim = prev.find((m) => m.id === 'interim_user_voice');
+            if (hadInterim && hadInterim.text.trim()) {
+              const finalizedUser: ChatMessage = {
+                id: `usr_${Date.now() - 50}`,
+                sessionId: activeScenario.id,
+                sender: 'user',
+                text: hadInterim.text.trim(),
+                timestamp: new Date().toISOString()
+              };
+              checkUserObjectives(hadInterim.text.trim());
+              baseList = prev.map((m) => (m.id === 'interim_user_voice' ? finalizedUser : m));
+            }
+
+            const last = baseList[baseList.length - 1];
             if (isFinal) {
               if (last && last.sender === 'tutor' && last.id.startsWith('live_tutor_stream')) {
+                const wavUrl = pcmChunksToWavDataUrl(tutorPcmChunksRef.current);
+                tutorPcmChunksRef.current = [];
                 const finalized: ChatMessage = {
                   ...last,
                   id: `tutor_${Date.now()}`,
-                  audioUrl: tutorAudioBufferRef.current ? `data:audio/wav;base64,${tutorAudioBufferRef.current}` : undefined
+                  audioUrl: wavUrl || undefined
                 };
-                tutorAudioBufferRef.current = '';
-                return [...prev.slice(0, -1), finalized];
+                return [...baseList.slice(0, -1), finalized];
               }
-              tutorAudioBufferRef.current = '';
-              return prev;
+              tutorPcmChunksRef.current = [];
+              return baseList;
             } else {
               if (last && last.sender === 'tutor' && last.id.startsWith('live_tutor_stream')) {
-                return [...prev.slice(0, -1), { ...last, text: last.text + text }];
+                return [...baseList.slice(0, -1), { ...last, text: last.text + text }];
               }
               const newTutorMsg: ChatMessage = {
                 id: `live_tutor_stream_${Date.now()}`,
@@ -375,7 +395,7 @@ export const ConversationView: React.FC = () => {
                 text: text,
                 timestamp: new Date().toISOString()
               };
-              return [...prev, newTutorMsg];
+              return [...baseList, newTutorMsg];
             }
           }
 
@@ -383,7 +403,10 @@ export const ConversationView: React.FC = () => {
         });
       },
       onAudioChunk: (pcmBase64) => {
-        tutorAudioBufferRef.current = (tutorAudioBufferRef.current || '') + pcmBase64;
+        try {
+          const bytes = base64ToUint8Array(pcmBase64);
+          tutorPcmChunksRef.current.push(bytes);
+        } catch (e) {}
       },
       onError: (err) => {
         console.warn('Live API connection note:', err);
@@ -524,18 +547,6 @@ export const ConversationView: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-1.5 shrink-0">
-          {hasStartedConversation && (
-            <button
-              type="button"
-              onClick={handleStopConversation}
-              className="px-2.5 py-1.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/40 text-[10px] font-bold text-rose-300 flex items-center gap-1 cursor-pointer shadow-md transition-all active:scale-95"
-              title={t.stopSession}
-            >
-              <Square className="w-3 h-3 fill-current text-rose-400" />
-              <span>{t.stop}</span>
-            </button>
-          )}
-
           <button
             onClick={() => setShowTranscript(!showTranscript)}
             className={`p-1.5 rounded-full transition-colors cursor-pointer ${
@@ -740,7 +751,7 @@ export const ConversationView: React.FC = () => {
               const isCurrentlyPlaying = playingMessageId === msg.id && isSpeaking;
 
               return (
-                <div key={msg.id} className={`flex flex-col ${isUser ? 'items-end' : 'items-start'} space-y-1`}>
+                <div key={msg.id} className={`flex flex-col ${isUser ? 'items-end' : 'items-start'} space-y-1 animate-message-in`}>
                   <div
                     className={`max-w-[85%] rounded-3xl p-3.5 text-xs shadow-md transition-all ${
                       isUser
@@ -759,11 +770,19 @@ export const ConversationView: React.FC = () => {
                           className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
                             playingMessageId === msg.id && isSpeaking
                               ? 'text-emerald-400 bg-emerald-500/20 animate-pulse'
+                              : replayErrorId === msg.id
+                              ? 'text-rose-400 bg-rose-500/20'
                               : 'text-slate-400 hover:text-emerald-400 hover:bg-white/5'
                           }`}
-                          title={playingMessageId === msg.id && isSpeaking ? t.stopPlayback : t.listenToYoe}
+                          title={
+                            playingMessageId === msg.id && isSpeaking
+                              ? t.stopPlayback
+                              : replayErrorId === msg.id
+                              ? 'Audio playback error'
+                              : t.listenToYoe
+                          }
                         >
-                          <Volume2 className={`w-3.5 h-3.5 ${playingMessageId === msg.id && isSpeaking ? 'stroke-[2.5] text-emerald-400' : ''}`} />
+                          <Volume2 className={`w-3.5 h-3.5 ${playingMessageId === msg.id && isSpeaking ? 'stroke-[2.5] text-emerald-400' : replayErrorId === msg.id ? 'text-rose-400' : ''}`} />
                         </button>
                       )}
                     </div>
@@ -866,50 +885,38 @@ export const ConversationView: React.FC = () => {
             }}
             className="glass-nav p-2 rounded-3xl flex items-center gap-2 shadow-2xl border border-white/10 dark:border-white/10 light-mode:border-slate-200"
           >
-            {/* Main Barge-In / Interruption Speech Mic Button */}
+            {/* Real Microphone Mute/Unmute Button (Part 5) */}
             <button
               type="button"
               onClick={() => {
-                if (isLiveApiActive && liveSessionRef.current) {
-                  if (liveState === 'speaking') {
-                    liveSessionRef.current.handleInterruption();
-                  }
-                } else if (isSpeaking) {
-                  stopSpeaking();
-                  startListening(activeJourney?.targetLanguage);
-                } else if (isListening) {
-                  stopListening();
-                  if (inputText.trim()) {
-                    handleSendMessage();
-                  }
-                } else {
-                  startListening(activeJourney?.targetLanguage);
+                const next = !isMicMuted;
+                setIsMicMuted(next);
+                if (liveSessionRef.current) {
+                  liveSessionRef.current.setMuted(next);
                 }
               }}
               className={`p-3 rounded-2xl transition-all cursor-pointer shadow-lg shrink-0 ${
-                isSpeaking || liveState === 'speaking'
-                  ? 'bg-amber-500 text-white font-bold hover:bg-amber-400 animate-pulse'
-                  : isListening || liveState === 'listening'
-                  ? 'bg-rose-500 text-white animate-pulse shadow-rose-500/40'
-                  : 'glass-pill text-emerald-400 hover:border-emerald-500/40 hover:bg-emerald-500/10'
+                isMicMuted
+                  ? 'bg-rose-500/25 border border-rose-500/50 text-rose-400 shadow-rose-500/20'
+                  : 'bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/30 shadow-emerald-500/20'
               }`}
-              title={isSpeaking || liveState === 'speaking' ? t.tapToInterrupt : isListening ? t.finish : t.tapToSpeak}
+              title={isMicMuted ? t.unmuteMic : t.muteMic}
+              aria-label={isMicMuted ? t.unmuteMic : t.muteMic}
             >
-              {isSpeaking || liveState === 'speaking' ? (
-                <Square className="w-5 h-5 fill-current text-white" />
-              ) : isListening || liveState === 'listening' ? (
-                <MicOff className="w-5 h-5 text-white" />
+              {isMicMuted ? (
+                <MicOff className="w-5 h-5 text-rose-400" />
               ) : (
-                <Mic className="w-5 h-5" />
+                <Mic className="w-5 h-5 text-emerald-400" />
               )}
             </button>
 
-            {/* Stop Voice Session Button (P0 Requirement) */}
+            {/* Stop Voice Session Button */}
             <button
               type="button"
               onClick={handleStopConversation}
               className="p-3 rounded-2xl glass-pill text-rose-400 hover:bg-rose-500/20 hover:border-rose-500/40 transition-all cursor-pointer shadow-md shrink-0 flex items-center justify-center"
               title={t.stopSession}
+              aria-label={t.stopSession}
             >
               <Square className="w-4 h-4 fill-current text-rose-400" />
             </button>

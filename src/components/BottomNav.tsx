@@ -1,17 +1,19 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
+import { getTranslation } from '../utils/i18n';
 import { Home, MessageCircle, BarChart2, Compass, User } from 'lucide-react';
 import { hapticSelection } from '../utils/haptics';
 
 export const BottomNav: React.FC = () => {
-  const { activeView, setActiveView } = useApp();
+  const { activeView, setActiveView, uiLanguage } = useApp();
+  const t = getTranslation(uiLanguage);
 
   const navItems = [
-    { id: 'home', label: 'Home', icon: Home },
-    { id: 'chat', label: 'Chat', icon: MessageCircle },
-    { id: 'learn', label: 'Learn', icon: BarChart2 },
-    { id: 'explore', label: 'Explore', icon: Compass },
-    { id: 'profile', label: 'Profile', icon: User }
+    { id: 'home', label: t.navHome, icon: Home },
+    { id: 'chat', label: t.navChat, icon: MessageCircle },
+    { id: 'learn', label: t.navLearn, icon: BarChart2 },
+    { id: 'explore', label: t.navExplore, icon: Compass },
+    { id: 'profile', label: t.navProfile, icon: User }
   ] as const;
 
   return (
@@ -24,7 +26,7 @@ export const BottomNav: React.FC = () => {
         <nav className="flex items-center justify-around glass-nav rounded-3xl p-1.5 transition-all shadow-xl">
           {navItems.map((item) => {
             const Icon = item.icon;
-            const isActive = activeView === item.id;
+            const isActive = activeView === item.id || (item.id === 'profile' && activeView === 'profile-settings');
             return (
               <button
                 key={item.id}

@@ -386,6 +386,35 @@
         "sender": "user",
         "text": "I need a room for two nights.",
         "timestamp": "2026-10-03T02:19:36.536Z"
+      },
+      {
+        "id": "msg_usr_1791059861048",
+        "sessionId": "hotel_checkin_es",
+        "sender": "user",
+        "text": "Hola, tengo una reservación a nombre de Alex.",
+        "timestamp": "2026-10-03T20:37:41.048Z"
+      },
+      {
+        "id": "msg_ttr_1791059870163",
+        "sessionId": "hotel_checkin_es",
+        "sender": "tutor",
+        "text": "¡Hola, Alex! Mucho gusto, me llamo Yoe. ¡Bienvenido al café del jardín botánico! ¿De qué país o ciudad eres?",
+        "translation": "Hello, Alex! Nice to meet you, my name is Yoe. Welcome to the botanical garden cafe! Which country or city are you from?",
+        "timestamp": "2026-10-03T20:37:50.163Z",
+        "vocabularyLearned": [
+          {
+            "word": "mucho gusto",
+            "translation": "nice to meet you",
+            "phonetic": "MOO-choh GOO-stoh",
+            "example": "Mucho gusto, me llamo Yoe."
+          },
+          {
+            "word": "el país",
+            "translation": "country",
+            "phonetic": "el pah-EES",
+            "example": "¿De qué país eres?"
+          }
+        ]
       }
     ]
   }

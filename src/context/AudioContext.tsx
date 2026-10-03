@@ -15,6 +15,7 @@ export interface AudioContextType {
   notificationSoundsEnabled: boolean;
   speechFeedbackEnabled: boolean;
   playingMessageId: string | null;
+  replayErrorId: string | null;
   requestMicrophoneAccess: () => Promise<boolean>;
   startListening: (langCode?: string) => Promise<boolean>;
   stopListening: () => void;
@@ -42,6 +43,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [isInterrupted, setIsInterrupted] = useState(false);
   const [audioEnergy, setAudioEnergy] = useState<number>(0);
   const [playingMessageId, setPlayingMessageId] = useState<string | null>(null);
+  const [replayErrorId, setReplayErrorId] = useState<string | null>(null);
 
   const [micStatus, setMicStatus] = useState<MicStatus>('idle');
   const [micPermissionDenied, setMicPermissionDenied] = useState(false);
@@ -198,6 +200,23 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (audioCtxRef.current && audioCtxRef.current.state !== 'closed') {
         audioCtxRef.current.close().catch(() => {});
       }
+    };
+  }, []);
+
+  // iOS Safari / Mobile user gesture unlock
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const unlockAudio = () => {
+      const ctx = audioCtxRef.current;
+      if (ctx && ctx.state === 'suspended') {
+        ctx.resume().catch(() => {});
+      }
+    };
+    window.addEventListener('touchstart', unlockAudio, { passive: true, once: true });
+    window.addEventListener('click', unlockAudio, { passive: true, once: true });
+    return () => {
+      window.removeEventListener('touchstart', unlockAudio);
+      window.removeEventListener('click', unlockAudio);
     };
   }, []);
 
@@ -496,11 +515,16 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (recognitionRef.current) {
       try { recognitionRef.current.stop(); } catch (e) {}
     }
+    if (micSourceRef.current) {
+      try { micSourceRef.current.disconnect(); } catch (e) {}
+      micSourceRef.current = null;
+    }
     if (micStreamRef.current) {
       micStreamRef.current.getTracks().forEach(t => t.stop());
       micStreamRef.current = null;
     }
     setIsListening(false);
+    setAudioEnergy(0);
     playFeedbackSound('stop');
   }, []);
 
@@ -565,26 +589,44 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     role?: string,
     onEnded?: () => void
   ): Promise<void> => {
+    // 1. Tapping currently playing message stops playback immediately
     if (playingMessageId === messageId && isSpeaking) {
       stopSpeaking();
       return;
     }
 
+    // 2. Halt any active audio source before starting newly selected one
     stopSpeaking();
+    setReplayErrorId(null);
     setPlayingMessageId(messageId);
+
+    // 3. User gesture unlocks AudioContext for mobile / iOS Safari
+    await resumeAudioContext();
 
     const onComplete = () => {
       setPlayingMessageId((curr) => (curr === messageId ? null : curr));
       if (onEnded) onEnded();
     };
 
-    if (audioUrl && audioUrl.length > 50) {
-      await playGeminiAudio(audioUrl, onComplete);
-      return;
-    }
+    const onError = (err?: any) => {
+      console.warn('[AUDIO REPLAY] Playback failed for message:', messageId, err);
+      setPlayingMessageId((curr) => (curr === messageId ? null : curr));
+      setReplayErrorId(messageId);
+      setTimeout(() => setReplayErrorId((curr) => (curr === messageId ? null : curr)), 3000);
+      if (onEnded) onEnded();
+    };
 
-    await speakText(text, undefined, characterName, role, onComplete);
-  }, [playingMessageId, isSpeaking, stopSpeaking, playGeminiAudio, speakText]);
+    try {
+      if (audioUrl && audioUrl.length > 50) {
+        await playGeminiAudio(audioUrl, onComplete);
+        return;
+      }
+
+      await speakText(text, undefined, characterName, role, onComplete);
+    } catch (err) {
+      onError(err);
+    }
+  }, [playingMessageId, isSpeaking, stopSpeaking, resumeAudioContext, playGeminiAudio, speakText]);
 
   return (
     <AudioContextState.Provider
@@ -600,6 +642,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         notificationSoundsEnabled,
         speechFeedbackEnabled,
         playingMessageId,
+        replayErrorId,
         requestMicrophoneAccess,
         startListening,
         stopListening,

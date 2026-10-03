@@ -81,7 +81,8 @@ export function getMsUntilTime(timeStr: string): number {
 }
 
 /**
- * Dispatches a notification using either the Service Worker or Web Notification API
+ * Dispatches a notification using Service Worker or Web Notification API
+ * Resolves race conditions by awaiting SW readiness with safe fallbacks.
  */
 export async function sendNotification(
   title: string,
@@ -89,19 +90,27 @@ export async function sendNotification(
 ): Promise<boolean> {
   if (!isNotificationSupported()) return false;
 
-  if (Notification.permission !== 'granted') {
-    const perm = await requestNotificationPermission();
+  let perm: NotificationPermission | 'unsupported' = Notification.permission;
+  if (perm !== 'granted') {
+    perm = await requestNotificationPermission();
     if (perm !== 'granted') return false;
   }
 
   const defaultIcon = '/icon-192.png';
   const defaultBadge = '/favicon.png';
 
-  try {
-    // Try via Service Worker first for maximum mobile & background compatibility
-    if ('serviceWorker' in navigator) {
-      const reg = await navigator.serviceWorker.ready;
-      if (reg && reg.showNotification) {
+  // 1. Try via Service Worker Registration (guaranteed resolution without hanging)
+  if ('serviceWorker' in navigator) {
+    try {
+      let reg: ServiceWorkerRegistration | undefined = await navigator.serviceWorker.getRegistration();
+      if (!reg || !reg.active) {
+        reg = await Promise.race([
+          navigator.serviceWorker.ready,
+          new Promise<undefined>((resolve) => setTimeout(() => resolve(undefined), 1500))
+        ]);
+      }
+
+      if (reg && typeof reg.showNotification === 'function') {
         await reg.showNotification(title, {
           body: options.body,
           icon: options.icon || defaultIcon,
@@ -112,20 +121,27 @@ export async function sendNotification(
         } as any);
         return true;
       }
+    } catch (swErr) {
+      console.warn('[Notification] Service Worker notification attempt note:', swErr);
     }
-
-    // Fallback to standard window Notification
-    new Notification(title, {
-      body: options.body,
-      icon: options.icon || defaultIcon,
-      badge: options.badge || defaultBadge,
-      tag: options.tag || 'yoe-daily-reminder'
-    });
-    return true;
-  } catch (err) {
-    console.warn('Notification dispatch fallback error:', err);
-    return false;
   }
+
+  // 2. Desktop fallback to standard window.Notification constructor
+  try {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      new Notification(title, {
+        body: options.body,
+        icon: options.icon || defaultIcon,
+        badge: options.badge || defaultBadge,
+        tag: options.tag || 'yoe-daily-reminder'
+      });
+      return true;
+    }
+  } catch (winErr) {
+    console.warn('[Notification] Standard Notification fallback note:', winErr);
+  }
+
+  return false;
 }
 
 /**

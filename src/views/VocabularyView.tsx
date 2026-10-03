@@ -5,7 +5,7 @@ import { Layers, Volume2, Search, BookOpen, Star, WifiOff, Compass } from 'lucid
 
 export const VocabularyView: React.FC = () => {
   const { vocabulary, activeJourney, isOnline, setActiveView } = useApp();
-  const { speakText, isSpeaking } = useAudio();
+  const { replayMessage, playingMessageId, isSpeaking, replayErrorId } = useAudio();
   const [searchQuery, setSearchQuery] = useState('');
 
   const filteredVocab = vocabulary.filter(v =>
@@ -106,11 +106,18 @@ export const VocabularyView: React.FC = () => {
                 </div>
 
                 <button
-                  onClick={() => speakText(item.word, activeJourney?.targetLanguage)}
-                  className="p-2 rounded-full glass-pill hover:border-purple-400 text-slate-400 hover:text-purple-400 transition-colors cursor-pointer"
-                  title="Listen pronunciation"
+                  type="button"
+                  onClick={() => replayMessage(item.id, item.word)}
+                  className={`p-2 rounded-full glass-pill transition-colors cursor-pointer ${
+                    playingMessageId === item.id && isSpeaking
+                      ? 'border-purple-400 text-purple-400 bg-purple-500/20 animate-pulse'
+                      : replayErrorId === item.id
+                      ? 'border-rose-400 text-rose-400 bg-rose-500/20'
+                      : 'hover:border-purple-400 text-slate-400 hover:text-purple-400'
+                  }`}
+                  title={playingMessageId === item.id && isSpeaking ? 'Stop playback' : 'Listen pronunciation'}
                 >
-                  <Volume2 className="w-4 h-4" />
+                  <Volume2 className={`w-4 h-4 ${playingMessageId === item.id && isSpeaking ? 'stroke-[2.5]' : ''}`} />
                 </button>
               </div>
 

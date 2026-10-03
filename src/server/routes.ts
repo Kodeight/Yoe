@@ -257,6 +257,7 @@ apiRouter.post('/ai/chat', async (req: Request, res: Response) => {
       sender: 'tutor',
       text: aiResult.response,
       translation: aiResult.translation,
+      audioUrl: aiResult.audioBase64 ? `data:audio/wav;base64,${aiResult.audioBase64}` : undefined,
       timestamp: new Date().toISOString(),
       correction: aiResult.correction,
       learningSignals: aiResult.learningSignals,

@@ -1,6 +1,57 @@
 import { LanguageCode } from '../types';
 
 export interface Translations {
+  // Navigation
+  navHome: string;
+  navChat: string;
+  navLearn: string;
+  navExplore: string;
+  navProfile: string;
+
+  // Profile
+  profileTitle: string;
+  profileSubtitle: string;
+  learningProfile: string;
+  activeJourneys: string;
+  cefrLevel: string;
+  streak: string;
+  points: string;
+  spokenTime: string;
+  learningGoals: string;
+  accountInfo: string;
+  openSettings: string;
+  settingsSubtitle: string;
+  memberSince: string;
+  practiceMore: string;
+
+  // Settings
+  settingsTitle: string;
+  settingsPageSubtitle: string;
+  backToProfile: string;
+  appearance: string;
+  themeMode: string;
+  themeDark: string;
+  themeLight: string;
+  interfaceLanguage: string;
+  notifications: string;
+  dailyReminders: string;
+  sendTestPush: string;
+  testPushSent: string;
+  testPushSending: string;
+  privacySecurity: string;
+  offlineCache: string;
+  offlineCacheDesc: string;
+  cacheNow: string;
+  cachedSuccess: string;
+  audioVoice: string;
+  notificationSounds: string;
+  soundEffects: string;
+  accessibility: string;
+  reducedMotion: string;
+  account: string;
+  signOut: string;
+
+  // Conversation & Voice
   readyToSpeak: string;
   yoeIsSpeaking: string;
   listeningToYou: string;
@@ -32,14 +83,71 @@ export interface Translations {
   stopPlayback: string;
   stop: string;
   stopSession: string;
+  muteMic: string;
+  unmuteMic: string;
+  micMuted: string;
+  micUnmuted: string;
   readyToSpeakPrompt: string;
   exploreScenarioWorlds: string;
   quickStart: string;
   tapCardToEnter: string;
+
+  // Common
+  cancel: string;
+  save: string;
+  retry: string;
+  offline: string;
 }
 
 export const translations: Record<LanguageCode, Translations> = {
   en: {
+    navHome: 'Home',
+    navChat: 'Chat',
+    navLearn: 'Learn',
+    navExplore: 'Explore',
+    navProfile: 'Profile',
+
+    profileTitle: 'Learner Profile',
+    profileSubtitle: 'Your language identity, journey progress, and statistics',
+    learningProfile: 'Learning Profile',
+    activeJourneys: 'Active Learning Journeys',
+    cefrLevel: 'Target Level',
+    streak: 'Daily Streak',
+    points: 'Points',
+    spokenTime: 'Spoken Time',
+    learningGoals: 'Weekly Speaking Goal',
+    accountInfo: 'Account Information',
+    openSettings: 'Settings & Preferences',
+    settingsSubtitle: 'Theme, interface language, audio, & notifications',
+    memberSince: 'Member',
+    practiceMore: 'Practice today to keep your streak!',
+
+    settingsTitle: 'Settings',
+    settingsPageSubtitle: 'Configure your learning environment and app preferences',
+    backToProfile: 'Back to Profile',
+    appearance: 'Appearance',
+    themeMode: 'Display Theme',
+    themeDark: 'Dark Mode',
+    themeLight: 'Light Mode',
+    interfaceLanguage: 'Interface Language',
+    notifications: 'Notifications',
+    dailyReminders: 'Daily Speaking Reminders',
+    sendTestPush: 'Send Test Notification',
+    testPushSent: 'Test notification sent.',
+    testPushSending: 'Sending test notification...',
+    privacySecurity: 'Privacy & Offline Storage',
+    offlineCache: 'Offline Cache',
+    offlineCacheDesc: 'Download scenarios and vocabulary to practice without an internet connection.',
+    cacheNow: 'Cache Content for Offline',
+    cachedSuccess: 'Content successfully cached for offline practice!',
+    audioVoice: 'Audio & Speech Feedback',
+    notificationSounds: 'Notification Chimes',
+    soundEffects: 'Session Audio Signals',
+    accessibility: 'Accessibility',
+    reducedMotion: 'Reduced Motion',
+    account: 'Account',
+    signOut: 'Sign Out',
+
     readyToSpeak: 'Ready to hear your voice',
     yoeIsSpeaking: 'Yoe is speaking',
     listeningToYou: 'Listening to your voice...',
@@ -71,12 +179,254 @@ export const translations: Record<LanguageCode, Translations> = {
     stopPlayback: 'Stop playback',
     stop: 'Stop',
     stopSession: 'Stop Session',
+    muteMic: 'Mute microphone',
+    unmuteMic: 'Unmute microphone',
+    micMuted: 'Microphone muted',
+    micUnmuted: 'Microphone unmuted',
     readyToSpeakPrompt: 'Ready to Speak?',
     exploreScenarioWorlds: 'Explore Scenario Worlds',
     quickStart: 'Quick Start',
-    tapCardToEnter: 'Tap any scenario card to enter live conversation'
+    tapCardToEnter: 'Tap any scenario card to enter live conversation',
+
+    cancel: 'Cancel',
+    save: 'Save',
+    retry: 'Retry',
+    offline: 'Offline'
+  },
+  fr: {
+    navHome: 'Accueil',
+    navChat: 'Discussion',
+    navLearn: 'Apprendre',
+    navExplore: 'Explorer',
+    navProfile: 'Profil',
+
+    profileTitle: 'Profil d\'apprentissage',
+    profileSubtitle: 'Votre identité linguistique, progression et statistiques',
+    learningProfile: 'Profil d\'apprentissage',
+    activeJourneys: 'Parcours d\'apprentissage actifs',
+    cefrLevel: 'Niveau visé',
+    streak: 'Série de jours',
+    points: 'Points',
+    spokenTime: 'Temps parlé',
+    learningGoals: 'Objectif hebdomadaire',
+    accountInfo: 'Informations du compte',
+    openSettings: 'Paramètres et préférences',
+    settingsSubtitle: 'Thème, langue de l\'interface, audio et notifications',
+    memberSince: 'Membre',
+    practiceMore: 'Pratiquez aujourd\'hui pour maintenir votre série !',
+
+    settingsTitle: 'Paramètres',
+    settingsPageSubtitle: 'Configurez votre environnement d\'apprentissage et vos préférences',
+    backToProfile: 'Retour au profil',
+    appearance: 'Apparence',
+    themeMode: 'Thème d\'affichage',
+    themeDark: 'Mode sombre',
+    themeLight: 'Mode clair',
+    interfaceLanguage: 'Langue de l\'interface',
+    notifications: 'Notifications',
+    dailyReminders: 'Rappels quotidiens de conversation',
+    sendTestPush: 'Envoyer une notification test',
+    testPushSent: 'Notification test envoyée.',
+    testPushSending: 'Envoi de la notification test...',
+    privacySecurity: 'Confidentialité et stockage hors ligne',
+    offlineCache: 'Cache hors ligne',
+    offlineCacheDesc: 'Téléchargez les scénarios et le vocabulaire pour vous entraîner sans connexion.',
+    cacheNow: 'Mettre en cache hors ligne',
+    cachedSuccess: 'Contenu mis en cache avec succès pour l\'entraînement hors ligne !',
+    audioVoice: 'Audio et retours vocaux',
+    notificationSounds: 'Sons de notification',
+    soundEffects: 'Signaux sonores de session',
+    accessibility: 'Accessibilité',
+    reducedMotion: 'Mouvements réduits',
+    account: 'Compte',
+    signOut: 'Se déconnecter',
+
+    readyToSpeak: 'Prêt à écouter votre voix',
+    yoeIsSpeaking: 'Yoe parle',
+    listeningToYou: 'À l\'écoute de votre voix...',
+    yoeIsThinking: 'Yoe réfléchit...',
+    interrupted: 'Interrompu',
+    tapToSpeak: 'Appuyez pour parler avec Yoe',
+    startConversation: 'Démarrer la conversation',
+    finish: 'Terminer',
+    translate: 'Traduire',
+    replyToYoe: 'Répondre à Yoe...',
+    suggestedResponses: 'Réponses suggérées :',
+    scenarioMissions: 'Missions du scénario',
+    completedOf: 'Terminé',
+    hint: 'Indice',
+    micPermissionNeeded: 'Autorisation du microphone requise',
+    audioDeviceNotice: 'Avis sur le périphérique audio',
+    retryMicrophone: 'Réessayer le microphone',
+    yoeCoaching: 'Conseil bienveillant de Yoe',
+    you: 'Vous',
+    yoe: 'Yoe',
+    live: 'En direct',
+    practiceDialogueAt: 'Pratiquez un dialogue authentique. Appuyez sur Démarrer pour parler avec Yoe.',
+    tapToInterrupt: 'Appuyez pour interrompre',
+    backToHome: 'Retour à l\'accueil',
+    hideTranscript: 'Masquer la transcription',
+    showTranscript: 'Afficher la transcription',
+    completeAndReview: 'Terminer et revoir la session',
+    listenToYoe: 'Écouter Yoe',
+    stopPlayback: 'Arrêter la lecture',
+    stop: 'Arrêter',
+    stopSession: 'Arrêter la session',
+    muteMic: 'Couper le microphone',
+    unmuteMic: 'Activer le microphone',
+    micMuted: 'Microphone coupé',
+    micUnmuted: 'Microphone actif',
+    readyToSpeakPrompt: 'Prêt à parler ?',
+    exploreScenarioWorlds: 'Explorer les scénarios',
+    quickStart: 'Démarrage rapide',
+    tapCardToEnter: 'Appuyez sur une carte pour démarrer la conversation',
+
+    cancel: 'Annuler',
+    save: 'Enregistrer',
+    retry: 'Réessayer',
+    offline: 'Hors ligne'
+  },
+  ar: {
+    navHome: 'الرئيسية',
+    navChat: 'محادثة',
+    navLearn: 'تعلّم',
+    navExplore: 'استكشاف',
+    navProfile: 'الملف الشخصي',
+
+    profileTitle: 'الملف التعليمي',
+    profileSubtitle: 'هويتك اللغوية وتقدمك في التعلم وإحصائياتك',
+    learningProfile: 'الملف التعليمي',
+    activeJourneys: 'المسارات التعليمية النشطة',
+    cefrLevel: 'المستوى المستهدف',
+    streak: 'أيام التدريب المتتالية',
+    points: 'النقاط',
+    spokenTime: 'وقت التحدث',
+    learningGoals: 'الهدف الأسبوعي',
+    accountInfo: 'معلومات الحساب',
+    openSettings: 'الإعدادات والتفضيلات',
+    settingsSubtitle: 'المظهر، لغة الواجهة، الصوت والإشعارات',
+    memberSince: 'عضو',
+    practiceMore: 'تدرّب اليوم للحفاظ على سلسلتك المستمرة!',
+
+    settingsTitle: 'الإعدادات',
+    settingsPageSubtitle: 'ضبط بيئة التعلم وتفضيلات التطبيق',
+    backToProfile: 'العودة للملف الشخصي',
+    appearance: 'المظهر',
+    themeMode: 'نمط العرض',
+    themeDark: 'الوضع الداكن',
+    themeLight: 'الوضع الفاتح',
+    interfaceLanguage: 'لغة الواجهة',
+    notifications: 'الإشعارات',
+    dailyReminders: 'تذكير التحدث اليومي',
+    sendTestPush: 'إرسال إشعار تجريبي',
+    testPushSent: 'تم إرسال الإشعار التجريبي بنجاح.',
+    testPushSending: 'جاري إرسال الإشعار التجريبي...',
+    privacySecurity: 'الخصوصية والتخزين بدون إنترنت',
+    offlineCache: 'التخزين المؤقت',
+    offlineCacheDesc: 'تحميل السيناريوهات والمفردات للتمرن في أي مكان بدون اتصال بالإنترنت.',
+    cacheNow: 'حفظ المحتوى للوضع غير المتصل',
+    cachedSuccess: 'تم تخزين المحتوى بنجاح للتمرن بدون إنترنت!',
+    audioVoice: 'الصوت وملاحظات التحدث',
+    notificationSounds: 'نغمات التنبيه',
+    soundEffects: 'المؤثرات الصوتية للجلسة',
+    accessibility: 'سهولة الاستخدام',
+    reducedMotion: 'تقليل الحركة',
+    account: 'الحساب',
+    signOut: 'تسجيل الخروج',
+
+    readyToSpeak: 'جاهز لسماع صوتك',
+    yoeIsSpeaking: 'يو يتحدث الآن',
+    listeningToYou: 'جاري الاستماع لصوتك...',
+    yoeIsThinking: 'يو يفكر...',
+    interrupted: 'تمت المقاطعة',
+    tapToSpeak: 'انقر للتحدث مع يو',
+    startConversation: 'بدء المحادثة',
+    finish: 'إنهاء',
+    translate: 'ترجمة',
+    replyToYoe: 'الرد على يو...',
+    suggestedResponses: 'الإجابات المقترحة:',
+    scenarioMissions: 'مهام السيناريو',
+    completedOf: 'مكتمل',
+    hint: 'تلميح',
+    micPermissionNeeded: 'مطلوب إذن الميكروفون',
+    audioDeviceNotice: 'إشعار جهاز الصوت',
+    retryMicrophone: 'إعادة محاولة الميكروفون',
+    yoeCoaching: 'توجيهات يو اللطيفة',
+    you: 'أنت',
+    yoe: 'يو',
+    live: 'مباشر',
+    practiceDialogueAt: 'تمارين المحادثة الحقيقية. اضغط ابدأ للتحدث مع يو.',
+    tapToInterrupt: 'انقر للمقاطعة',
+    backToHome: 'العودة للرئيسية',
+    hideTranscript: 'إخفاء النص',
+    showTranscript: 'إظهار النص',
+    completeAndReview: 'إكمال ومراجعة الجلسة',
+    listenToYoe: 'الاستماع إلى يو',
+    stopPlayback: 'إيقاف التشغيل',
+    stop: 'إيقاف',
+    stopSession: 'إيقاف الجلسة',
+    muteMic: 'كتم الميكروفون',
+    unmuteMic: 'تشغيل الميكروفون',
+    micMuted: 'الميكروفون مكتوم',
+    micUnmuted: 'الميكروفون نشط',
+    readyToSpeakPrompt: 'جاهز للتحدث؟',
+    exploreScenarioWorlds: 'استكشاف السيناريوهات',
+    quickStart: 'بدء سريع',
+    tapCardToEnter: 'اضغط على أي سيناريو لبدء المحادثة',
+
+    cancel: 'إلغاء',
+    save: 'حفظ',
+    retry: 'إعادة المحاولة',
+    offline: 'بدون إنترنت'
   },
   es: {
+    navHome: 'Inicio',
+    navChat: 'Chat',
+    navLearn: 'Aprender',
+    navExplore: 'Explorar',
+    navProfile: 'Perfil',
+
+    profileTitle: 'Perfil de Aprendizaje',
+    profileSubtitle: 'Tu identidad lingüística, progreso y estadísticas',
+    learningProfile: 'Perfil de Aprendizaje',
+    activeJourneys: 'Rutas de Aprendizaje Activas',
+    cefrLevel: 'Nivel Objetivo',
+    streak: 'Racha Diaria',
+    points: 'Puntos',
+    spokenTime: 'Tiempo Hablado',
+    learningGoals: 'Meta Semanal',
+    accountInfo: 'Información de la Cuenta',
+    openSettings: 'Ajustes y Preferencias',
+    settingsSubtitle: 'Tema, idioma de interfaz, audio y notificaciones',
+    memberSince: 'Miembro',
+    practiceMore: '¡Practica hoy para mantener tu racha!',
+
+    settingsTitle: 'Ajustes',
+    settingsPageSubtitle: 'Configura tu entorno de aprendizaje y preferencias',
+    backToProfile: 'Volver al Perfil',
+    appearance: 'Apariencia',
+    themeMode: 'Tema de Visualización',
+    themeDark: 'Modo Oscuro',
+    themeLight: 'Modo Claro',
+    interfaceLanguage: 'Idioma de la Interfaz',
+    notifications: 'Notificaciones',
+    dailyReminders: 'Recordatorios Diarios de Conversación',
+    sendTestPush: 'Enviar Notificación de Prueba',
+    testPushSent: 'Notificación de prueba enviada.',
+    testPushSending: 'Enviando notificación de prueba...',
+    privacySecurity: 'Privacidad y Almacenamiento',
+    offlineCache: 'Caché Sin Conexión',
+    offlineCacheDesc: 'Descarga lecciones y vocabulario para practicar sin conexión a internet.',
+    cacheNow: 'Guardar Contenido en Caché',
+    cachedSuccess: '¡Contenido guardado exitosamente para practicar sin conexión!',
+    audioVoice: 'Audio y Respuestas de Voz',
+    notificationSounds: 'Tonos de Notificación',
+    soundEffects: 'Señales de Audio de Sesión',
+    accessibility: 'Accesibilidad',
+    reducedMotion: 'Reducción de Movimiento',
+    account: 'Cuenta',
+    signOut: 'Cerrar Sesión',
+
     readyToSpeak: 'Listo para escuchar tu voz',
     yoeIsSpeaking: 'Yoe está hablando',
     listeningToYou: 'Escuchando tu voz...',
@@ -108,86 +458,68 @@ export const translations: Record<LanguageCode, Translations> = {
     stopPlayback: 'Detener reproducción',
     stop: 'Detener',
     stopSession: 'Detener sesión',
+    muteMic: 'Silenciar micrófono',
+    unmuteMic: 'Activar micrófono',
+    micMuted: 'Micrófono silenciado',
+    micUnmuted: 'Micrófono activo',
     readyToSpeakPrompt: '¿Listo para hablar?',
     exploreScenarioWorlds: 'Explorar escenarios',
     quickStart: 'Inicio rápido',
-    tapCardToEnter: 'Toca una tarjeta de escenario para iniciar la conversación'
-  },
-  fr: {
-    readyToSpeak: 'Prêt à écouter votre voix',
-    yoeIsSpeaking: 'Yoe parle',
-    listeningToYou: 'À l\'écoute de votre voix...',
-    yoeIsThinking: 'Yoe réfléchit...',
-    interrupted: 'Interrompu',
-    tapToSpeak: 'Appuyez pour parler avec Yoe',
-    startConversation: 'Démarrer la conversation',
-    finish: 'Terminer',
-    translate: 'Traduire',
-    replyToYoe: 'Répondre à Yoe...',
-    suggestedResponses: 'Réponses suggérées :',
-    scenarioMissions: 'Missions du scénario',
-    completedOf: 'Terminé',
-    hint: 'Indice',
-    micPermissionNeeded: 'Autorisation du microphone requise',
-    audioDeviceNotice: 'Avis sur le périphérique audio',
-    retryMicrophone: 'Réessayer le microphone',
-    yoeCoaching: 'Conseil de Yoe',
-    you: 'Vous',
-    yoe: 'Yoe',
-    live: 'En direct',
-    practiceDialogueAt: 'Pratiquez un dialogue authentique. Appuyez sur Démarrer pour parler.',
-    tapToInterrupt: 'Appuyez pour interrompre',
-    backToHome: 'Retour à l\'accueil',
-    hideTranscript: 'Masquer la transcription',
-    showTranscript: 'Afficher la transcription',
-    completeAndReview: 'Terminer et revoir la session',
-    listenToYoe: 'Écouter Yoe',
-    stopPlayback: 'Arrêter la lecture',
-    stop: 'Arrêter',
-    stopSession: 'Arrêter la session',
-    readyToSpeakPrompt: 'Prêt à parler ?',
-    exploreScenarioWorlds: 'Explorer les scénarios',
-    quickStart: 'Démarrage rapide',
-    tapCardToEnter: 'Appuyez sur une carte pour démarrer la conversation'
-  },
-  ar: {
-    readyToSpeak: 'جاهز لسماع صوتك',
-    yoeIsSpeaking: 'يو يتحدث الآن',
-    listeningToYou: 'جاري الاستماع لصوتك...',
-    yoeIsThinking: 'يو يفكر...',
-    interrupted: 'تم المقاطعة',
-    tapToSpeak: 'انقر للتحدث مع يو',
-    startConversation: 'بدء المحادثة',
-    finish: 'إنهاء',
-    translate: 'ترجمة',
-    replyToYoe: 'الرد على يو...',
-    suggestedResponses: 'الإجابات المقترحة:',
-    scenarioMissions: 'مهام السيناريو',
-    completedOf: 'مكتمل',
-    hint: 'تلميح',
-    micPermissionNeeded: 'مطلوب إذن الميكروفون',
-    audioDeviceNotice: 'إشعار جهاز الصوت',
-    retryMicrophone: 'إعادة محاولة الميكروفون',
-    yoeCoaching: 'توجيهات يو اللطيفة',
-    you: 'أنت',
-    yoe: 'يو',
-    live: 'مباشر',
-    practiceDialogueAt: 'تمارين المحادثة الحقيقية. اضغط ابدأ للتحدث مع يو.',
-    tapToInterrupt: 'انقر للمقاطعة',
-    backToHome: 'العودة للرئيسية',
-    hideTranscript: 'إخفاء النص',
-    showTranscript: 'إظهار النص',
-    completeAndReview: 'إكمال ومراجعة الجلسة',
-    listenToYoe: 'الاستماع إلى يو',
-    stopPlayback: 'إيقاف التشغيل',
-    stop: 'إيقاف',
-    stopSession: 'إيقاف الجلسة',
-    readyToSpeakPrompt: 'جاهز للتحدث؟',
-    exploreScenarioWorlds: 'استكشاف السيناريوهات',
-    quickStart: 'بدء سريع',
-    tapCardToEnter: 'اضغط على أي سيناريو لبدء المحادثة'
+    tapCardToEnter: 'Toca una tarjeta de escenario para iniciar la conversación',
+
+    cancel: 'Cancelar',
+    save: 'Guardar',
+    retry: 'Reintentar',
+    offline: 'Sin conexión'
   },
   ru: {
+    navHome: 'Главная',
+    navChat: 'Чат',
+    navLearn: 'Обучение',
+    navExplore: 'Обзор',
+    navProfile: 'Профиль',
+
+    profileTitle: 'Профиль ученика',
+    profileSubtitle: 'Ваш прогресс, языки и статистика',
+    learningProfile: 'Профиль обучения',
+    activeJourneys: 'Активные языковые курсы',
+    cefrLevel: 'Целевой уровень',
+    streak: 'Дни подряд',
+    points: 'Баллы',
+    spokenTime: 'Время разговора',
+    learningGoals: 'Цель на неделю',
+    accountInfo: 'Информация об аккаунте',
+    openSettings: 'Настройки и параметры',
+    settingsSubtitle: 'Тема, язык интерфейса, звук и уведомления',
+    memberSince: 'Участник',
+    practiceMore: 'Занимайтесь сегодня, чтобы сохранить серию!',
+
+    settingsTitle: 'Настройки',
+    settingsPageSubtitle: 'Параметры приложения и обучения',
+    backToProfile: 'Назад в профиль',
+    appearance: 'Внешний вид',
+    themeMode: 'Тема оформления',
+    themeDark: 'Тёмная тема',
+    themeLight: 'Светлая тема',
+    interfaceLanguage: 'Язык интерфейса',
+    notifications: 'Уведомления',
+    dailyReminders: 'Ежедневные напоминания о разговоре',
+    sendTestPush: 'Отправить тестовое уведомление',
+    testPushSent: 'Тестовое уведомление отправлено.',
+    testPushSending: 'Отправка тестового уведомления...',
+    privacySecurity: 'Конфиденциальность и память',
+    offlineCache: 'Офлайн-кэш',
+    offlineCacheDesc: 'Скачайте уроки и словарь для занятий без интернета.',
+    cacheNow: 'Сохранить для офлайн-режима',
+    cachedSuccess: 'Материалы сохранены для занятий без интернета!',
+    audioVoice: 'Звук и голосовые сигналы',
+    notificationSounds: 'Звуки уведомлений',
+    soundEffects: 'Звуковые сигналы сессии',
+    accessibility: 'Специальные возможности',
+    reducedMotion: 'Уменьшение движения',
+    account: 'Аккаунт',
+    signOut: 'Выйти из аккаунта',
+
     readyToSpeak: 'Готов слушать ваш голос',
     yoeIsSpeaking: 'Yoe говорит',
     listeningToYou: 'Слушаю ваш голос...',
@@ -219,12 +551,68 @@ export const translations: Record<LanguageCode, Translations> = {
     stopPlayback: 'Остановить',
     stop: 'Стоп',
     stopSession: 'Остановить сессию',
+    muteMic: 'Выключить микрофон',
+    unmuteMic: 'Включить микрофон',
+    micMuted: 'Микрофон выключен',
+    micUnmuted: 'Микрофон включен',
     readyToSpeakPrompt: 'Готовы говорить?',
     exploreScenarioWorlds: 'Исследовать сценарии',
     quickStart: 'Быстрый старт',
-    tapCardToEnter: 'Нажмите на карту сценария для начала'
+    tapCardToEnter: 'Нажмите на карту сценария для начала',
+
+    cancel: 'Отмена',
+    save: 'Сохранить',
+    retry: 'Повторить',
+    offline: 'Офлайн'
   },
   it: {
+    navHome: 'Home',
+    navChat: 'Chat',
+    navLearn: 'Impara',
+    navExplore: 'Esplora',
+    navProfile: 'Profilo',
+
+    profileTitle: 'Profilo di Apprendimento',
+    profileSubtitle: 'La tua identità linguistica, progressi e statistiche',
+    learningProfile: 'Profilo di Apprendimento',
+    activeJourneys: 'Percorsi di Apprendimento Attivi',
+    cefrLevel: 'Livello Obiettivo',
+    streak: 'Serie Giornaliera',
+    points: 'Punti',
+    spokenTime: 'Tempo Parlato',
+    learningGoals: 'Obiettivo Settimanale',
+    accountInfo: 'Informazioni Account',
+    openSettings: 'Impostazioni e Preferenze',
+    settingsSubtitle: 'Tema, lingua dell\'interfaccia, audio e notifiche',
+    memberSince: 'Membro',
+    practiceMore: 'Esercitati oggi per mantenere la tua serie!',
+
+    settingsTitle: 'Impostazioni',
+    settingsPageSubtitle: 'Configura il tuo ambiente di studio e preferenze',
+    backToProfile: 'Torna al Profilo',
+    appearance: 'Aspetto',
+    themeMode: 'Tema Schermo',
+    themeDark: 'Modalità Scura',
+    themeLight: 'Modalità Chiara',
+    interfaceLanguage: 'Lingua dell\'Interfaccia',
+    notifications: 'Notifiche',
+    dailyReminders: 'Promemoria Giornalieri di Conversazione',
+    sendTestPush: 'Invia Notifica di Prova',
+    testPushSent: 'Notifica di prova inviata.',
+    testPushSending: 'Invio notifica di prova in corso...',
+    privacySecurity: 'Privacy e Archiviazione',
+    offlineCache: 'Cache Offline',
+    offlineCacheDesc: 'Scarica scenari e vocabolario per esercitarti senza connessione internet.',
+    cacheNow: 'Salva Contenuti Offline',
+    cachedSuccess: 'Contenuti salvati con successo per l\'uso offline!',
+    audioVoice: 'Audio e Feedback Vocale',
+    notificationSounds: 'Suoni di Notifica',
+    soundEffects: 'Segnali Audio di Sessione',
+    accessibility: 'Accessibilità',
+    reducedMotion: 'Movimento Ridotto',
+    account: 'Account',
+    signOut: 'Disconnetti',
+
     readyToSpeak: 'Pronto ad ascoltare la tua voce',
     yoeIsSpeaking: 'Yoe sta parlando',
     listeningToYou: 'Ascoltando la tua voce...',
@@ -256,12 +644,68 @@ export const translations: Record<LanguageCode, Translations> = {
     stopPlayback: 'Interrompi riproduzione',
     stop: 'Ferma',
     stopSession: 'Interrompi sessione',
+    muteMic: 'Disattiva microfono',
+    unmuteMic: 'Attiva microfono',
+    micMuted: 'Microfono disattivato',
+    micUnmuted: 'Microfono attivo',
     readyToSpeakPrompt: 'Pronto a parlare?',
     exploreScenarioWorlds: 'Esplora scenari',
     quickStart: 'Avvio rapido',
-    tapCardToEnter: 'Tocca uno scenario per iniziare'
+    tapCardToEnter: 'Tocca uno scenario per iniziare',
+
+    cancel: 'Annulla',
+    save: 'Salva',
+    retry: 'Riprova',
+    offline: 'Offline'
   },
   tr: {
+    navHome: 'Ana Sayfa',
+    navChat: 'Sohbet',
+    navLearn: 'Öğren',
+    navExplore: 'Keşfet',
+    navProfile: 'Profil',
+
+    profileTitle: 'Öğrenci Profili',
+    profileSubtitle: 'Dil kimliğin, ilerlemen ve istatistiklerin',
+    learningProfile: 'Öğrenme Profili',
+    activeJourneys: 'Aktif Öğrenme Yolları',
+    cefrLevel: 'Hedef Seviye',
+    streak: 'Günlük Seri',
+    points: 'Puanlar',
+    spokenTime: 'Konuşma Süresi',
+    learningGoals: 'Haftalık Hedef',
+    accountInfo: 'Hesap Bilgileri',
+    openSettings: 'Ayarlar ve Tercihler',
+    settingsSubtitle: 'Tema, arayüz dili, ses ve bildirimler',
+    memberSince: 'Üye',
+    practiceMore: 'Serini sürdürmek için bugün pratik yap!',
+
+    settingsTitle: 'Ayarlar',
+    settingsPageSubtitle: 'Öğrenme ortamını ve tercihlerini yapılandır',
+    backToProfile: 'Profile Dön',
+    appearance: 'Görünüm',
+    themeMode: 'Görünüm Teması',
+    themeDark: 'Karanlık Mod',
+    themeLight: 'Aydınlık Mod',
+    interfaceLanguage: 'Arayüz Dili',
+    notifications: 'Bildirimler',
+    dailyReminders: 'Günlük Konuşma Hatırlatıcıları',
+    sendTestPush: 'Test Bildirimi Gönder',
+    testPushSent: 'Test bildirimi gönderildi.',
+    testPushSending: 'Test bildirimi gönderiliyor...',
+    privacySecurity: 'Gizlilik ve Depolama',
+    offlineCache: 'Çevrimdışı Önbellek',
+    offlineCacheDesc: 'İnternet bağlantısı olmadan pratik yapmak için senaryoları ve kelimeleri indir.',
+    cacheNow: 'Çevrimdışı İçeriği Kaydet',
+    cachedSuccess: 'İçerik çevrimdışı pratik için başarıyla önbelleğe alındı!',
+    audioVoice: 'Ses ve Konuşma Geri Bildirimi',
+    notificationSounds: 'Bildirim Sesleri',
+    soundEffects: 'Oturum Ses Efektleri',
+    accessibility: 'Erişilebilirlik',
+    reducedMotion: 'Azaltılmış Hareket',
+    account: 'Hesap',
+    signOut: 'Çıkış Yap',
+
     readyToSpeak: 'Sesini duymaya hazır',
     yoeIsSpeaking: 'Yoe konuşuyor',
     listeningToYou: 'Seni dinliyor...',
@@ -293,12 +737,68 @@ export const translations: Record<LanguageCode, Translations> = {
     stopPlayback: 'Oynatmayı durdur',
     stop: 'Durdur',
     stopSession: 'Oturumu Durdur',
+    muteMic: 'Mikrofonu kapat',
+    unmuteMic: 'Mikrofonu aç',
+    micMuted: 'Mikrofon sessize alındı',
+    micUnmuted: 'Mikrofon açık',
     readyToSpeakPrompt: 'Konuşmaya hazır mısın?',
     exploreScenarioWorlds: 'Senaryoları Keşfet',
     quickStart: 'Hızlı Başlangıç',
-    tapCardToEnter: 'Konuşmaya başlamak için bir senaryoya dokun'
+    tapCardToEnter: 'Konuşmaya başlamak için bir senaryoya dokun',
+
+    cancel: 'İptal',
+    save: 'Kaydet',
+    retry: 'Yeniden Dene',
+    offline: 'Çevrimdışı'
   },
   pt: {
+    navHome: 'Início',
+    navChat: 'Conversa',
+    navLearn: 'Aprender',
+    navExplore: 'Explorar',
+    navProfile: 'Perfil',
+
+    profileTitle: 'Perfil do Aluno',
+    profileSubtitle: 'Sua identidade linguística, progresso e estatísticas',
+    learningProfile: 'Perfil de Aprendizado',
+    activeJourneys: 'Jornadas de Aprendizado Ativas',
+    cefrLevel: 'Nível Alvo',
+    streak: 'Sequência Diária',
+    points: 'Pontos',
+    spokenTime: 'Tempo Falado',
+    learningGoals: 'Meta Semanal',
+    accountInfo: 'Informações da Conta',
+    openSettings: 'Ajustes e Preferências',
+    settingsSubtitle: 'Tema, idioma da interface, áudio e notificações',
+    memberSince: 'Membro',
+    practiceMore: 'Pratique hoje para manter sua sequência!',
+
+    settingsTitle: 'Ajustes',
+    settingsPageSubtitle: 'Configure seu ambiente de aprendizado e preferências',
+    backToProfile: 'Voltar ao Perfil',
+    appearance: 'Aparência',
+    themeMode: 'Tema da Tela',
+    themeDark: 'Modo Escuro',
+    themeLight: 'Modo Claro',
+    interfaceLanguage: 'Idioma da Interface',
+    notifications: 'Notifiche',
+    dailyReminders: 'Lembretes Diários de Conversação',
+    sendTestPush: 'Enviar Notificação de Teste',
+    testPushSent: 'Notificação de teste enviada.',
+    testPushSending: 'Enviando notificação de teste...',
+    privacySecurity: 'Privacidade e Armazenamento',
+    offlineCache: 'Cache Offline',
+    offlineCacheDesc: 'Baixe cenários e vocabulário para praticar sem conexão com a internet.',
+    cacheNow: 'Salvar Conteúdo Offline',
+    cachedSuccess: 'Conteúdo armazenado com sucesso para prática offline!',
+    audioVoice: 'Áudio e Retorno de Voz',
+    notificationSounds: 'Sons de Notificação',
+    soundEffects: 'Sinais Sonoros da Sessão',
+    accessibility: 'Acessibilidade',
+    reducedMotion: 'Redução de Movimento',
+    account: 'Conta',
+    signOut: 'Sair da Conta',
+
     readyToSpeak: 'Pronto para ouvir sua voz',
     yoeIsSpeaking: 'Yoe está falando',
     listeningToYou: 'Ouvindo sua voz...',
@@ -330,14 +830,35 @@ export const translations: Record<LanguageCode, Translations> = {
     stopPlayback: 'Parar reprodução',
     stop: 'Parar',
     stopSession: 'Parar sessão',
+    muteMic: 'Silenciar microfone',
+    unmuteMic: 'Ativar microfone',
+    micMuted: 'Microfone silenciado',
+    micUnmuted: 'Microfone ativo',
     readyToSpeakPrompt: 'Pronto para falar?',
     exploreScenarioWorlds: 'Explorar cenários',
     quickStart: 'Início rápido',
-    tapCardToEnter: 'Toque em um cenário para iniciar a conversa'
+    tapCardToEnter: 'Toque em um cenário para iniciar a conversa',
+
+    cancel: 'Cancelar',
+    save: 'Salvar',
+    retry: 'Tentar Novamente',
+    offline: 'Offline'
   }
 };
 
 export function getTranslation(lang: LanguageCode | string = 'en'): Translations {
   const code = (lang || 'en') as LanguageCode;
   return translations[code] || translations.en;
+}
+
+export function applyDocumentDirection(lang: LanguageCode | string) {
+  if (typeof document === 'undefined') return;
+  const isRtl = lang === 'ar';
+  document.documentElement.setAttribute('dir', isRtl ? 'rtl' : 'ltr');
+  document.documentElement.setAttribute('lang', lang);
+  if (isRtl) {
+    document.documentElement.classList.add('rtl');
+  } else {
+    document.documentElement.classList.remove('rtl');
+  }
 }

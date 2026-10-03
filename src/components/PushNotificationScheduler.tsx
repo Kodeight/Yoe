@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, Clock, ShieldCheck, Send, CheckCircle2, AlertTriangle, Volume2 } from 'lucide-react';
+import { useApp } from '../context/AppContext';
+import { getTranslation } from '../utils/i18n';
+import { Bell, Clock, ShieldCheck, Send, CheckCircle2, AlertTriangle } from 'lucide-react';
 import {
   getNotificationConfig,
   saveNotificationConfig,
@@ -7,11 +9,13 @@ import {
   requestNotificationPermission,
   sendTestNotification,
   getMsUntilTime,
-  isNotificationSupported,
   NotificationScheduleConfig
 } from '../utils/notificationScheduler';
 
 export const PushNotificationScheduler: React.FC = () => {
+  const { uiLanguage } = useApp();
+  const t = getTranslation(uiLanguage);
+
   const [config, setConfig] = useState<NotificationScheduleConfig>(() => getNotificationConfig());
   const [permission, setPermission] = useState<string>('default');
   const [testSent, setTestSent] = useState(false);
@@ -41,28 +45,33 @@ export const PushNotificationScheduler: React.FC = () => {
   };
 
   const handleTestNotification = async () => {
+    if (isSending) return;
     setIsSending(true);
     setTestError('');
     setTestSent(false);
 
     try {
-      const currentPerm = getNotificationPermission();
+      let currentPerm = getNotificationPermission();
       if (currentPerm !== 'granted') {
         const req = await requestNotificationPermission();
         setPermission(req);
         if (req !== 'granted') {
-          setTestError('Notification permission was not granted by your browser.');
+          setTestError(req === 'denied' ? 'Notification permission was denied in your browser settings.' : 'Notification permission not granted.');
           setIsSending(false);
           return;
         }
       }
 
+      // Small pause to allow browser permission state to settle
+      await new Promise(r => setTimeout(r, 100));
+
       const success = await sendTestNotification();
       if (success) {
         setTestSent(true);
-        setTimeout(() => setTestSent(false), 4000);
+        setTestError('');
+        setTimeout(() => setTestSent(false), 4500);
       } else {
-        setTestError('Could not send notification. Check your browser notification settings.');
+        setTestError('Could not send notification. Please check browser permissions.');
       }
     } catch (err: any) {
       setTestError(err.message || 'Failed to dispatch test notification.');
@@ -77,16 +86,16 @@ export const PushNotificationScheduler: React.FC = () => {
     const hours = Math.floor(totalMinutes / 60);
     const mins = totalMinutes % 60;
     if (hours === 0) {
-      return `in ${mins} minutes`;
+      return `in ${mins}m`;
     }
-    return `in ${hours} hr ${mins} min`;
+    return `in ${hours}h ${mins}m`;
   };
 
   const presets = [
-    { label: 'Morning', time: '09:00' },
-    { label: 'Afternoon', time: '14:00' },
-    { label: 'Evening', time: '18:30' },
-    { label: 'Night', time: '21:00' }
+    { label: '09:00', time: '09:00' },
+    { label: '14:00', time: '14:00' },
+    { label: '18:30', time: '18:30' },
+    { label: '21:00', time: '21:00' }
   ];
 
   return (
@@ -99,7 +108,7 @@ export const PushNotificationScheduler: React.FC = () => {
           </div>
           <div>
             <h3 className="text-xs font-bold text-[var(--text-primary)] flex items-center gap-2">
-              <span>Daily Reminder Push Scheduler</span>
+              <span>{t.dailyReminders}</span>
             </h3>
             <p className="text-[10px] text-[var(--text-secondary)]">
               Personalized speaking habit reminders at your preferred time
@@ -119,7 +128,7 @@ export const PushNotificationScheduler: React.FC = () => {
         >
           <div
             className={`w-4 h-4 rounded-full bg-white transition-transform absolute top-1 left-1 ${
-              config.enabled ? 'translate-x-5' : 'translate-x-0'
+              config.enabled ? 'translate-x-5 rtl:-translate-x-5' : 'translate-x-0'
             }`}
           />
         </button>
@@ -139,58 +148,48 @@ export const PushNotificationScheduler: React.FC = () => {
           )}
         </div>
 
-        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-          permission === 'granted'
-            ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-            : permission === 'denied'
-            ? 'bg-red-500/20 text-red-400 border border-red-500/30'
-            : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
-        }`}>
-          {permission === 'granted' ? 'Allowed' : permission === 'denied' ? 'Blocked' : 'Default'}
-        </span>
+        {permission !== 'granted' && (
+          <span className="text-[10px] text-amber-400 font-bold">
+            Permission required
+          </span>
+        )}
       </div>
 
-      {/* Configurable Reminder Time */}
-      <div className="space-y-1.5 pt-0.5">
-        <label className="text-[11px] font-bold text-[var(--text-primary)] block">
-          Select Notification Time (24h)
-        </label>
-
-        <div className="flex items-center gap-2.5">
+      {/* Preset Time Selector Pills */}
+      <div className="space-y-1.5 pt-1">
+        <div className="flex items-center justify-between text-[11px] text-[var(--text-secondary)]">
+          <span>Reminder Time</span>
           <input
             type="time"
             value={config.time}
             onChange={(e) => handleTimeChange(e.target.value)}
-            disabled={!config.enabled}
-            className="bg-slate-950/40 dark:bg-slate-950/40 light-mode:bg-white border border-[var(--border)] rounded-2xl px-3 py-1.5 text-xs font-bold text-[var(--text-primary)] focus:outline-none focus:border-emerald-400 disabled:opacity-40"
+            className="bg-transparent text-emerald-400 font-mono font-bold text-xs focus:outline-none cursor-pointer"
           />
+        </div>
 
-          {/* Quick preset chips */}
-          <div className="flex flex-wrap gap-1.5 flex-1">
-            {presets.map((p) => (
-              <button
-                key={p.time}
-                type="button"
-                disabled={!config.enabled}
-                onClick={() => handleTimeChange(p.time)}
-                className={`px-2.5 py-1 rounded-xl text-[10px] font-bold transition-all cursor-pointer disabled:opacity-40 ${
-                  config.time === p.time
-                    ? 'bg-emerald-500 text-slate-950 font-black shadow-sm'
-                    : 'bg-slate-800/60 dark:bg-slate-800/60 light-mode:bg-slate-100 text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border)]'
-                }`}
-              >
-                {p.label}
-              </button>
-            ))}
-          </div>
+        <div className="grid grid-cols-4 gap-1.5">
+          {presets.map((p) => (
+            <button
+              key={p.time}
+              type="button"
+              onClick={() => handleTimeChange(p.time)}
+              className={`py-1.5 px-2 rounded-xl text-xs font-semibold cursor-pointer transition-all text-center ${
+                config.time === p.time
+                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 shadow-sm'
+                  : 'glass-pill text-[var(--text-secondary)] hover:border-emerald-500/30'
+              }`}
+            >
+              {p.label}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* Test Notification and Permission request action */}
+      {/* Test Notification Action */}
       <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-white/5 dark:border-white/5 light-mode:border-slate-200">
         <p className="text-[10px] text-[var(--text-secondary)] flex items-center gap-1">
           <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-          <span>Local & Service Worker push reminders (no spam).</span>
+          <span>Local & Service Worker push reminders.</span>
         </p>
 
         <button
@@ -202,17 +201,17 @@ export const PushNotificationScheduler: React.FC = () => {
           {isSending ? (
             <div className="w-3 h-3 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
           ) : (
-            <Send className="w-3 h-3" />
+            <Send className="w-3 h-3 rtl-mirror" />
           )}
-          <span>Send Test Push</span>
+          <span>{isSending ? t.testPushSending : t.sendTestPush}</span>
         </button>
       </div>
 
-      {/* Test feedback alerts */}
+      {/* Test Feedback Alerts */}
       {testSent && (
         <div className="p-2.5 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-semibold flex items-center gap-2 animate-in fade-in">
           <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-          <span>Test notification sent! Check your system notification tray.</span>
+          <span>{t.testPushSent}</span>
         </div>
       )}
 
