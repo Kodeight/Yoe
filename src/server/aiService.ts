@@ -1,4 +1,4 @@
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI, Modality } from '@google/genai';
 import { Scenario, LearningJourney, CorrectionDetail } from '../types';
 
 export const ai = new GoogleGenAI({
@@ -218,19 +218,56 @@ export async function generateScenarioSpeech(text: string, voiceName = 'Kore'): 
   return null;
 }
 
-export async function createEphemeralLiveToken(journeyIdOrScenario: any, scenarioOrJourney?: any) {
+export async function createEphemeralLiveToken(scenario: Scenario, journey: LearningJourney) {
   try {
-    const voiceName = 'Kore';
-    const systemInstruction = `You are Yoe, an empathetic language tutor on a live audio call. Teach the user naturally in Spanish with English explanations.`;
+    console.log('[YOE LIVE] Generating real ephemeral token on Gemini backend...');
+
+    const targetLang = (journey?.targetLanguage || 'es').toUpperCase();
+    const supportLang = (journey?.supportLanguage || 'en').toUpperCase();
+    const cefr = journey?.cefrLevel || 'A1';
+    const voiceName = getCharacterVoice(scenario.characterName, scenario.characterRole);
+
+    const systemInstruction = `You are Yoe, an empathetic language tutor roleplaying in a realistic scenario on a live voice call. Speak in ${targetLang} suitable for CEFR ${cefr}, and teach using ${supportLang} when explanation is needed.`;
+
+    const tokenResponse = await ai.authTokens.create({
+      config: {
+        uses: 1,
+        liveConnectConstraints: {
+          model: LIVE_MODEL,
+          config: {
+            responseModalities: [Modality.AUDIO],
+            speechConfig: {
+              voiceConfig: {
+                prebuiltVoiceConfig: { voiceName }
+              }
+            },
+            systemInstruction: {
+              parts: [{ text: systemInstruction }]
+            }
+          }
+        }
+      }
+    });
+
+    if (!tokenResponse || !tokenResponse.name) {
+      throw new Error('Gemini authTokens.create returned an empty or invalid response');
+    }
+
+    console.log('[YOE LIVE] Ephemeral token created successfully:', tokenResponse.name.substring(0, 25) + '...');
+
     return {
-      token: process.env.GEMINI_API_KEY || '',
+      token: tokenResponse.name,
       model: LIVE_MODEL,
       voiceName,
       systemInstruction
     };
-  } catch (err) {
-    console.error('createEphemeralLiveToken error:', err);
-    return null;
+  } catch (err: any) {
+    console.error('[YOE LIVE] Ephemeral token creation failed:', err);
+    return {
+      token: null,
+      model: LIVE_MODEL,
+      error: err?.message || 'Token generation failure'
+    };
   }
 }
 

@@ -54,9 +54,16 @@ export class GeminiLiveSession {
       }
 
       const tokenData = await res.json();
-      console.log('[YOE LIVE] token received:', { model: tokenData.model, hasToken: !!tokenData.token });
+      const hasToken = !!tokenData.token;
+      
+      console.log('[YOE LIVE] token response received');
+      console.log(`[YOE LIVE] model: ${tokenData.model || 'gemini-3.8-live'}`);
+      console.log(`[YOE LIVE] hasToken: ${hasToken}`);
+      if (hasToken) {
+        console.log(`[YOE LIVE] token length: ${tokenData.token.length}`);
+      }
 
-      if (!tokenData || !tokenData.token) {
+      if (!hasToken) {
         console.error('[YOE LIVE] token unavailable in response');
         this.config.onStateChange?.('error');
         this.config.onError?.('Live session token unavailable');
