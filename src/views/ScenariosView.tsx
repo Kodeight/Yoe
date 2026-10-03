@@ -40,11 +40,12 @@ export const ScenariosView: React.FC = () => {
         {['all', 'daily', 'work', 'social', 'practical', 'dining', 'shopping', 'travel', 'A1', 'A2', 'B1', 'B2'].map((f) => (
           <button
             key={f}
+            type="button"
             onClick={() => setSelectedFilter(f)}
-            className={`px-3 py-1.5 rounded-full text-xs font-bold capitalize transition-all cursor-pointer whitespace-nowrap ${
+            className={`px-3.5 py-1.5 rounded-full text-xs font-bold capitalize transition-colors cursor-pointer whitespace-nowrap border ${
               selectedFilter === f
-                ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-extrabold shadow-md shadow-emerald-500/20'
-                : 'glass-pill text-slate-300 dark:text-slate-300 light-mode:text-slate-700 hover:border-emerald-500/40'
+                ? 'bg-emerald-500 text-white border-emerald-500 shadow-sm'
+                : 'glass-pill text-slate-300 dark:text-slate-300 light-mode:text-slate-700 border-white/10 dark:border-white/10 light-mode:border-slate-200 hover:border-emerald-500/40'
             }`}
           >
             {f === 'daily' ? 'Daily Life' : f}

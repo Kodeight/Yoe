@@ -935,7 +935,7 @@ export const ConversationView: React.FC = () => {
               e.preventDefault();
               handleSendMessage();
             }}
-            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 shadow-xl p-2 rounded-3xl flex items-center gap-2"
+            className="glass-card shadow-2xl p-2 rounded-3xl flex items-center gap-2 border border-white/10 dark:border-white/10 light-mode:border-slate-200"
           >
             {/* Real Microphone / Call Controls (Requirements 8 & 9: Paired Identical Dimensions & Solid Surfaces) */}
             {isLiveApiActive ? (
@@ -953,7 +953,7 @@ export const ConversationView: React.FC = () => {
                   className={`w-11 h-11 p-2.5 rounded-2xl flex items-center justify-center transition-all cursor-pointer shadow-sm shrink-0 border ${
                     isMicMuted
                       ? 'bg-rose-500/20 border-rose-500/40 text-rose-500'
-                      : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/90 dark:hover:bg-slate-700/90 border-slate-200 dark:border-white/10 text-emerald-400'
+                      : 'glass-pill border-white/10 dark:border-white/10 light-mode:border-slate-200 text-emerald-400 hover:border-emerald-500/40'
                   }`}
                   title={isMicMuted ? t.unmuteMic : t.muteMic}
                   aria-label={isMicMuted ? t.unmuteMic : t.muteMic}
@@ -969,7 +969,7 @@ export const ConversationView: React.FC = () => {
                 <button
                   type="button"
                   onClick={handleStopConversation}
-                  className="w-11 h-11 p-2.5 rounded-2xl flex items-center justify-center transition-all cursor-pointer shadow-sm shrink-0 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/90 dark:hover:bg-slate-700/90 border border-slate-200 dark:border-white/10 text-rose-400"
+                  className="w-11 h-11 p-2.5 rounded-2xl flex items-center justify-center transition-all cursor-pointer shadow-sm shrink-0 glass-pill border border-white/10 dark:border-white/10 light-mode:border-slate-200 text-rose-400 hover:border-rose-500/40"
                   title="Stop voice call (re-read chat)"
                   aria-label="Stop voice call"
                 >
@@ -1000,7 +1000,7 @@ export const ConversationView: React.FC = () => {
                   ? t.tapToInterrupt
                   : t.replyToYoe
               }
-              className="flex-1 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-white/10 rounded-2xl px-4 py-2.5 text-xs text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-emerald-400 transition-colors"
+              className="flex-1 bg-slate-100 dark:bg-slate-900/80 light-mode:bg-slate-100 border border-slate-200 dark:border-white/10 light-mode:border-slate-200 rounded-2xl px-4 py-2.5 text-xs text-[var(--text-primary)] placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-emerald-400 transition-colors"
             />
 
             {/* Send Button */}
