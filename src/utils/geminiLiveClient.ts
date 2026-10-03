@@ -1,7 +1,9 @@
+import { GoogleGenAI, Modality, LiveServerMessage } from '@google/genai';
+
 /**
- * Client-Side Gemini Live API Web Audio & WebSocket Manager
- * Bridges real-time bidirectional audio streaming with server-backed Gemini Live endpoint.
- * Works seamlessly in both Safari browser and installed standalone PWA.
+ * Client-Side Gemini Live API Web Audio & Session Manager
+ * Uses ephemeral token from /api/ai/live/token to establish real live bidirectional voice session.
+ * Compatible with Safari browser and installed standalone PWA.
  */
 
 export interface LiveSessionConfig {
@@ -15,7 +17,8 @@ export interface LiveSessionConfig {
 
 export class GeminiLiveSession {
   private config: LiveSessionConfig;
-  private ws: WebSocket | null = null;
+  private liveSession: any = null;
+  private wsBridge: WebSocket | null = null;
   private inputAudioCtx: AudioContext | null = null;
   private outputAudioCtx: AudioContext | null = null;
   private micStream: MediaStream | null = null;
@@ -37,10 +40,13 @@ export class GeminiLiveSession {
       console.log('[YOE LIVE] requesting token and session parameters...');
       this.config.onStateChange?.('connecting');
 
-      // 1. Fetch token and session config from server
+      // 1. Fetch fresh ephemeral token from server (strictly non-cached)
       const res = await fetch('/api/ai/live/token', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache, no-store'
+        },
         credentials: 'include',
         body: JSON.stringify({
           journeyId: this.config.journeyId,
@@ -53,20 +59,17 @@ export class GeminiLiveSession {
         throw new Error(`Live token endpoint returned status ${res.status}`);
       }
 
-      const tokenData = await res.json();
-      const hasToken = !!tokenData.token;
-      
+      const data = await res.json();
+      const hasToken = Boolean(data.token);
+
       console.log('[YOE LIVE] token response received');
-      console.log(`[YOE LIVE] model: ${tokenData.model || 'gemini-3.8-live'}`);
-      console.log(`[YOE LIVE] hasToken: ${hasToken}`);
-      if (hasToken) {
-        console.log(`[YOE LIVE] token length: ${tokenData.token.length}`);
-      }
+      console.log('[YOE LIVE] model:', data.model || 'gemini-3.8-live');
+      console.log('[YOE LIVE] hasToken:', hasToken);
 
       if (!hasToken) {
         console.error('[YOE LIVE] token unavailable in response');
         this.config.onStateChange?.('error');
-        this.config.onError?.('Live session token unavailable');
+        this.config.onError?.(data.error || 'Live session token unavailable');
         return false;
       }
 
@@ -87,92 +90,167 @@ export class GeminiLiveSession {
       this.outputAnalyser = this.outputAudioCtx.createAnalyser();
       this.outputAnalyser.fftSize = 128;
 
-      // 3. Connect to server-backed Gemini Live WebSocket bridge
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const wsUrl = `${protocol}//${window.location.host}/api/ai/live/socket`;
-      console.log('[YOE LIVE] connecting websocket:', wsUrl);
+      console.log('[YOE LIVE] connecting to Gemini Live...');
 
-      this.ws = new WebSocket(wsUrl);
+      // 3. Connect to Gemini Live API using ephemeral token
+      const ai = new GoogleGenAI({
+        apiKey: data.token,
+        httpOptions: { apiVersion: 'v1alpha' }
+      });
 
-      this.ws.onopen = () => {
-        console.log('[YOE LIVE] connected to server websocket bridge');
+      try {
+        this.liveSession = await ai.live.connect({
+          model: data.model || 'gemini-3.8-live',
+          config: {
+            responseModalities: [Modality.AUDIO],
+            speechConfig: {
+              voiceConfig: {
+                prebuiltVoiceConfig: { voiceName: data.voiceName || 'Kore' }
+              }
+            }
+          },
+          callbacks: {
+            onmessage: (msg: LiveServerMessage) => {
+              // Handle Model Audio
+              const parts = msg.serverContent?.modelTurn?.parts;
+              if (parts && Array.isArray(parts)) {
+                for (const part of parts) {
+                  if (part.inlineData?.data) {
+                    console.log('[YOE LIVE] audio chunk received, length:', part.inlineData.data.length);
+                    this.isSpeaking = true;
+                    this.config.onStateChange?.('speaking');
+                    this.playPcmChunk(part.inlineData.data);
+                  }
+                  if (part.text) {
+                    console.log('[YOE LIVE] response received text:', part.text);
+                    this.config.onTranscriptChunk?.('tutor', part.text, false);
+                  }
+                }
+              }
+
+              // Handle Interruption / Barge-In
+              if (msg.serverContent?.interrupted) {
+                console.log('[YOE LIVE] Gemini detected interruption');
+                this.handleInterruption();
+              }
+
+              // Handle Turn Completion
+              if (msg.serverContent?.turnComplete) {
+                console.log('[YOE LIVE] user turn ended / model turn complete');
+                this.config.onTranscriptChunk?.('tutor', '', true);
+              }
+            },
+            onclose: () => {
+              console.log('[YOE LIVE] Gemini Live session closed');
+              this.isConnected = false;
+              this.config.onStateChange?.('idle');
+            },
+            onerror: (err: any) => {
+              console.error('[YOE LIVE] Gemini Live session error:', err);
+              this.config.onStateChange?.('error');
+              this.config.onError?.(err?.message || 'Live session error');
+            }
+          }
+        });
+
+        console.log('[YOE LIVE] connected');
         this.isConnected = true;
         this.config.onStateChange?.('listening');
-        this.startMicrophoneCapture();
-      };
+        await this.startMicrophoneCapture();
+      } catch (directConnectErr: any) {
+        console.warn('[YOE LIVE] Direct client connect note, attempting server-bridge fallback:', directConnectErr?.message || directConnectErr);
+        // Seamless fallback to server-side WebSocket bridge
+        await this.connectServerBridge();
+      }
 
-      this.ws.onmessage = async (event) => {
-        try {
-          const data = JSON.parse(event.data);
-
-          if (data.type === 'connected') {
-            console.log('[YOE LIVE] Gemini Live session connected');
-            this.config.onStateChange?.('listening');
-            return;
-          }
-
-          if (data.type === 'interrupted') {
-            console.log('[YOE LIVE] Gemini detected interruption');
-            this.handleInterruption();
-            return;
-          }
-
-          if (data.type === 'audio' && data.audio) {
-            console.log('[YOE LIVE] audio chunk received, length:', data.audio.length);
-            this.isSpeaking = true;
-            this.config.onStateChange?.('speaking');
-            this.playPcmChunk(data.audio);
-          }
-
-          if (data.type === 'text' && data.text) {
-            console.log('[YOE LIVE] response received text:', data.text);
-            this.config.onTranscriptChunk?.('tutor', data.text, false);
-          }
-
-          if (data.type === 'turnComplete') {
-            console.log('[YOE LIVE] user turn ended / model turn complete');
-            this.config.onTranscriptChunk?.('tutor', '', true);
-          }
-
-          if (data.type === 'error') {
-            console.error('[YOE LIVE] connection failed:', data.error);
-            this.config.onStateChange?.('error');
-            this.config.onError?.(data.error);
-          }
-        } catch (e) {
-          console.warn('[YOE LIVE] WebSocket message decode note:', e);
-        }
-      };
-
-      this.ws.onerror = (err) => {
-        console.error('[YOE LIVE] websocket connection error:', err);
-        this.config.onStateChange?.('error');
-        this.config.onError?.(err);
-      };
-
-      this.ws.onclose = () => {
-        console.log('[YOE LIVE] websocket connection closed');
-        this.isConnected = false;
-        this.config.onStateChange?.('idle');
-      };
-
-      // Start energy monitoring loop
+      // Start energy monitoring loop for visual bubble
       this.startEnergyLoop();
-
       return true;
+
     } catch (error: any) {
       console.error('[YOE LIVE] connection failed:', error);
       this.config.onStateChange?.('error');
-      this.config.onError?.(error?.message || error);
+      this.config.onError?.(error?.message || 'Live connection failed');
       this.cleanup();
       return false;
     }
   }
 
+  // Fallback to server-side WebSocket bridge if direct client WebSocket is restricted
+  private async connectServerBridge() {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//${window.location.host}/api/ai/live/socket`;
+    console.log('[YOE LIVE] connecting server websocket bridge:', wsUrl);
+
+    this.wsBridge = new WebSocket(wsUrl);
+
+    this.wsBridge.onopen = () => {
+      console.log('[YOE LIVE] connected to server websocket bridge');
+      this.isConnected = true;
+      this.config.onStateChange?.('listening');
+      this.startMicrophoneCapture();
+    };
+
+    this.wsBridge.onmessage = async (event) => {
+      try {
+        const msgData = JSON.parse(event.data);
+
+        if (msgData.type === 'connected') {
+          console.log('[YOE LIVE] Gemini Live session connected via bridge');
+          this.config.onStateChange?.('listening');
+          return;
+        }
+
+        if (msgData.type === 'interrupted') {
+          console.log('[YOE LIVE] Gemini detected interruption');
+          this.handleInterruption();
+          return;
+        }
+
+        if (msgData.type === 'audio' && msgData.audio) {
+          console.log('[YOE LIVE] audio chunk received, length:', msgData.audio.length);
+          this.isSpeaking = true;
+          this.config.onStateChange?.('speaking');
+          this.playPcmChunk(msgData.audio);
+        }
+
+        if (msgData.type === 'text' && msgData.text) {
+          console.log('[YOE LIVE] response received text:', msgData.text);
+          this.config.onTranscriptChunk?.('tutor', msgData.text, false);
+        }
+
+        if (msgData.type === 'turnComplete') {
+          console.log('[YOE LIVE] user turn ended / model turn complete');
+          this.config.onTranscriptChunk?.('tutor', '', true);
+        }
+
+        if (msgData.type === 'error') {
+          console.error('[YOE LIVE] bridge error:', msgData.error);
+          this.config.onStateChange?.('error');
+          this.config.onError?.(msgData.error);
+        }
+      } catch (e) {
+        console.warn('[YOE LIVE] bridge message decode note:', e);
+      }
+    };
+
+    this.wsBridge.onerror = (err) => {
+      console.error('[YOE LIVE] bridge websocket error:', err);
+      this.config.onStateChange?.('error');
+      this.config.onError?.(err);
+    };
+
+    this.wsBridge.onclose = () => {
+      console.log('[YOE LIVE] bridge websocket closed');
+      this.isConnected = false;
+      this.config.onStateChange?.('idle');
+    };
+  }
+
   // Captures microphone stream at 16kHz PCM
   private async startMicrophoneCapture() {
     try {
-      console.log('[YOE LIVE] microphone ready, requesting userMedia...');
+      console.log('[YOE LIVE] microphone ready');
       this.micStream = await navigator.mediaDevices.getUserMedia({
         audio: {
           sampleRate: 16000,
@@ -183,7 +261,7 @@ export class GeminiLiveSession {
         }
       });
 
-      console.log('[YOE LIVE] audio input active');
+      console.log('[YOE LIVE] listening');
 
       if (!this.inputAudioCtx || !this.micAnalyser) return;
 
@@ -193,7 +271,7 @@ export class GeminiLiveSession {
       source.connect(this.micAnalyser);
       this.micAnalyser.connect(this.scriptProcessor);
 
-      // Muted gain node to prevent microphone audio loopback to device speaker
+      // Muted gain node to prevent microphone loopback
       const silenceGain = this.inputAudioCtx.createGain();
       silenceGain.gain.value = 0;
       this.scriptProcessor.connect(silenceGain);
@@ -203,7 +281,7 @@ export class GeminiLiveSession {
         const outputData = e.outputBuffer.getChannelData(0);
         outputData.fill(0);
 
-        if (!this.isConnected || this.ws?.readyState !== WebSocket.OPEN) return;
+        if (!this.isConnected) return;
 
         const inputData = e.inputBuffer.getChannelData(0);
 
@@ -223,11 +301,20 @@ export class GeminiLiveSession {
         }
         const base64Audio = btoa(binary);
 
-        // Send PCM audio chunk to server WebSocket bridge
-        this.ws.send(JSON.stringify({
-          type: 'audio',
-          audio: base64Audio
-        }));
+        // Send to Live Session or WebSocket bridge
+        if (this.liveSession && typeof this.liveSession.sendRealtimeInput === 'function') {
+          this.liveSession.sendRealtimeInput({
+            audio: {
+              data: base64Audio,
+              mimeType: 'audio/pcm;rate=16000'
+            }
+          });
+        } else if (this.wsBridge && this.wsBridge.readyState === WebSocket.OPEN) {
+          this.wsBridge.send(JSON.stringify({
+            type: 'audio',
+            audio: base64Audio
+          }));
+        }
       };
     } catch (e: any) {
       console.error('[YOE LIVE] microphone failed:', e);
@@ -306,13 +393,13 @@ export class GeminiLiveSession {
     this.isSpeaking = false;
     this.config.onStateChange?.('interrupted');
 
-    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify({ type: 'interrupt' }));
+    if (this.wsBridge && this.wsBridge.readyState === WebSocket.OPEN) {
+      this.wsBridge.send(JSON.stringify({ type: 'interrupt' }));
     }
 
     setTimeout(() => {
       this.config.onStateChange?.('listening');
-    }, 300);
+    }, 200);
   }
 
   // High-performance energy monitoring loop
@@ -344,9 +431,13 @@ export class GeminiLiveSession {
       cancelAnimationFrame(this.animFrame);
       this.animFrame = null;
     }
-    if (this.ws) {
-      try { this.ws.close(); } catch (e) {}
-      this.ws = null;
+    if (this.liveSession) {
+      try { this.liveSession.close(); } catch (e) {}
+      this.liveSession = null;
+    }
+    if (this.wsBridge) {
+      try { this.wsBridge.close(); } catch (e) {}
+      this.wsBridge = null;
     }
     if (this.micStream) {
       this.micStream.getTracks().forEach(t => t.stop());

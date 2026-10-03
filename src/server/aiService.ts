@@ -218,57 +218,51 @@ export async function generateScenarioSpeech(text: string, voiceName = 'Kore'): 
   return null;
 }
 
-export async function createEphemeralLiveToken(scenario: Scenario, journey: LearningJourney) {
-  try {
-    console.log('[YOE LIVE] Generating real ephemeral token on Gemini backend...');
+export async function createEphemeralLiveToken(scenario?: Scenario, journey?: LearningJourney) {
+  if (!process.env.GEMINI_API_KEY) {
+    throw new Error('Gemini Live credentials are not configured');
+  }
 
-    const targetLang = (journey?.targetLanguage || 'es').toUpperCase();
-    const supportLang = (journey?.supportLanguage || 'en').toUpperCase();
-    const cefr = journey?.cefrLevel || 'A1';
-    const voiceName = getCharacterVoice(scenario.characterName, scenario.characterRole);
+  const targetLang = (journey?.targetLanguage || 'es').toUpperCase();
+  const supportLang = (journey?.supportLanguage || 'en').toUpperCase();
+  const cefr = journey?.cefrLevel || 'A1';
+  const voiceName = scenario ? getCharacterVoice(scenario.characterName, scenario.characterRole) : 'Kore';
 
-    const systemInstruction = `You are Yoe, an empathetic language tutor roleplaying in a realistic scenario on a live voice call. Speak in ${targetLang} suitable for CEFR ${cefr}, and teach using ${supportLang} when explanation is needed.`;
+  const systemInstruction = scenario
+    ? `You are Yoe, an empathetic language tutor roleplaying in a realistic scenario on a live voice call. Speak in ${targetLang} suitable for CEFR ${cefr}, and teach using ${supportLang} when explanation is needed.`
+    : `You are Yoe, an empathetic language tutor on a live audio call. Teach the user naturally in Spanish with English explanations.`;
 
-    const tokenResponse = await ai.authTokens.create({
-      config: {
-        uses: 1,
-        liveConnectConstraints: {
-          model: LIVE_MODEL,
-          config: {
-            responseModalities: [Modality.AUDIO],
-            speechConfig: {
-              voiceConfig: {
-                prebuiltVoiceConfig: { voiceName }
-              }
-            },
-            systemInstruction: {
-              parts: [{ text: systemInstruction }]
+  const tokenResponse = await ai.authTokens.create({
+    config: {
+      uses: 1,
+      liveConnectConstraints: {
+        model: LIVE_MODEL,
+        config: {
+          responseModalities: [Modality.AUDIO],
+          speechConfig: {
+            voiceConfig: {
+              prebuiltVoiceConfig: { voiceName }
             }
+          },
+          systemInstruction: {
+            parts: [{ text: systemInstruction }]
           }
         }
       }
-    });
-
-    if (!tokenResponse || !tokenResponse.name) {
-      throw new Error('Gemini authTokens.create returned an empty or invalid response');
     }
+  });
 
-    console.log('[YOE LIVE] Ephemeral token created successfully:', tokenResponse.name.substring(0, 25) + '...');
-
-    return {
-      token: tokenResponse.name,
-      model: LIVE_MODEL,
-      voiceName,
-      systemInstruction
-    };
-  } catch (err: any) {
-    console.error('[YOE LIVE] Ephemeral token creation failed:', err);
-    return {
-      token: null,
-      model: LIVE_MODEL,
-      error: err?.message || 'Token generation failure'
-    };
+  if (!tokenResponse?.name) {
+    throw new Error('Gemini authTokens.create returned an empty or invalid response');
   }
+
+  return {
+    success: true,
+    token: tokenResponse.name,
+    model: LIVE_MODEL,
+    voiceName,
+    systemInstruction
+  };
 }
 
 export async function calibrateLearnerLevel(targetLanguageOrBody: any, supportLanguage?: string, answers?: string[]) {

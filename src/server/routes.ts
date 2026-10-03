@@ -336,34 +336,23 @@ apiRouter.post('/ai/tts', async (req: Request, res: Response) => {
   }
 });
 
-// Live Token Endpoint
-apiRouter.post('/ai/live/token', async (req: Request, res: Response) => {
-  try {
-    const { journeyId, scenarioId } = req.body;
-    const journey = db.getJourney(journeyId) || {
-      id: journeyId || 'temp_jrn',
-      userId: 'temp_user',
-      targetLanguage: 'es',
-      supportLanguage: 'en',
-      cefrLevel: 'A1',
-      streakDays: 0,
-      totalMinutesSpoken: 0,
-      points: 0,
-      createdAt: new Date().toISOString()
-    };
-    const scenario = db.getScenarioById(scenarioId) || db.getScenarios()[0];
+// Live Token Handler (Supports both GET and POST with strict no-cache headers)
+const handleLiveToken = async (req: Request, res: Response) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
 
-    const tokenConfig = await createEphemeralLiveToken(scenario, journey);
-    res.json(tokenConfig);
-  } catch (err: any) {
-    console.error('Live token generation error:', err);
-    res.status(500).json({ error: 'Failed to generate live session token', details: err.message });
+  if (!process.env.GEMINI_API_KEY) {
+    return res.status(503).json({
+      success: false,
+      error: 'Gemini Live credentials are not configured'
+    });
   }
-});
 
-apiRouter.post('/ai/live/token', async (req: Request, res: Response) => {
   try {
-    const { journeyId, scenarioId } = req.body;
+    const scenarioId = req.body?.scenarioId || (req.query?.scenarioId as string);
+    const journeyId = req.body?.journeyId || (req.query?.journeyId as string);
+
     const journey = db.getJourney(journeyId) || {
       id: journeyId || 'temp_jrn',
       userId: 'temp_user',
@@ -378,10 +367,62 @@ apiRouter.post('/ai/live/token', async (req: Request, res: Response) => {
     const scenario = db.getScenarioById(scenarioId) || db.getScenarios()[0];
 
     const tokenConfig = await createEphemeralLiveToken(scenario, journey);
-    res.json(tokenConfig);
+    if (!tokenConfig || !tokenConfig.token) {
+      throw new Error('Gemini Live ephemeral token was not created');
+    }
+
+    res.json({
+      success: true,
+      token: tokenConfig.token,
+      model: LIVE_MODEL,
+      voiceName: tokenConfig.voiceName
+    });
   } catch (err: any) {
-    console.error('Live token generation error:', err);
-    res.status(500).json({ error: 'Failed to generate live session token', details: err.message });
+    console.error('[YOE LIVE] Token creation failure:', err?.message || err);
+    res.status(500).json({
+      success: false,
+      error: err?.message || 'Failed to generate live session token'
+    });
+  }
+};
+
+apiRouter.get('/ai/live/token', handleLiveToken);
+apiRouter.post('/ai/live/token', handleLiveToken);
+
+// Real Live Health Check Endpoint
+apiRouter.get('/ai/live/health', async (req: Request, res: Response) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
+
+  const geminiConfigured = Boolean(process.env.GEMINI_API_KEY);
+  if (!geminiConfigured) {
+    return res.status(503).json({
+      success: false,
+      geminiConfigured: false,
+      tokenCreatable: false,
+      error: 'Gemini Live credentials are not configured'
+    });
+  }
+
+  try {
+    const tokenResult = await createEphemeralLiveToken();
+    const tokenCreatable = Boolean(tokenResult?.token);
+
+    res.json({
+      success: tokenCreatable,
+      geminiConfigured: true,
+      tokenCreatable,
+      model: LIVE_MODEL
+    });
+  } catch (err: any) {
+    console.error('[YOE LIVE] Health test error:', err?.message || err);
+    res.status(500).json({
+      success: false,
+      geminiConfigured: true,
+      tokenCreatable: false,
+      error: err?.message || 'Token creation verification failed'
+    });
   }
 });
 

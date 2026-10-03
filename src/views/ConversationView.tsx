@@ -365,18 +365,11 @@ export const ConversationView: React.FC = () => {
     if (started) {
       setIsLiveApiActive(true);
       liveSessionRef.current = live;
+      setLiveError(null);
     } else {
       setIsLiveApiActive(false);
-      // Speak initial greeting via standard native mode & auto-listen afterwards
-      speakText(
-        activeScenario.initialGreeting,
-        activeJourney.targetLanguage,
-        activeScenario.characterName,
-        activeScenario.characterRole,
-        () => {
-          startListening(activeJourney.targetLanguage);
-        }
-      );
+      setLiveState('error');
+      setLiveError('Gemini Live connection unavailable. Please ensure microphone access is granted and tap Retry.');
     }
   };
 

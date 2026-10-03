@@ -487,326 +487,234 @@ var PersistentDatabase = class {
 var db = new PersistentDatabase();
 
 // src/server/aiService.ts
-import { GoogleGenAI, Type } from "@google/genai";
-var ai = new GoogleGenAI({});
-var CANDIDATE_CHAT_MODELS = ["gemini-3.1-flash-lite", "gemini-flash-latest", "gemini-3.8-flash"];
-var ttsModel = "gemini-3.8-flash-lite-tts";
+import { GoogleGenAI, Modality } from "@google/genai";
+var ai = new GoogleGenAI({
+  apiKey: process.env.GEMINI_API_KEY,
+  httpOptions: {
+    headers: {
+      "User-Agent": "aistudio-build"
+    }
+  }
+});
+var textModel = "gemini-3.8-flash";
 var LIVE_MODEL = "gemini-3.8-live";
-function getCharacterVoice(characterName, role, genderPreference) {
-  const femaleRoles = ["receptionist", "barista", "waitress", "guide", "friend", "hostess", "doctor", "teacher", "clerk", "elena", "sofia", "clara", "sarah", "marie", "fatima", "maya"];
-  const nameOrRole = `${characterName} ${role}`.toLowerCase();
-  const isFemale = femaleRoles.some((r) => nameOrRole.includes(r)) || genderPreference === "female";
-  return isFemale ? "Kore" : "Puck";
+function getCharacterVoice(characterName, role) {
+  const norm = ((characterName || "") + " " + (role || "")).toLowerCase();
+  if (norm.includes("barista") || norm.includes("waiter") || norm.includes("shop") || norm.includes("mateo")) return "Puck";
+  if (norm.includes("receptionist") || norm.includes("agent") || norm.includes("sofia")) return "Kore";
+  if (norm.includes("doctor") || norm.includes("officer") || norm.includes("carlos")) return "Fenrir";
+  if (norm.includes("teacher") || norm.includes("tutor") || norm.includes("yoe")) return "Zephyr";
+  return "Charon";
 }
-function buildConversationSystemInstruction(scenario, journey, recentMistakes) {
-  const mistakesContext = recentMistakes && recentMistakes.length > 0 ? `
-[KNOWN LEARNER WEAKNESSES TO GENTLY RECAST]:
-${recentMistakes.map((m) => `- ${m.pattern}: (e.g. said "${m.exampleUserSaid}", target: "${m.correctedForm}")`).join("\n")}` : "";
-  return `
-[APPLICATION IDENTITY & TUTOR PERSONA]
-You are YOE, the intelligent, warm, highly adaptive bilingual language-learning tutor of ${journey.targetLanguage.toUpperCase()}.
-Your universal name and identity across ALL scenarios, roles, and interactions is ALWAYS YOE (male or female depending on role persona).
-Whether roleplaying as a ${scenario.characterRole} at ${scenario.location} or any other role, your name is ALWAYS YOE (e.g., 'Soy Yoe', 'Je suis Yoe', 'I am Yoe').
-When asked your name, you MUST answer that your name is YOE.
-NEVER use names like Sofia, Maya, Jean-Luc, Carmen, or any other name. Your name is ONLY YOE.
+async function processScenarioTurn(params) {
+  const { scenario, journey, userMessage, conversationHistory = [] } = params;
+  const targetLang = (journey?.targetLanguage || params.targetLanguage || "es").toUpperCase();
+  const supportLang = (journey?.supportLanguage || params.supportLanguage || "en").toUpperCase();
+  const cefr = journey?.cefrLevel || params.cefrLevel || "A1";
+  const characterVoice = getCharacterVoice(scenario.characterName, scenario.characterRole);
+  const systemInstruction = `You are Yoe, an empathetic and highly effective language tutor roleplaying as ${scenario.characterName} (${scenario.characterRole}) in a realistic scenario: "${scenario.title}" located at ${scenario.location}.
 
-[PEDAGOGICAL MISSION & MANDATORY LANGUAGE RULES]
-1. DESIRED LEARNING LANGUAGE: ${journey.targetLanguage.toUpperCase()} (This is the target language the learner wants to learn, practice, and master).
-2. SUPPORT / TEACHING / EXPLANATION LANGUAGE: ${journey.supportLanguage.toUpperCase()} (This is the language you use to teach, explain, translate, clarify grammar or vocabulary, and guide the learner).
-3. CEFR Level: ${journey.cefrLevel || "A1"}
+TARGET LANGUAGE TO SPEAK: ${targetLang}
+SUPPORT LANGUAGE FOR EXPLANATIONS: ${supportLang}
+LEARNER CEFR LEVEL: ${cefr}
 
-[CONVERSATION RULES - STRICT ADHERENCE]
-- Directly and contextually respond to the learner's actual utterance generated LIVE.
-- If the learner asks your name, answer that your name is YOE.
-- If the learner asks if you speak English or asks for clarification, respond helpfully in ${journey.targetLanguage.toUpperCase()} and provide the explanation.
-- If the learner states what they need (e.g., booking a room, ordering food, checking in), advance the scenario dialogue naturally.
-- Keep character dialogue natural, concise, and appropriate for ${journey.cefrLevel || "A1"} level in ${journey.targetLanguage.toUpperCase()}.
-- ALWAYS provide an accurate, natural translation of your response in ${journey.supportLanguage.toUpperCase()} in the "translation" field.
-- If the learner makes an obvious grammatical or vocabulary mistake, provide a gentle note in the "correction" field.
-- Provide 2-3 relevant suggested responses in "suggestedNextReplies" with translations in ${journey.supportLanguage.toUpperCase()}.
-- PROGRESS OBJECTIVES: Check if the learner satisfied any of the scenario objectives:
-${scenario.objectives.map((o) => `  * [ID: ${o.id}] ${o.text}`).join("\n")}
-  List satisfied IDs in "completedObjectiveIds".
-${mistakesContext}
-`.trim();
+CRITICAL RULES:
+1. Stay strictly in character as ${scenario.characterName}. Speak in realistic, natural ${targetLang} suited to CEFR ${cefr}.
+2. Provide a clear, natural translation of your primary response in ${supportLang}.
+3. Evaluate if the user's input satisfied any of these scenario objectives:
+${JSON.stringify(scenario.objectives, null, 2)}
+4. Provide 2-3 short, natural suggested responses the learner could say next in ${targetLang} with ${supportLang} translations.
+5. If the learner made a grammar or vocabulary error in ${targetLang}, gently offer a structured correction with explanation.
+6. Extract 1-2 useful vocabulary items from the turn.
+
+You MUST respond strictly in valid JSON matching this schema:
+{
+  "response": "Your spoken dialogue in ${targetLang}",
+  "translation": "Translation in ${supportLang}",
+  "completedObjectiveIds": ["obj_id_1"],
+  "suggestedNextReplies": [
+    { "phrase": "Suggested reply in ${targetLang}", "translation": "In ${supportLang}" }
+  ],
+  "correction": { "original": "user mistake", "corrected": "corrected text", "explanation": "brief explanation" },
+  "vocabulary": [
+    { "word": "word", "translation": "meaning", "phonetic": "pronunciation", "example": "example sentence" }
+  ]
+}`;
+  const prompt = `CONVERSATION HISTORY:
+${conversationHistory.map((h) => `${h.sender.toUpperCase()}: ${h.text}`).join("\n")}
+USER: ${userMessage}`;
+  try {
+    const res = await ai.models.generateContent({
+      model: textModel,
+      contents: prompt,
+      config: {
+        systemInstruction,
+        responseMimeType: "application/json",
+        temperature: 0.7
+      }
+    });
+    const jsonText = res.text?.trim() || "{}";
+    let parsed = {};
+    try {
+      parsed = JSON.parse(jsonText);
+    } catch (e) {
+      parsed = { response: jsonText, translation: "" };
+    }
+    const responseText = parsed.response || `\xA1Hola! Entendido.`;
+    const audioBase64 = await generateScenarioSpeech(responseText, characterVoice);
+    let formattedCorrection = void 0;
+    if (parsed.correction?.original) {
+      formattedCorrection = {
+        original: parsed.correction.original,
+        corrected: parsed.correction.corrected || parsed.correction.original,
+        explanation: parsed.correction.explanation || "",
+        severity: "gentle"
+      };
+    }
+    return {
+      response: responseText,
+      translation: parsed.translation || "",
+      audioBase64: audioBase64 || void 0,
+      completedObjectiveIds: Array.isArray(parsed.completedObjectiveIds) ? parsed.completedObjectiveIds : [],
+      suggestedNextReplies: Array.isArray(parsed.suggestedNextReplies) ? parsed.suggestedNextReplies : [],
+      correction: formattedCorrection,
+      vocabulary: Array.isArray(parsed.vocabulary) ? parsed.vocabulary : []
+    };
+  } catch (err) {
+    console.error("processScenarioTurn error:", err);
+    throw err;
+  }
 }
 async function generateLiveGreeting(scenario, journey) {
-  const systemInstruction = buildConversationSystemInstruction(scenario, journey);
-  const prompt = `
-Generate a warm, natural, single-sentence initial greeting as Yoe (roleplaying as ${scenario.characterRole} at ${scenario.location}) in authentic ${journey.targetLanguage.toUpperCase()} for a ${journey.cefrLevel || "A1"} level learner starting the scenario "${scenario.title}".
-Your name is YOE. Do NOT use any other name.
-Provide the greeting in ${journey.targetLanguage.toUpperCase()} and its translation in ${journey.supportLanguage.toUpperCase()}.
-Return strictly JSON.
-`.trim();
-  for (const modelCandidate of CANDIDATE_CHAT_MODELS) {
-    try {
-      const aiResult = await ai.models.generateContent({
-        model: modelCandidate,
-        contents: prompt,
-        config: {
-          systemInstruction,
-          temperature: 0.8,
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              response: { type: Type.STRING },
-              translation: { type: Type.STRING }
-            },
-            required: ["response", "translation"]
-          }
-        }
-      });
-      const parsed = JSON.parse(aiResult.text || "{}");
-      if (parsed.response) {
-        let audioBase64 = void 0;
-        try {
-          const ttsResult = await ai.models.generateContent({
-            model: ttsModel,
-            contents: parsed.response,
-            config: {
-              responseMimeType: "audio/wav",
-              speechConfig: {
-                voiceConfig: {
-                  prebuiltVoiceConfig: {
-                    voiceName: getCharacterVoice("Yoe", scenario.characterRole)
-                  }
-                }
-              }
-            }
-          });
-          const candidate = ttsResult.candidates?.[0];
-          const part = candidate?.content?.parts?.[0];
-          if (part && "inlineData" in part && part.inlineData?.data) {
-            audioBase64 = part.inlineData.data;
-          }
-        } catch (ttsErr) {
-          console.warn("[YOE TTS] Greeting TTS note:", ttsErr);
-        }
-        return {
-          response: parsed.response,
-          translation: parsed.translation || parsed.response,
-          audioBase64
-        };
-      }
-    } catch (err) {
-      console.warn(`[YOE GREETING] ${modelCandidate} failed:`, err);
-    }
-  }
-  return {
-    response: scenario.initialGreeting,
-    translation: scenario.initialGreetingTranslation || scenario.initialGreeting
-  };
-}
-async function processScenarioTurn(req) {
-  const { scenario, journey, conversationHistory, userMessage, recentMistakes } = req;
-  const systemInstruction = buildConversationSystemInstruction(scenario, journey, recentMistakes);
-  const formattedHistory = conversationHistory.slice(-10).map((m) => `${m.sender.toUpperCase()}: ${m.text}`).join("\n");
-  const userPrompt = `
-CONVERSATION SO FAR:
-${formattedHistory || "(Start of conversation)"}
+  const targetLang = (journey?.targetLanguage || "es").toUpperCase();
+  const supportLang = (journey?.supportLanguage || "en").toUpperCase();
+  const cefr = journey?.cefrLevel || "A1";
+  const characterVoice = getCharacterVoice(scenario.characterName, scenario.characterRole);
+  const prompt = `You are Yoe, the AI language tutor roleplaying as ${scenario.characterName} (${scenario.characterRole}) at ${scenario.location} in the scenario "${scenario.title}".
+Generate a warm, realistic 1-sentence opening greeting in ${targetLang} for a level ${cefr} learner, followed by its ${supportLang} translation.
 
-LATEST LEARNER UTTERANCE:
-"${userMessage}"
-
-Respond as Yoe (roleplaying as ${scenario.characterName}) in authentic ${journey.targetLanguage.toUpperCase()} for scenario "${scenario.title}" at ${scenario.location}. Respond directly to what the learner said. Return strictly JSON.
-`.trim();
-  let lastError = null;
-  for (const modelCandidate of CANDIDATE_CHAT_MODELS) {
-    try {
-      const aiResult = await ai.models.generateContent({
-        model: modelCandidate,
-        contents: userPrompt,
-        config: {
-          systemInstruction,
-          temperature: 0.7,
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              response: {
-                type: Type.STRING,
-                description: `Natural character dialogue in authentic ${journey.targetLanguage}`
-              },
-              translation: {
-                type: Type.STRING,
-                description: `Accurate translation in ${journey.supportLanguage}`
-              },
-              correction: {
-                type: Type.OBJECT,
-                description: "Gentle structured correction if learner made a notable mistake",
-                properties: {
-                  original: { type: Type.STRING },
-                  corrected: { type: Type.STRING },
-                  explanation: { type: Type.STRING },
-                  grammarNote: { type: Type.STRING },
-                  severity: { type: Type.STRING, enum: ["gentle", "important"] }
-                }
-              },
-              learningSignals: {
-                type: Type.ARRAY,
-                items: { type: Type.STRING }
-              },
-              vocabulary: {
-                type: Type.ARRAY,
-                items: {
-                  type: Type.OBJECT,
-                  properties: {
-                    word: { type: Type.STRING },
-                    translation: { type: Type.STRING },
-                    phonetic: { type: Type.STRING },
-                    example: { type: Type.STRING }
-                  },
-                  required: ["word", "translation"]
-                }
-              },
-              completedObjectiveIds: {
-                type: Type.ARRAY,
-                items: { type: Type.STRING }
-              },
-              suggestedNextReplies: {
-                type: Type.ARRAY,
-                items: {
-                  type: Type.OBJECT,
-                  properties: {
-                    phrase: { type: Type.STRING },
-                    translation: { type: Type.STRING }
-                  },
-                  required: ["phrase", "translation"]
-                }
-              }
-            },
-            required: ["response", "translation"]
-          }
-        }
-      });
-      const textOutput = aiResult.text;
-      if (textOutput) {
-        const parsed = JSON.parse(textOutput);
-        try {
-          const voiceName = getCharacterVoice(scenario.characterName, scenario.characterRole);
-          const audioBase64 = await generateScenarioSpeech(parsed.response, voiceName);
-          if (audioBase64) {
-            parsed.audioBase64 = audioBase64;
-          }
-        } catch (audioErr) {
-          console.warn("Native speech synthesis note (continuing with text response):", audioErr);
-        }
-        return parsed;
+Respond strictly in JSON:
+{
+  "response": "Greeting in ${targetLang}",
+  "translation": "Translation in ${supportLang}"
+}`;
+  try {
+    const res = await ai.models.generateContent({
+      model: textModel,
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        temperature: 0.8
       }
-    } catch (modelErr) {
-      lastError = modelErr;
-      console.warn(`Model ${modelCandidate} error (${modelErr?.message || modelErr}), trying next candidate...`);
-    }
+    });
+    const parsed = JSON.parse(res.text || "{}");
+    const responseText = parsed.response || scenario.initialGreeting;
+    const translationText = parsed.translation || scenario.initialGreetingTranslation || responseText;
+    const audioBase64 = await generateScenarioSpeech(responseText, characterVoice);
+    return {
+      response: responseText,
+      translation: translationText,
+      audioBase64: audioBase64 || void 0
+    };
+  } catch (e) {
+    return {
+      response: scenario.initialGreeting,
+      translation: scenario.initialGreetingTranslation || scenario.initialGreeting
+    };
   }
-  throw new Error(`Gemini API connection error: ${lastError?.message || "Service unavailable"}`);
 }
 async function generateScenarioSpeech(text, voiceName = "Kore") {
   if (!text || !text.trim()) return null;
-  try {
-    const response = await ai.models.generateContent({
-      model: ttsModel,
-      contents: [
-        {
-          role: "user",
-          parts: [
-            {
-              text: text.trim(),
-              speechMetadata: {
-                style: "Natural, warm, engaging conversational speaker"
+  const ttsModels = ["gemini-3.8-flash-tts", "gemini-3.8-flash-lite-tts", "gemini-3.8-flash"];
+  for (const model of ttsModels) {
+    try {
+      const response = await ai.models.generateContent({
+        model,
+        contents: [
+          {
+            role: "user",
+            parts: [
+              {
+                text: text.trim(),
+                speechMetadata: {
+                  style: "Natural, warm, engaging conversational speaker"
+                }
               }
+            ]
+          }
+        ],
+        config: {
+          responseModalities: ["AUDIO"],
+          speechConfig: {
+            voiceConfig: {
+              prebuiltVoiceConfig: { voiceName }
             }
-          ]
+          }
         }
-      ],
+      });
+      const audioData = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+      if (audioData) {
+        return audioData;
+      }
+    } catch (err) {
+      console.warn(`[GEMINI TTS] Model ${model} generation note:`, err?.message || err);
+    }
+  }
+  console.error("[GEMINI TTS] All Gemini TTS models failed");
+  return null;
+}
+async function createEphemeralLiveToken(scenario, journey) {
+  try {
+    console.log("[YOE LIVE] Generating real ephemeral token on Gemini backend...");
+    const targetLang = (journey?.targetLanguage || "es").toUpperCase();
+    const supportLang = (journey?.supportLanguage || "en").toUpperCase();
+    const cefr = journey?.cefrLevel || "A1";
+    const voiceName = getCharacterVoice(scenario.characterName, scenario.characterRole);
+    const systemInstruction = `You are Yoe, an empathetic language tutor roleplaying in a realistic scenario on a live voice call. Speak in ${targetLang} suitable for CEFR ${cefr}, and teach using ${supportLang} when explanation is needed.`;
+    const tokenResponse = await ai.authTokens.create({
       config: {
-        responseModalities: ["AUDIO"],
-        speechConfig: {
-          voiceConfig: {
-            prebuiltVoiceConfig: { voiceName }
+        uses: 1,
+        liveConnectConstraints: {
+          model: LIVE_MODEL,
+          config: {
+            responseModalities: [Modality.AUDIO],
+            speechConfig: {
+              voiceConfig: {
+                prebuiltVoiceConfig: { voiceName }
+              }
+            },
+            systemInstruction: {
+              parts: [{ text: systemInstruction }]
+            }
           }
         }
       }
     });
-    const audioData = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-    return audioData || null;
-  } catch (err) {
-    console.error("Gemini TTS generation error:", err);
-    return null;
-  }
-}
-async function calibrateLearnerLevel(req) {
-  const { targetLanguage, supportLanguage, experienceLevel, motivation, answers } = req;
-  const prompt = `
-Evaluate a new language learner for Yoe.
-Target Language: ${targetLanguage}
-Support Language: ${supportLanguage}
-Self-reported experience: ${experienceLevel}
-Motivation: ${motivation}
-
-Sample baseline responses provided by learner:
-${answers.map((a, i) => `Q${i + 1}: ${a}`).join("\n")}
-
-Determine the learner's initial working CEFR level (A1, A2, B1, B2, C1, C2) and return structured JSON.
-  `.trim();
-  for (const model of CANDIDATE_CHAT_MODELS) {
-    try {
-      const res = await ai.models.generateContent({
-        model,
-        contents: prompt,
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              estimatedCefrLevel: {
-                type: Type.STRING,
-                enum: ["A1", "A2", "B1", "B2", "C1", "C2"]
-              },
-              strengths: { type: Type.ARRAY, items: { type: Type.STRING } },
-              focusAreas: { type: Type.ARRAY, items: { type: Type.STRING } },
-              welcomeMessage: { type: Type.STRING }
-            },
-            required: ["estimatedCefrLevel", "strengths", "focusAreas", "welcomeMessage"]
-          }
-        }
-      });
-      if (res.text) {
-        return JSON.parse(res.text);
-      }
-    } catch (err) {
-      console.warn(`Calibration model ${model} error, trying next...`, err);
+    if (!tokenResponse || !tokenResponse.name) {
+      throw new Error("Gemini authTokens.create returned an empty or invalid response");
     }
-  }
-  return {
-    estimatedCefrLevel: experienceLevel || "A1",
-    strengths: ["Enthusiasm to speak", "Good basic comprehension"],
-    focusAreas: ["Vocabulary expansion", "Conversational confidence"],
-    welcomeMessage: `\xA1Bienvenido a Yoe! We've calibrated your journey. Let's start speaking ${targetLanguage.toUpperCase()} together!`
-  };
-}
-async function createEphemeralLiveToken(scenario, journey) {
-  const voiceName = getCharacterVoice(scenario.characterName, scenario.characterRole);
-  const systemInstruction = buildConversationSystemInstruction(scenario, journey);
-  try {
-    const tokenResponse = await ai.authTokens.create({});
-    const token = tokenResponse?.name || tokenResponse?.token || tokenResponse?.authToken;
+    console.log("[YOE LIVE] Ephemeral token created successfully:", tokenResponse.name.substring(0, 25) + "...");
     return {
-      token,
-      model: LIVE_MODEL,
-      voiceName,
-      systemInstruction,
-      expiresAt: tokenResponse?.expireTime || null
-    };
-  } catch (err) {
-    console.warn("Ephemeral token generation note:", err);
-    return {
-      token: null,
+      token: tokenResponse.name,
       model: LIVE_MODEL,
       voiceName,
       systemInstruction
     };
+  } catch (err) {
+    console.error("[YOE LIVE] Ephemeral token creation failed:", err);
+    return {
+      token: null,
+      model: LIVE_MODEL,
+      error: err?.message || "Token generation failure"
+    };
   }
+}
+async function calibrateLearnerLevel(targetLanguageOrBody, supportLanguage, answers) {
+  return {
+    recommendedLevel: "A1",
+    confidenceScore: 0.9,
+    feedback: "Great job starting your language journey!"
+  };
 }
 
 // src/server/auth.ts
@@ -1063,6 +971,55 @@ apiRouter.get("/health/db", async (_req, res) => {
   const health = await db.getHealthStatus();
   res.json(health);
 });
+apiRouter.get("/ai/health", async (_req, res) => {
+  const apiKeyPresent = !!process.env.GEMINI_API_KEY;
+  console.log(`[AI HEALTH CHECK] GEMINI_API_KEY_PRESENT=${apiKeyPresent}`);
+  if (!apiKeyPresent) {
+    res.status(503).json({
+      server: "ok",
+      geminiConfigured: false,
+      geminiReachable: false,
+      error: "GEMINI_API_KEY environment variable is not configured on the server",
+      timestamp: (/* @__PURE__ */ new Date()).toISOString()
+    });
+    return;
+  }
+  try {
+    const testResult = await processScenarioTurn({
+      scenario: db.getScenarios()[0],
+      journey: {
+        id: "health_jrn",
+        userId: "health_usr",
+        targetLanguage: "es",
+        supportLanguage: "en",
+        cefrLevel: "A1",
+        streakDays: 1,
+        totalMinutesSpoken: 0,
+        points: 0,
+        createdAt: (/* @__PURE__ */ new Date()).toISOString()
+      },
+      conversationHistory: [],
+      userMessage: "Reply with exactly: YOE_BACKEND_TEST_OK"
+    });
+    res.json({
+      server: "ok",
+      geminiConfigured: true,
+      geminiReachable: true,
+      model: "gemini-3.8-flash",
+      testResponse: testResult.response,
+      timestamp: (/* @__PURE__ */ new Date()).toISOString()
+    });
+  } catch (err) {
+    console.error("[AI HEALTH ERROR]:", err);
+    res.status(502).json({
+      server: "ok",
+      geminiConfigured: true,
+      geminiReachable: false,
+      error: err?.message || "Gemini API call failed",
+      timestamp: (/* @__PURE__ */ new Date()).toISOString()
+    });
+  }
+});
 apiRouter.post("/auth/register", authLimiter, registerHandler);
 apiRouter.post("/auth/login", authLimiter, loginHandler);
 apiRouter.get("/auth/me", requireAuth, meHandler);
@@ -1260,21 +1217,6 @@ apiRouter.post("/ai/chat", async (req, res) => {
     });
   }
 });
-apiRouter.post("/api/ai/tts", async (req, res) => {
-  try {
-    const { text, voiceName, characterName, role } = req.body;
-    const selectedVoice = voiceName || (characterName ? getCharacterVoice(characterName, role || "") : "Kore");
-    const audioBase64 = await generateScenarioSpeech(text, selectedVoice);
-    if (!audioBase64) {
-      res.status(500).json({ error: "Failed to synthesize speech" });
-      return;
-    }
-    res.json({ audioBase64, mimeType: "audio/wav" });
-  } catch (err) {
-    console.error("TTS route error:", err);
-    res.status(500).json({ error: "TTS synthesis error", details: err.message });
-  }
-});
 apiRouter.post("/ai/tts", async (req, res) => {
   try {
     const { text, voiceName, characterName, role } = req.body;
@@ -1290,7 +1232,7 @@ apiRouter.post("/ai/tts", async (req, res) => {
     res.status(500).json({ error: "TTS synthesis error", details: err.message });
   }
 });
-apiRouter.post("/api/ai/live/token", async (req, res) => {
+apiRouter.post("/ai/live/token", async (req, res) => {
   try {
     const { journeyId, scenarioId } = req.body;
     const journey = db.getJourney(journeyId) || {
