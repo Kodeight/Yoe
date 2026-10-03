@@ -29,6 +29,36 @@
       "createdAt": "2026-10-03T01:45:08.535Z",
       "updatedAt": "2026-10-03T01:45:08.535Z",
       "lastLoginAt": "2026-10-03T01:45:08.936Z"
+    },
+    {
+      "id": "usr_kodeight_1790992662357",
+      "username": "kodeight",
+      "email": "kodeight@yoe.app",
+      "passwordHash": "$2b$12$duwm2iFCLPfAgbBu9yR4IepHODPUsKZHN/QGtrA/fuewnGHqLCl8a",
+      "name": "Halim",
+      "uiLanguage": "en",
+      "theme": "dark",
+      "subscriptionStatus": "TRIAL",
+      "emailVerified": true,
+      "status": "active",
+      "createdAt": "2026-10-03T01:57:42.357Z",
+      "updatedAt": "2026-10-03T01:57:42.358Z",
+      "lastLoginAt": "2026-10-03T01:57:52.314Z"
+    },
+    {
+      "id": "usr_1790993031500_ccou9e",
+      "username": "qa_user_1790993031052",
+      "email": "qa_user_1790993031052@yoe.test",
+      "passwordHash": "$2b$12$Cw7eUTSYddYVCZACnZyc6eOxtzsbe/XwTXy5oFrBiFewQpnNtzILK",
+      "name": "QA Automation Learner",
+      "uiLanguage": "en",
+      "theme": "dark",
+      "subscriptionStatus": "TRIAL",
+      "emailVerified": true,
+      "status": "active",
+      "createdAt": "2026-10-03T02:03:51.500Z",
+      "updatedAt": "2026-10-03T02:03:51.500Z",
+      "lastLoginAt": "2026-10-03T02:03:52.673Z"
     }
   ],
   "journeys": [
@@ -53,6 +83,28 @@
       "totalMinutesSpoken": 0,
       "points": 50,
       "createdAt": "2026-10-03T01:45:08.535Z"
+    },
+    {
+      "id": "jrn_kodeight_es",
+      "userId": "usr_kodeight_1790992662357",
+      "targetLanguage": "es",
+      "supportLanguage": "en",
+      "cefrLevel": "A1",
+      "streakDays": 1,
+      "totalMinutesSpoken": 0,
+      "points": 100,
+      "createdAt": "2026-10-03T01:57:42.358Z"
+    },
+    {
+      "id": "jrn_1790993031500_es",
+      "userId": "usr_1790993031500_ccou9e",
+      "targetLanguage": "es",
+      "supportLanguage": "en",
+      "cefrLevel": "A1",
+      "streakDays": 1,
+      "totalMinutesSpoken": 0,
+      "points": 50,
+      "createdAt": "2026-10-03T02:03:51.500Z"
     }
   ],
   "vocabulary": {},
