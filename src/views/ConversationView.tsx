@@ -276,6 +276,8 @@ export const ConversationView: React.FC = () => {
     setIsLoading(true);
 
     try {
+      const updatedHistory = [...messages, userMsg].map(m => ({ sender: m.sender, text: m.text }));
+
       const res = await fetch('/api/ai/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -283,7 +285,7 @@ export const ConversationView: React.FC = () => {
           journeyId: activeJourney.id,
           scenarioId: activeScenario.id,
           userMessage: text.trim(),
-          conversationHistory: messages.map(m => ({ sender: m.sender, text: m.text })),
+          conversationHistory: updatedHistory,
           targetLanguage: activeJourney.targetLanguage,
           supportLanguage: activeJourney.supportLanguage,
           cefrLevel: activeJourney.cefrLevel

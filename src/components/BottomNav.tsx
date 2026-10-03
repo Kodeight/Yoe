@@ -1,6 +1,7 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
 import { Home, MessageCircle, BarChart2, Compass, User } from 'lucide-react';
+import { hapticSelection } from '../utils/haptics';
 
 export const BottomNav: React.FC = () => {
   const { activeView, setActiveView } = useApp();
@@ -28,7 +29,10 @@ export const BottomNav: React.FC = () => {
               <button
                 key={item.id}
                 type="button"
-                onClick={() => setActiveView(item.id)}
+                onClick={() => {
+                  hapticSelection();
+                  setActiveView(item.id);
+                }}
                 className={`flex flex-col items-center justify-center py-2 px-3.5 rounded-2xl transition-all duration-150 cursor-pointer ${
                   isActive
                     ? 'text-emerald-400 font-bold bg-emerald-500/15 shadow-sm'

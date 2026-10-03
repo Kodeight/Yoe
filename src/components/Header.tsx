@@ -2,6 +2,7 @@ import React from 'react';
 import { useApp } from '../context/AppContext';
 import { YoeLogo } from './YoeLogo';
 import { Flame, Star, Sun, Moon, Download, WifiOff } from 'lucide-react';
+import { hapticLight } from '../utils/haptics';
 
 export const Header: React.FC = () => {
   const { activeJourney, theme, toggleTheme, pwaInstallPrompt, installPWA, isOnline } = useApp();
@@ -45,7 +46,10 @@ export const Header: React.FC = () => {
 
           {/* Theme Switcher Toggle */}
           <button
-            onClick={toggleTheme}
+            onClick={() => {
+              hapticLight();
+              toggleTheme();
+            }}
             className="p-2 rounded-full glass-pill hover:border-emerald-500/40 text-slate-300 dark:text-slate-300 light-mode:text-slate-700 transition-colors cursor-pointer"
             title="Toggle theme"
           >
@@ -55,7 +59,10 @@ export const Header: React.FC = () => {
           {/* PWA Install Button if available */}
           {pwaInstallPrompt && (
             <button
-              onClick={installPWA}
+              onClick={() => {
+                hapticLight();
+                installPWA();
+              }}
               className="p-2 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/30 transition-colors cursor-pointer"
               title="Install Yoe App"
             >

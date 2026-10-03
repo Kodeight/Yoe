@@ -22,6 +22,60 @@ apiRouter.get('/health/db', async (_req: Request, res: Response) => {
   res.json(health);
 });
 
+// Real Gemini AI Health Check Endpoint
+apiRouter.get('/ai/health', async (_req: Request, res: Response) => {
+  const apiKeyPresent = !!process.env.GEMINI_API_KEY;
+  console.log(`[AI HEALTH CHECK] GEMINI_API_KEY_PRESENT=${apiKeyPresent}`);
+
+  if (!apiKeyPresent) {
+    res.status(503).json({
+      server: 'ok',
+      geminiConfigured: false,
+      geminiReachable: false,
+      error: 'GEMINI_API_KEY environment variable is not configured on the server',
+      timestamp: new Date().toISOString()
+    });
+    return;
+  }
+
+  try {
+    const testResult = await processScenarioTurn({
+      scenario: db.getScenarios()[0],
+      journey: {
+        id: 'health_jrn',
+        userId: 'health_usr',
+        targetLanguage: 'es',
+        supportLanguage: 'en',
+        cefrLevel: 'A1',
+        streakDays: 1,
+        totalMinutesSpoken: 0,
+        points: 0,
+        createdAt: new Date().toISOString()
+      },
+      conversationHistory: [],
+      userMessage: 'Reply with exactly: YOE_BACKEND_TEST_OK'
+    });
+
+    res.json({
+      server: 'ok',
+      geminiConfigured: true,
+      geminiReachable: true,
+      model: 'gemini-3.8-flash',
+      testResponse: testResult.response,
+      timestamp: new Date().toISOString()
+    });
+  } catch (err: any) {
+    console.error('[AI HEALTH ERROR]:', err);
+    res.status(502).json({
+      server: 'ok',
+      geminiConfigured: true,
+      geminiReachable: false,
+      error: err?.message || 'Gemini API call failed',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 // Production Auth Routes
 apiRouter.post('/auth/register', authLimiter, registerHandler);
 apiRouter.post('/auth/login', authLimiter, loginHandler);
@@ -265,23 +319,7 @@ apiRouter.post('/ai/chat', async (req: Request, res: Response) => {
   }
 });
 
-// Calibration
-apiRouter.post('/api/ai/tts', async (req: Request, res: Response) => {
-  try {
-    const { text, voiceName, characterName, role } = req.body;
-    const selectedVoice = voiceName || (characterName ? getCharacterVoice(characterName, role || '') : 'Kore');
-    const audioBase64 = await generateScenarioSpeech(text, selectedVoice);
-    if (!audioBase64) {
-      res.status(500).json({ error: 'Failed to synthesize speech' });
-      return;
-    }
-    res.json({ audioBase64, mimeType: 'audio/wav' });
-  } catch (err: any) {
-    console.error('TTS route error:', err);
-    res.status(500).json({ error: 'TTS synthesis error', details: err.message });
-  }
-});
-
+// TTS Endpoint
 apiRouter.post('/ai/tts', async (req: Request, res: Response) => {
   try {
     const { text, voiceName, characterName, role } = req.body;
@@ -298,7 +336,8 @@ apiRouter.post('/ai/tts', async (req: Request, res: Response) => {
   }
 });
 
-apiRouter.post('/api/ai/live/token', async (req: Request, res: Response) => {
+// Live Token Endpoint
+apiRouter.post('/ai/live/token', async (req: Request, res: Response) => {
   try {
     const { journeyId, scenarioId } = req.body;
     const journey = db.getJourney(journeyId) || {

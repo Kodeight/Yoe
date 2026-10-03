@@ -14,6 +14,21 @@
       "createdAt": "2026-10-02T00:08:45.832Z",
       "updatedAt": "2026-10-02T00:08:45.832Z",
       "lastLoginAt": "2026-10-02T00:08:54.292Z"
+    },
+    {
+      "id": "usr_1790991908535_mtlt3h",
+      "username": "testuser_1790991908101",
+      "email": "testuser_1790991908101@example.com",
+      "passwordHash": "$2b$12$pPmZbSRIZSjjGodapNWJn.5mkDxEWL1dpAEc3uhDTyQh92Cre7kSC",
+      "name": "Test Learner",
+      "uiLanguage": "en",
+      "theme": "dark",
+      "subscriptionStatus": "TRIAL",
+      "emailVerified": true,
+      "status": "active",
+      "createdAt": "2026-10-03T01:45:08.535Z",
+      "updatedAt": "2026-10-03T01:45:08.535Z",
+      "lastLoginAt": "2026-10-03T01:45:08.936Z"
     }
   ],
   "journeys": [
@@ -27,9 +42,254 @@
       "totalMinutesSpoken": 0,
       "points": 50,
       "createdAt": "2026-10-02T00:08:45.832Z"
+    },
+    {
+      "id": "jrn_1790991908535_es",
+      "userId": "usr_1790991908535_mtlt3h",
+      "targetLanguage": "es",
+      "supportLanguage": "en",
+      "cefrLevel": "A1",
+      "streakDays": 1,
+      "totalMinutesSpoken": 0,
+      "points": 50,
+      "createdAt": "2026-10-03T01:45:08.535Z"
     }
   ],
   "vocabulary": {},
   "mistakes": {},
-  "chatHistories": {}
+  "chatHistories": {
+    "scen_hotel_madrid": [
+      {
+        "id": "msg_usr_1790991818820",
+        "sessionId": "scen_hotel_madrid",
+        "sender": "user",
+        "text": "Hi",
+        "timestamp": "2026-10-03T01:43:38.820Z"
+      },
+      {
+        "id": "msg_ttr_1790991820232",
+        "sessionId": "scen_hotel_madrid",
+        "sender": "tutor",
+        "text": "¡Hola! Bienvenido al Hotel Gran Vía. Mi nombre es Yoe. ¿Tiene usted una reserva?",
+        "translation": "Hello! Welcome to Hotel Gran Vía. My name is Yoe. Do you have a reservation?",
+        "timestamp": "2026-10-03T01:43:40.232Z",
+        "vocabularyLearned": [
+          {
+            "word": "reserva",
+            "translation": "reservation",
+            "example": "Tengo una reserva.",
+            "phonetic": "reh-SEHR-vah"
+          },
+          {
+            "word": "nombre",
+            "translation": "name",
+            "example": "Mi nombre es Yoe.",
+            "phonetic": "NOHM-breh"
+          }
+        ]
+      },
+      {
+        "id": "msg_usr_1790991820240",
+        "sessionId": "scen_hotel_madrid",
+        "sender": "user",
+        "text": "What's your name?",
+        "timestamp": "2026-10-03T01:43:40.240Z"
+      },
+      {
+        "id": "msg_ttr_1790991821944",
+        "sessionId": "scen_hotel_madrid",
+        "sender": "tutor",
+        "text": "Mi nombre es Yoe, mucho gusto. ¿Tiene usted una reserva en nuestro hotel?",
+        "translation": "My name is Yoe, nice to meet you. Do you have a reservation at our hotel?",
+        "timestamp": "2026-10-03T01:43:41.944Z",
+        "correction": {
+          "original": "What's your name?",
+          "severity": "gentle"
+        },
+        "vocabularyLearned": [
+          {
+            "word": "nombre",
+            "translation": "name",
+            "example": "Mi nombre es Yoe.",
+            "phonetic": "NOM-breh"
+          },
+          {
+            "word": "reserva",
+            "translation": "reservation",
+            "example": "¿Tiene usted una reserva?",
+            "phonetic": "reh-SER-vah"
+          }
+        ]
+      },
+      {
+        "id": "msg_usr_1790991821950",
+        "sessionId": "scen_hotel_madrid",
+        "sender": "user",
+        "text": "Do you speak English?",
+        "timestamp": "2026-10-03T01:43:41.950Z"
+      },
+      {
+        "id": "msg_ttr_1790991823556",
+        "sessionId": "scen_hotel_madrid",
+        "sender": "tutor",
+        "text": "Sí, hablo un poco de inglés. ¿En qué puedo ayudarle hoy con su reserva?",
+        "translation": "Yes, I speak a little English. How can I help you today with your reservation?",
+        "timestamp": "2026-10-03T01:43:43.557Z",
+        "vocabularyLearned": [
+          {
+            "word": "hablar",
+            "translation": "to speak",
+            "example": "Yo hablo español.",
+            "phonetic": "ah-blar"
+          },
+          {
+            "word": "ayudar",
+            "translation": "to help",
+            "example": "¿Puedo ayudarle?",
+            "phonetic": "ah-yoo-dar"
+          }
+        ]
+      },
+      {
+        "id": "msg_usr_1790991823562",
+        "sessionId": "scen_hotel_madrid",
+        "sender": "user",
+        "text": "I need a room for two nights.",
+        "timestamp": "2026-10-03T01:43:43.562Z"
+      },
+      {
+        "id": "msg_ttr_1790991825016",
+        "sessionId": "scen_hotel_madrid",
+        "sender": "tutor",
+        "text": "Muy bien. Para confirmar su reserva, ¿me puede decir su nombre completo, por favor?",
+        "translation": "Very well. To confirm your reservation, can you tell me your full name, please?",
+        "timestamp": "2026-10-03T01:43:45.016Z",
+        "vocabularyLearned": [
+          {
+            "word": "nombre completo",
+            "translation": "full name",
+            "example": "Mi nombre completo es Juan Pérez.",
+            "phonetic": "NOM-bre com-PLEH-to"
+          },
+          {
+            "word": "confirmar",
+            "translation": "to confirm",
+            "example": "Quiero confirmar mi reserva.",
+            "phonetic": "con-fir-MAR"
+          }
+        ]
+      },
+      {
+        "id": "msg_usr_1790991825021",
+        "sessionId": "scen_hotel_madrid",
+        "sender": "user",
+        "text": "What time is breakfast?",
+        "timestamp": "2026-10-03T01:43:45.021Z"
+      },
+      {
+        "id": "msg_ttr_1790991826788",
+        "sessionId": "scen_hotel_madrid",
+        "sender": "tutor",
+        "text": "El desayuno es de siete a diez de la mañana. Por favor, ¿me puede dar su nombre completo para confirmar la reserva?",
+        "translation": "Breakfast is from seven to ten in the morning. Please, can you give me your full name to confirm the reservation?",
+        "timestamp": "2026-10-03T01:43:46.788Z",
+        "vocabularyLearned": [
+          {
+            "word": "desayuno",
+            "translation": "breakfast",
+            "example": "El desayuno es rico.",
+            "phonetic": "de-sa-YU-no"
+          },
+          {
+            "word": "mañana",
+            "translation": "morning",
+            "example": "Buenos días.",
+            "phonetic": "ma-NYA-na"
+          }
+        ]
+      },
+      {
+        "id": "msg_usr_1790991905857",
+        "sessionId": "scen_hotel_madrid",
+        "sender": "user",
+        "text": "I need a room for two nights.",
+        "timestamp": "2026-10-03T01:45:05.857Z"
+      },
+      {
+        "id": "msg_ttr_1790991907923",
+        "sessionId": "scen_hotel_madrid",
+        "sender": "tutor",
+        "text": "¡Hola! Sí, hablo inglés, pero podemos practicar español. Entendido, necesita una habitación para dos noches. ¿Tiene una reserva a su nombre?",
+        "translation": "Hello! Yes, I speak English, but we can practice Spanish. Understood, you need a room for two nights. Do you have a reservation under your name?",
+        "timestamp": "2026-10-03T01:45:07.923Z",
+        "correction": {
+          "original": "I need a room for two nights.",
+          "severity": "gentle"
+        },
+        "learningSignals": [
+          "Use of 'necesita' (you need) for formal 'usted' address.",
+          "Practice of time duration expressions."
+        ],
+        "vocabularyLearned": [
+          {
+            "word": "habitación",
+            "translation": "room",
+            "example": "La habitación es grande.",
+            "phonetic": "ah-bee-tah-syohn"
+          },
+          {
+            "word": "noches",
+            "translation": "nights",
+            "example": "Dos noches, por favor.",
+            "phonetic": "noh-ches"
+          },
+          {
+            "word": "reserva",
+            "translation": "reservation",
+            "example": "Tengo una reserva.",
+            "phonetic": "reh-sehr-vah"
+          }
+        ]
+      },
+      {
+        "id": "msg_usr_1790991948510",
+        "sessionId": "scen_hotel_madrid",
+        "sender": "user",
+        "text": "I need a room for two nights.",
+        "timestamp": "2026-10-03T01:45:48.510Z"
+      },
+      {
+        "id": "msg_ttr_1790991950376",
+        "sessionId": "scen_hotel_madrid",
+        "sender": "tutor",
+        "text": "¡Hola! Sí, hablo inglés. Entiendo, necesitas una habitación para dos noches. ¿Tienes una reserva a tu nombre?",
+        "translation": "Hello! Yes, I speak English. I understand, you need a room for two nights. Do you have a reservation under your name?",
+        "timestamp": "2026-10-03T01:45:50.376Z",
+        "correction": {
+          "original": "I need a room for two nights.",
+          "severity": "gentle"
+        },
+        "vocabularyLearned": [
+          {
+            "word": "habitación",
+            "translation": "room",
+            "example": "La habitación es grande.",
+            "phonetic": "ah-bee-tah-SYOHN"
+          },
+          {
+            "word": "reserva",
+            "translation": "reservation",
+            "example": "Tengo una reserva para hoy.",
+            "phonetic": "rreh-SEHR-vah"
+          },
+          {
+            "word": "nombre",
+            "translation": "name",
+            "example": "¿Cuál es tu nombre?",
+            "phonetic": "NOHM-breh"
+          }
+        ]
+      }
+    ]
+  }
 }

@@ -116,35 +116,9 @@ Return strictly JSON.
 
       const parsed = JSON.parse(aiResult.text || '{}');
       if (parsed.response) {
-        let audioBase64: string | undefined = undefined;
-        try {
-          const ttsResult = await ai.models.generateContent({
-            model: ttsModel,
-            contents: parsed.response,
-            config: {
-              responseMimeType: 'audio/wav',
-              speechConfig: {
-                voiceConfig: {
-                  prebuiltVoiceConfig: {
-                    voiceName: getCharacterVoice('Yoe', scenario.characterRole)
-                  }
-                }
-              }
-            }
-          });
-          const candidate = ttsResult.candidates?.[0];
-          const part = candidate?.content?.parts?.[0];
-          if (part && 'inlineData' in part && part.inlineData?.data) {
-            audioBase64 = part.inlineData.data;
-          }
-        } catch (ttsErr) {
-          console.warn('[YOE TTS] Greeting TTS note:', ttsErr);
-        }
-
         return {
           response: parsed.response,
-          translation: parsed.translation || parsed.response,
-          audioBase64
+          translation: parsed.translation || parsed.response
         };
       }
     } catch (err) {
@@ -256,18 +230,6 @@ Respond as Yoe (roleplaying as ${scenario.characterName}) in authentic ${journey
       const textOutput = aiResult.text;
       if (textOutput) {
         const parsed = JSON.parse(textOutput) as ScenarioChatResponse;
-
-        // Generate high-fidelity native audio for the response
-        try {
-          const voiceName = getCharacterVoice(scenario.characterName, scenario.characterRole);
-          const audioBase64 = await generateScenarioSpeech(parsed.response, voiceName);
-          if (audioBase64) {
-            parsed.audioBase64 = audioBase64;
-          }
-        } catch (audioErr) {
-          console.warn('Native speech synthesis note (continuing with text response):', audioErr);
-        }
-
         return parsed;
       }
     } catch (modelErr: any) {
