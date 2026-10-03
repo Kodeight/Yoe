@@ -5,7 +5,7 @@ export type VoiceBubbleState = 'idle' | 'listening' | 'thinking' | 'speaking' | 
 interface VoiceBubbleProps {
   state?: VoiceBubbleState;
   audioEnergy?: number; // 0.0 to 1.0 normalized real-time audio energy
-  size?: 'sm' | 'md' | 'lg' | 'xl';
+  size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl';
   className?: string;
   onClick?: () => void;
   interactive?: boolean;
@@ -30,13 +30,15 @@ export const VoiceBubble: React.FC<VoiceBubbleProps> = ({
   stateRef.current = state;
   targetEnergyRef.current = audioEnergy;
 
-  // Dimensional sizes
+  // Dimensional sizes - scaled for prominent presence
   const dimensions = {
     sm: { size: 90, canvasSize: 130 },
-    md: { size: 140, canvasSize: 200 },
-    lg: { size: 210, canvasSize: 290 },
-    xl: { size: 280, canvasSize: 380 }
-  }[size];
+    md: { size: 130, canvasSize: 180 },
+    lg: { size: 180, canvasSize: 240 },
+    xl: { size: 230, canvasSize: 300 },
+    '2xl': { size: 270, canvasSize: 350 },
+    '3xl': { size: 310, canvasSize: 400 }
+  }[size] || { size: 180, canvasSize: 240 };
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -220,16 +222,6 @@ export const VoiceBubble: React.FC<VoiceBubbleProps> = ({
     };
   }, [dimensions.size]);
 
-  // State label subtitle
-  const stateLabel = {
-    idle: 'Yoe Listening',
-    listening: 'Listening to you...',
-    thinking: 'Yoe is thinking...',
-    speaking: 'Yoe is speaking',
-    interrupted: 'Interrupted',
-    error: 'Audio disconnected'
-  }[state];
-
   return (
     <div
       ref={containerRef}
@@ -237,7 +229,7 @@ export const VoiceBubble: React.FC<VoiceBubbleProps> = ({
       className={`relative flex flex-col items-center justify-center select-none ${interactive ? 'cursor-pointer group' : ''} ${className}`}
       style={{ width: dimensions.canvasSize, height: dimensions.canvasSize }}
       role="presentation"
-      aria-label={`Yoe Voice Presence: ${stateLabel}`}
+      aria-label={`Yoe Voice Presence: ${state}`}
     >
       <canvas
         ref={canvasRef}

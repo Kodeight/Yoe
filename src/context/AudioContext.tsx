@@ -16,8 +16,8 @@ export interface AudioContextType {
   requestMicrophoneAccess: () => Promise<boolean>;
   startListening: (langCode?: string) => Promise<boolean>;
   stopListening: () => void;
-  playGeminiAudio: (base64Wav: string) => Promise<void>;
-  speakText: (text: string, langCode?: string, characterName?: string, role?: string) => Promise<void>;
+  playGeminiAudio: (base64Wav: string, onEnded?: () => void) => Promise<void>;
+  speakText: (text: string, langCode?: string, characterName?: string, role?: string, onEnded?: () => void) => Promise<void>;
   stopSpeaking: () => void;
   toggleNotificationSounds: () => void;
   toggleSpeechFeedback: () => void;
@@ -26,6 +26,7 @@ export interface AudioContextType {
   getAudioEnergy: () => number;
   resumeAudioContext: () => Promise<void>;
   clearAudioError: () => void;
+  setOnSpeechEndCallback: (cb: ((finalText: string) => void) | null) => void;
 }
 
 const AudioContextState = createContext<AudioContextType | undefined>(undefined);
@@ -41,7 +42,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [micPermissionDenied, setMicPermissionDenied] = useState(false);
   const [audioError, setAudioError] = useState<string | null>(null);
 
-  // Audio preference toggles persisted in localStorage
+  // Audio preference toggles
   const [notificationSoundsEnabled, setNotificationSoundsEnabled] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('yoe_notification_sounds');
@@ -84,6 +85,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const animationFrameRef = useRef<number | null>(null);
   const recognitionRef = useRef<any>(null);
   const audioEnergyRef = useRef<number>(0);
+  const onSpeechEndCbRef = useRef<((finalText: string) => void) | null>(null);
+  const latestTranscriptRef = useRef<string>('');
 
   const clearAudioError = () => {
     setAudioError(null);
@@ -91,8 +94,12 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setMicStatus(prev => (prev === 'denied' || prev === 'error' || prev === 'unavailable' ? 'idle' : prev));
   };
 
-  // Ensure AudioContext is initialized/resumed on explicit user interaction
-  const getOrCreateAudioContext = useCallback((): AudioContext | null => {
+  const setOnSpeechEndCallback = useCallback((cb: ((finalText: string) => void) | null) => {
+    onSpeechEndCbRef.current = cb;
+  }, []);
+
+  // Ensure AudioContext is initialized/resumed on explicit user gesture
+  const getOrCreateAudioContext = useCallback(() => {
     if (typeof window === 'undefined') return null;
     if (!audioCtxRef.current) {
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
@@ -131,7 +138,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, [getOrCreateAudioContext]);
 
-  // Real-time audio energy analysis loop (selects speakerAnalyser or micAnalyser dynamically)
+  // Real-time audio energy analysis loop
   useEffect(() => {
     let active = true;
     const dataArray = new Uint8Array(128);
@@ -191,7 +198,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const getAudioEnergy = useCallback(() => audioEnergyRef.current, []);
 
-  // Web Audio synthesizer for pristine sound feedback without asset load latency
+  // Web Audio synthesizer for pristine sound feedback
   const playSynthesizedTone = (frequencies: number[], duration = 0.2, type: OscillatorType = 'sine') => {
     try {
       const ctx = getOrCreateAudioContext();
@@ -217,23 +224,23 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       osc.start(now);
       osc.stop(now + duration);
     } catch (e) {
-      // AudioContext may be restricted before user gesture
+      // Ignore
     }
   };
 
   const playNotificationSound = () => {
     if (!notificationSoundsEnabled) return;
-    playSynthesizedTone([587.33, 880], 0.3, 'sine'); // D5 to A5 pleasant bell chime
+    playSynthesizedTone([587.33, 880], 0.3, 'sine');
   };
 
   const playFeedbackSound = (type: 'start' | 'stop' | 'success' = 'start') => {
     if (!speechFeedbackEnabled) return;
     if (type === 'start') {
-      playSynthesizedTone([440, 659.25], 0.18, 'sine'); // Upward pleasant bleep
+      playSynthesizedTone([440, 659.25], 0.18, 'sine');
     } else if (type === 'stop') {
-      playSynthesizedTone([659.25, 392], 0.18, 'sine'); // Downward soft tone
+      playSynthesizedTone([659.25, 392], 0.18, 'sine');
     } else {
-      playSynthesizedTone([523.25, 783.99], 0.25, 'triangle'); // Success cheer chime
+      playSynthesizedTone([523.25, 783.99], 0.25, 'triangle');
     }
   };
 
@@ -253,13 +260,20 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, []);
 
   // Play native Gemini Audio (WAV base64) with AnalyserNode connection
-  const playGeminiAudio = useCallback(async (base64Wav: string): Promise<void> => {
+  const playGeminiAudio = useCallback(async (base64Wav: string, onEnded?: () => void): Promise<void> => {
     try {
       stopSpeaking();
       const ctx = getOrCreateAudioContext();
       if (!ctx || !speakerAnalyserRef.current) return;
 
-      const binaryStr = atob(base64Wav);
+      // Ensure AudioContext is running
+      if (ctx.state === 'suspended') {
+        await ctx.resume();
+      }
+
+      // Remove data URL prefix if present
+      const rawBase64 = base64Wav.includes('base64,') ? base64Wav.split('base64,')[1] : base64Wav;
+      const binaryStr = atob(rawBase64);
       const len = binaryStr.length;
       const bytes = new Uint8Array(len);
       for (let i = 0; i < len; i++) {
@@ -281,12 +295,14 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       source.onended = () => {
         setIsSpeaking(false);
         currentSourceRef.current = null;
+        if (onEnded) onEnded();
       };
 
       source.start(0);
     } catch (err) {
-      console.warn('Native audio playback fallback:', err);
+      console.warn('Native audio playback error:', err);
       setIsSpeaking(false);
+      if (onEnded) onEnded();
     }
   }, [getOrCreateAudioContext, stopSpeaking]);
 
@@ -319,21 +335,30 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             currentTranscript += event.results[i][0].transcript;
           }
           setTranscript(currentTranscript);
+          latestTranscriptRef.current = currentTranscript;
         };
 
         reco.onend = () => {
           setIsListening(false);
-          // Disconnect mic audio analyser
+          // Disconnect mic audio stream
           if (micStreamRef.current) {
             micStreamRef.current.getTracks().forEach(t => t.stop());
             micStreamRef.current = null;
+          }
+
+          // AUTOMATIC TURN DETECTION: Trigger speech end callback if transcript is available
+          const finalVal = latestTranscriptRef.current.trim();
+          if (finalVal && onSpeechEndCbRef.current) {
+            const cb = onSpeechEndCbRef.current;
+            setTranscript('');
+            latestTranscriptRef.current = '';
+            cb(finalVal);
           }
         };
 
         reco.onerror = (err: any) => {
           console.warn('Speech recognition event:', err.error);
           setIsListening(false);
-          // Only trigger permission error if we do not already have an active MediaStream
           if (!micStreamRef.current && (err.error === 'not-allowed' || err.error === 'service-not-allowed')) {
             setMicStatus('denied');
             setMicPermissionDenied(true);
@@ -346,9 +371,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, []);
 
-  // Authoritative Hardware Microphone Access Test & Stream Acquisition (Safari/iOS compatible)
+  // Microphone stream acquisition
   const requestMicrophoneAccess = useCallback(async (): Promise<boolean> => {
-    // Safari / iOS & environment support check
     if (typeof window === 'undefined' || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       setMicStatus('unavailable');
       setMicPermissionDenied(false);
@@ -359,18 +383,16 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setMicStatus('requesting');
     clearAudioError();
 
-    // Ensure AudioContext is unlocked during this user interaction (required for iOS Safari audio pipeline)
     const ctx = getOrCreateAudioContext();
     if (ctx && ctx.state === 'suspended') {
       try {
         await ctx.resume();
       } catch (e) {
-        console.warn('AudioContext resume exception during microphone request:', e);
+        console.warn('AudioContext resume exception:', e);
       }
     }
 
     try {
-      // Authoritative access test: explicit getUserMedia request
       let stream: MediaStream;
       try {
         stream = await navigator.mediaDevices.getUserMedia({
@@ -381,7 +403,6 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           }
         });
       } catch (constrainedErr: any) {
-        // Fallback for Safari/iOS if specific audio constraints fail
         if (constrainedErr?.name === 'OverconstrainedError' || constrainedErr?.name === 'TypeError') {
           stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         } else {
@@ -389,13 +410,11 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }
       }
 
-      // Cleanup prior tracks if any to prevent track leak
       if (micStreamRef.current) {
         micStreamRef.current.getTracks().forEach(t => t.stop());
       }
       micStreamRef.current = stream;
 
-      // Connect micSource exclusively to micAnalyser (NO destination connection!)
       if (ctx && micAnalyserRef.current) {
         if (micSourceRef.current) {
           try { micSourceRef.current.disconnect(); } catch (e) {}
@@ -405,13 +424,12 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         micSourceRef.current = micSource;
       }
 
-      // Authoritative success: hardware microphone access is verified and ready
       setMicStatus('ready');
       setMicPermissionDenied(false);
       setAudioError(null);
       return true;
     } catch (micErr: any) {
-      console.warn('Authoritative getUserMedia check failed:', micErr);
+      console.warn('Microphone check failed:', micErr);
       const errName = micErr?.name || '';
 
       if (errName === 'NotAllowedError' || errName === 'PermissionDeniedError') {
@@ -426,22 +444,6 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setMicStatus('unavailable');
         setMicPermissionDenied(false);
         setAudioError('No microphone input device was found connected to your system.');
-      } else if (errName === 'NotReadableError' || errName === 'TrackStartError') {
-        setMicStatus('error');
-        setMicPermissionDenied(false);
-        setAudioError('Microphone hardware is busy or locked by another application or browser tab.');
-      } else if (errName === 'OverconstrainedError') {
-        setMicStatus('error');
-        setMicPermissionDenied(false);
-        setAudioError('Requested audio constraints cannot be satisfied by your microphone hardware.');
-      } else if (errName === 'AbortError') {
-        setMicStatus('error');
-        setMicPermissionDenied(false);
-        setAudioError('Microphone hardware acquisition was interrupted.');
-      } else if (errName === 'TypeError') {
-        setMicStatus('error');
-        setMicPermissionDenied(false);
-        setAudioError('Audio device configuration parameter error.');
       } else {
         setMicStatus('error');
         setMicPermissionDenied(false);
@@ -457,16 +459,16 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (isSpeaking) {
       stopSpeaking();
       setIsInterrupted(true);
-      setTimeout(() => setIsInterrupted(false), 800);
+      setTimeout(() => setIsInterrupted(false), 600);
     }
 
-    // Authoritative check & acquisition
     const hasMicAccess = await requestMicrophoneAccess();
     if (!hasMicAccess) {
       return false;
     }
 
     setTranscript('');
+    latestTranscriptRef.current = '';
     setMicStatus('listening');
 
     if (recognitionRef.current) {
@@ -499,11 +501,16 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     playFeedbackSound('stop');
   }, []);
 
-  // Speak text using Gemini native TTS endpoint (with browser TTS as seamless fallback)
-  const speakText = useCallback(async (text: string, langCode?: string, characterName?: string, role?: string): Promise<void> => {
+  // Speak text using Gemini native TTS endpoint
+  const speakText = useCallback(async (
+    text: string,
+    langCode?: string,
+    characterName?: string,
+    role?: string,
+    onEnded?: () => void
+  ): Promise<void> => {
     if (!text || !text.trim()) return;
 
-    // Immediate stop of any prior audio
     stopSpeaking();
 
     try {
@@ -516,7 +523,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (res.ok) {
         const data = await res.json();
         if (data.audioBase64) {
-          await playGeminiAudio(data.audioBase64);
+          await playGeminiAudio(data.audioBase64, onEnded);
           return;
         }
       }
@@ -530,9 +537,17 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       utterance.lang = mapLangToLocale(langCode);
       utterance.rate = 0.95;
       utterance.onstart = () => setIsSpeaking(true);
-      utterance.onend = () => setIsSpeaking(false);
-      utterance.onerror = () => setIsSpeaking(false);
+      utterance.onend = () => {
+        setIsSpeaking(false);
+        if (onEnded) onEnded();
+      };
+      utterance.onerror = () => {
+        setIsSpeaking(false);
+        if (onEnded) onEnded();
+      };
       window.speechSynthesis.speak(utterance);
+    } else {
+      if (onEnded) onEnded();
     }
   }, [playGeminiAudio, stopSpeaking]);
 
@@ -561,7 +576,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         playFeedbackSound,
         getAudioEnergy,
         resumeAudioContext,
-        clearAudioError
+        clearAudioError,
+        setOnSpeechEndCallback
       }}
     >
       {children}

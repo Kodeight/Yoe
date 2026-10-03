@@ -342,6 +342,51 @@
           }
         ]
       }
+    ],
+    "hotel_checkin_es": [
+      {
+        "id": "msg_usr_1790993904846",
+        "sessionId": "hotel_checkin_es",
+        "sender": "user",
+        "text": "I need a room for two nights.",
+        "timestamp": "2026-10-03T02:18:24.846Z"
+      },
+      {
+        "id": "msg_ttr_1790993906568",
+        "sessionId": "hotel_checkin_es",
+        "sender": "tutor",
+        "text": "¡Entendido! Necesitas una habitación por dos noches. Por cierto, ¡hola! Yo soy Yoe. ¿Cómo te llamas y de dónde eres?",
+        "translation": "Understood! You need a room for two nights. By the way, hello! I am Yoe. What is your name and where are you from?",
+        "timestamp": "2026-10-03T02:18:26.568Z",
+        "vocabularyLearned": [
+          {
+            "word": "habitación",
+            "translation": "room",
+            "example": "Necesito una habitación.",
+            "phonetic": "ha-bee-ta-SYON"
+          },
+          {
+            "word": "noches",
+            "translation": "nights",
+            "example": "Dos noches, por favor.",
+            "phonetic": "NO-ches"
+          }
+        ]
+      },
+      {
+        "id": "msg_usr_1790993935508",
+        "sessionId": "hotel_checkin_es",
+        "sender": "user",
+        "text": "I need a room for two nights.",
+        "timestamp": "2026-10-03T02:18:55.508Z"
+      },
+      {
+        "id": "msg_usr_1790993976536",
+        "sessionId": "hotel_checkin_es",
+        "sender": "user",
+        "text": "I need a room for two nights.",
+        "timestamp": "2026-10-03T02:19:36.536Z"
+      }
     ]
   }
 }
