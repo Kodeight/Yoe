@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import rateLimit from 'express-rate-limit';
 import { db, SUPPORTED_LANGUAGES } from './db';
-import { processScenarioTurn, generateLiveGreeting, calibrateLearnerLevel, generateScenarioSpeech, getCharacterVoice, createEphemeralLiveToken, LIVE_MODEL } from './aiService';
+import { processScenarioTurn, generateLiveGreeting, calibrateLearnerLevel, generateScenarioSpeech, getCharacterVoice, createEphemeralLiveToken, getGeminiApiKey, LIVE_MODEL } from './aiService';
 import { registerHandler, loginHandler, meHandler, logoutHandler, requireAuth, AuthRequest, sanitizeUser } from './auth';
 import { User, LearningJourney } from '../types';
 
@@ -342,7 +342,8 @@ const handleLiveToken = async (req: Request, res: Response) => {
   res.set('Pragma', 'no-cache');
   res.set('Expires', '0');
 
-  if (!process.env.GEMINI_API_KEY) {
+  const apiKey = getGeminiApiKey();
+  if (!apiKey) {
     return res.status(503).json({
       success: false,
       error: 'Gemini Live credentials are not configured'
@@ -395,7 +396,7 @@ apiRouter.get('/ai/live/health', async (req: Request, res: Response) => {
   res.set('Pragma', 'no-cache');
   res.set('Expires', '0');
 
-  const geminiConfigured = Boolean(process.env.GEMINI_API_KEY);
+  const geminiConfigured = Boolean(getGeminiApiKey());
   if (!geminiConfigured) {
     return res.status(503).json({
       success: false,

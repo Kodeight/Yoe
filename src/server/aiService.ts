@@ -1,14 +1,23 @@
 import { GoogleGenAI, Modality } from '@google/genai';
 import { Scenario, LearningJourney, CorrectionDetail } from '../types';
 
-export const ai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY,
-  httpOptions: {
-    headers: {
-      'User-Agent': 'aistudio-build'
+export function getGeminiApiKey(): string | undefined {
+  return process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || process.env.VITE_GEMINI_API_KEY;
+}
+
+export function getGeminiClient(): GoogleGenAI {
+  const apiKey = getGeminiApiKey();
+  return new GoogleGenAI({
+    apiKey: apiKey || '',
+    httpOptions: {
+      headers: {
+        'User-Agent': 'aistudio-build'
+      }
     }
-  }
-});
+  });
+}
+
+export const ai = getGeminiClient();
 
 export const textModel = 'gemini-3.8-flash';
 export const LIVE_MODEL = 'gemini-3.8-live';
@@ -84,7 +93,8 @@ You MUST respond strictly in valid JSON matching this schema:
   const prompt = `CONVERSATION HISTORY:\n${conversationHistory.map(h => `${h.sender.toUpperCase()}: ${h.text}`).join('\n')}\nUSER: ${userMessage}`;
 
   try {
-    const res = await ai.models.generateContent({
+    const client = getGeminiClient();
+    const res = await client.models.generateContent({
       model: textModel,
       contents: prompt,
       config: {
@@ -146,7 +156,8 @@ Respond strictly in JSON:
 }`;
 
   try {
-    const res = await ai.models.generateContent({
+    const client = getGeminiClient();
+    const res = await client.models.generateContent({
       model: textModel,
       contents: prompt,
       config: {
@@ -177,10 +188,11 @@ export async function generateScenarioSpeech(text: string, voiceName = 'Kore'): 
   if (!text || !text.trim()) return null;
 
   const ttsModels = ['gemini-3.8-flash-tts', 'gemini-3.8-flash-lite-tts', 'gemini-3.8-flash'];
+  const client = getGeminiClient();
 
   for (const model of ttsModels) {
     try {
-      const response = await ai.models.generateContent({
+      const response = await client.models.generateContent({
         model,
         contents: [
           {
@@ -219,7 +231,8 @@ export async function generateScenarioSpeech(text: string, voiceName = 'Kore'): 
 }
 
 export async function createEphemeralLiveToken(scenario?: Scenario, journey?: LearningJourney) {
-  if (!process.env.GEMINI_API_KEY) {
+  const apiKey = getGeminiApiKey();
+  if (!apiKey) {
     throw new Error('Gemini Live credentials are not configured');
   }
 
@@ -232,7 +245,8 @@ export async function createEphemeralLiveToken(scenario?: Scenario, journey?: Le
     ? `You are Yoe, an empathetic language tutor roleplaying in a realistic scenario on a live voice call. Speak in ${targetLang} suitable for CEFR ${cefr}, and teach using ${supportLang} when explanation is needed.`
     : `You are Yoe, an empathetic language tutor on a live audio call. Teach the user naturally in Spanish with English explanations.`;
 
-  const tokenResponse = await ai.authTokens.create({
+  const client = getGeminiClient();
+  const tokenResponse = await client.authTokens.create({
     config: {
       uses: 1,
       liveConnectConstraints: {
