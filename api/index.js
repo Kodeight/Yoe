@@ -38,17 +38,17 @@ var STARTER_SCENARIOS = [
     targetLanguage: "en",
     cefrLevel: "A1",
     location: "Community Botanical Garden Cafe",
-    characterName: "Maya",
-    characterRole: "Friendly Local Designer",
+    characterName: "Yoe",
+    characterRole: "Friendly Local",
     avatar: "\u{1F91D}",
     imageUrl: "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=600&q=80",
     vocabularyDomain: ["name", "from", "hobby", "pleasure", "nice to meet you"],
-    initialGreeting: "Hi there! Mind if I sit here? I'm Maya. What's your name and where are you from?",
-    initialGreetingTranslation: "Hi there! Mind if I sit here? I'm Maya. What's your name and where are you from?",
+    initialGreeting: "Hi there! Mind if I sit here? I'm Yoe. What's your name and where are you from?",
+    initialGreetingTranslation: "Hi there! Mind if I sit here? I'm Yoe. What's your name and where are you from?",
     objectives: [
-      { id: "obj_intro_1", text: "Share your name and country or city of origin", completed: false, hint: "Say: Hi Maya, my name is... and I am from..." },
-      { id: "obj_intro_2", text: "Tell her what you like doing in your free time", completed: false, hint: "Say: In my free time, I like..." },
-      { id: "obj_intro_3", text: "Ask Maya a polite question back", completed: false, hint: "Say: What about you? Do you live nearby?" }
+      { id: "obj_intro_1", text: "Share your name and country or city of origin", completed: false, hint: "Say: Hi Yoe, my name is... and I am from..." },
+      { id: "obj_intro_2", text: "Tell Yoe what you like doing in your free time", completed: false, hint: "Say: In my free time, I like..." },
+      { id: "obj_intro_3", text: "Ask Yoe a polite question back", completed: false, hint: "Say: What about you, Yoe? Do you live nearby?" }
     ]
   },
   {
@@ -59,15 +59,15 @@ var STARTER_SCENARIOS = [
     targetLanguage: "fr",
     cefrLevel: "A1",
     location: "Le Petit Caf\xE9, Saint-Germain-des-Pr\xE9s",
-    characterName: "Jean-Luc",
+    characterName: "Yoe",
     characterRole: "Bistro Server",
     avatar: "\u{1F950}",
     imageUrl: "https://images.unsplash.com/photo-1550966871-3ed3cdb5ed0c?auto=format&fit=crop&w=600&q=80",
     vocabularyDomain: ["croissant", "caf\xE9 au lait", "l'addition", "s'il vous pla\xEEt", "merci"],
-    initialGreeting: "Bonjour ! Bienvenue au Petit Caf\xE9. Vous d\xE9sirez une table en terrasse ou \xE0 l'int\xE9rieur ?",
-    initialGreetingTranslation: "Hello! Welcome to Le Petit Caf\xE9. Would you prefer a table on the terrace or inside?",
+    initialGreeting: "Bonjour ! Je suis Yoe. Bienvenue au Petit Caf\xE9. Vous d\xE9sirez une table en terrasse ou \xE0 l'int\xE9rieur ?",
+    initialGreetingTranslation: "Hello! I am Yoe. Welcome to Le Petit Caf\xE9. Would you prefer a table on the terrace or inside?",
     objectives: [
-      { id: "obj_fr_1", text: "Greet the waiter politely and state your seating preference", completed: false, hint: "Say: Bonjour! Je voudrais une table en terrasse, s'il vous pla\xEEt." },
+      { id: "obj_fr_1", text: "Greet Yoe politely and state your seating preference", completed: false, hint: "Say: Bonjour Yoe! Je voudrais une table en terrasse, s'il vous pla\xEEt." },
       { id: "obj_fr_2", text: "Order a croissant and a coffee", completed: false, hint: "Say: Je voudrais un croissant et un caf\xE9 au lait, s'il vous pla\xEEt." },
       { id: "obj_fr_3", text: "Ask for the check at the end of breakfast", completed: false, hint: "Say: L'addition, s'il vous pla\xEEt." }
     ]
@@ -80,15 +80,15 @@ var STARTER_SCENARIOS = [
     targetLanguage: "es",
     cefrLevel: "A1",
     location: "Hotel Gran V\xEDa, Madrid",
-    characterName: "Sofia",
+    characterName: "Yoe",
     characterRole: "Hotel Receptionist",
     avatar: "\u{1F3E8}",
     imageUrl: "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=600&q=80",
     vocabularyDomain: ["reserva", "habitaci\xF3n", "desayuno", "clave de wifi", "piso"],
-    initialGreeting: "\xA1Buenas tardes! Bienvenido al Hotel Gran V\xEDa. \xBFTiene una reserva con nosotros?",
-    initialGreetingTranslation: "Good afternoon! Welcome to Hotel Gran V\xEDa. Do you have a reservation with us?",
+    initialGreeting: "\xA1Buenas tardes! Soy Yoe. Bienvenido al Hotel Gran V\xEDa. \xBFTiene una reserva con nosotros?",
+    initialGreetingTranslation: "Good afternoon! I am Yoe. Welcome to Hotel Gran V\xEDa. Do you have a reservation with us?",
     objectives: [
-      { id: "obj_es_1", text: "Confirm reservation under your name", completed: false, hint: "Say: Tengo una reserva a nombre de..." },
+      { id: "obj_es_1", text: "Confirm reservation under your name", completed: false, hint: "Say: Hola Yoe, tengo una reserva a nombre de..." },
       { id: "obj_es_2", text: "Ask for the WiFi password and breakfast time", completed: false, hint: "Say: \xBFCu\xE1l es la contrase\xF1a del WiFi y a qu\xE9 hora es el desayuno?" },
       { id: "obj_es_3", text: "Inquire about keycard or room floor", completed: false, hint: "Say: \xBFEn qu\xE9 piso est\xE1 la habitaci\xF3n?" }
     ]
@@ -505,8 +505,10 @@ ${recentMistakes.map((m) => `- ${m.pattern}: (e.g. said "${m.exampleUserSaid}", 
   return `
 [APPLICATION IDENTITY & TUTOR PERSONA]
 You are YOE, the intelligent, warm, highly adaptive bilingual language-learning tutor of ${journey.targetLanguage.toUpperCase()}.
-Your universal identity across the entire application is always Yoe, the language-learning tutor.
-In this active practice scenario, you roleplay as "${scenario.characterName}" (${scenario.characterRole}) at ${scenario.location} in the scenario "${scenario.title}" solely within the context of roleplay to provide authentic, immersive conversational practice.
+Your universal name and identity across ALL scenarios, roles, and interactions is ALWAYS YOE (male or female depending on role persona).
+Whether roleplaying as a ${scenario.characterRole} at ${scenario.location} or any other role, your name is ALWAYS YOE (e.g., 'Soy Yoe', 'Je suis Yoe', 'I am Yoe').
+When asked your name, you MUST answer that your name is YOE.
+NEVER use names like Sofia, Maya, Jean-Luc, Carmen, or any other name. Your name is ONLY YOE.
 
 [PEDAGOGICAL MISSION & MANDATORY LANGUAGE RULES]
 1. DESIRED LEARNING LANGUAGE: ${journey.targetLanguage.toUpperCase()} (This is the target language the learner wants to learn, practice, and master).
@@ -514,8 +516,8 @@ In this active practice scenario, you roleplay as "${scenario.characterName}" ($
 3. CEFR Level: ${journey.cefrLevel || "A1"}
 
 [CONVERSATION RULES - STRICT ADHERENCE]
-- Directly and contextually respond to the learner's actual utterance.
-- If the learner asks your name, introduce yourself as ${scenario.characterName}.
+- Directly and contextually respond to the learner's actual utterance generated LIVE.
+- If the learner asks your name, answer that your name is YOE.
 - If the learner asks if you speak English or asks for clarification, respond helpfully in ${journey.targetLanguage.toUpperCase()} and provide the explanation.
 - If the learner states what they need (e.g., booking a room, ordering food, checking in), advance the scenario dialogue naturally.
 - Keep character dialogue natural, concise, and appropriate for ${journey.cefrLevel || "A1"} level in ${journey.targetLanguage.toUpperCase()}.
@@ -527,6 +529,74 @@ ${scenario.objectives.map((o) => `  * [ID: ${o.id}] ${o.text}`).join("\n")}
   List satisfied IDs in "completedObjectiveIds".
 ${mistakesContext}
 `.trim();
+}
+async function generateLiveGreeting(scenario, journey) {
+  const systemInstruction = buildConversationSystemInstruction(scenario, journey);
+  const prompt = `
+Generate a warm, natural, single-sentence initial greeting as Yoe (roleplaying as ${scenario.characterRole} at ${scenario.location}) in authentic ${journey.targetLanguage.toUpperCase()} for a ${journey.cefrLevel || "A1"} level learner starting the scenario "${scenario.title}".
+Your name is YOE. Do NOT use any other name.
+Provide the greeting in ${journey.targetLanguage.toUpperCase()} and its translation in ${journey.supportLanguage.toUpperCase()}.
+Return strictly JSON.
+`.trim();
+  for (const modelCandidate of CANDIDATE_CHAT_MODELS) {
+    try {
+      const aiResult = await ai.models.generateContent({
+        model: modelCandidate,
+        contents: prompt,
+        config: {
+          systemInstruction,
+          temperature: 0.8,
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              response: { type: Type.STRING },
+              translation: { type: Type.STRING }
+            },
+            required: ["response", "translation"]
+          }
+        }
+      });
+      const parsed = JSON.parse(aiResult.text || "{}");
+      if (parsed.response) {
+        let audioBase64 = void 0;
+        try {
+          const ttsResult = await ai.models.generateContent({
+            model: ttsModel,
+            contents: parsed.response,
+            config: {
+              responseMimeType: "audio/wav",
+              speechConfig: {
+                voiceConfig: {
+                  prebuiltVoiceConfig: {
+                    voiceName: getCharacterVoice("Yoe", scenario.characterRole)
+                  }
+                }
+              }
+            }
+          });
+          const candidate = ttsResult.candidates?.[0];
+          const part = candidate?.content?.parts?.[0];
+          if (part && "inlineData" in part && part.inlineData?.data) {
+            audioBase64 = part.inlineData.data;
+          }
+        } catch (ttsErr) {
+          console.warn("[YOE TTS] Greeting TTS note:", ttsErr);
+        }
+        return {
+          response: parsed.response,
+          translation: parsed.translation || parsed.response,
+          audioBase64
+        };
+      }
+    } catch (err) {
+      console.warn(`[YOE GREETING] ${modelCandidate} failed:`, err);
+    }
+  }
+  return {
+    response: scenario.initialGreeting,
+    translation: scenario.initialGreetingTranslation || scenario.initialGreeting
+  };
 }
 async function processScenarioTurn(req) {
   const { scenario, journey, conversationHistory, userMessage, recentMistakes } = req;
@@ -1065,6 +1135,29 @@ apiRouter.get("/scenarios/:id", (req, res) => {
     return;
   }
   res.json({ scenario });
+});
+apiRouter.post("/ai/initial-greeting", async (req, res) => {
+  try {
+    const { scenarioId, journeyId, targetLanguage, supportLanguage, cefrLevel } = req.body;
+    const scenario = db.getScenarioById(scenarioId) || db.getScenarios()[0];
+    const existingJourney = journeyId ? db.getJourney(journeyId) : null;
+    const journey = existingJourney || {
+      id: journeyId || "temp_jrn",
+      userId: "temp_user",
+      targetLanguage: targetLanguage || scenario?.targetLanguage || "es",
+      supportLanguage: supportLanguage || "en",
+      cefrLevel: cefrLevel || scenario?.cefrLevel || "A1",
+      streakDays: 0,
+      totalMinutesSpoken: 0,
+      points: 0,
+      createdAt: (/* @__PURE__ */ new Date()).toISOString()
+    };
+    const greeting = await generateLiveGreeting(scenario, journey);
+    res.json({ greeting });
+  } catch (err) {
+    console.error("[YOE GREETING ERROR]:", err);
+    res.status(500).json({ error: "Failed to generate live greeting" });
+  }
 });
 apiRouter.post("/ai/chat", async (req, res) => {
   console.log("[YOE CHAT] request received");

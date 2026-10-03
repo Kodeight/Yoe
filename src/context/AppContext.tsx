@@ -136,7 +136,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           setUser(userData.user);
           localStorage.setItem('yoe_user_profile', JSON.stringify(userData.user));
           const savedTheme = localStorage.getItem('yoe_theme') as 'dark' | 'light';
-          setTheme(savedTheme || userData.user.theme || 'dark');
+          if (!savedTheme && userData.user.theme) {
+            setTheme(userData.user.theme as 'dark' | 'light');
+            localStorage.setItem('yoe_theme', userData.user.theme);
+          }
           setUiLanguageState(userData.user.uiLanguage || 'en');
 
           const journeysRes = await fetch('/api/journeys', {
