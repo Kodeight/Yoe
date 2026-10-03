@@ -47,6 +47,7 @@ export const STARTER_SCENARIOS: Scenario[] = [
     imageUrl: 'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=600&q=80',
     vocabularyDomain: ['name', 'from', 'hobby', 'pleasure', 'nice to meet you'],
     initialGreeting: 'Hi there! Mind if I sit here? I\'m Maya. What\'s your name and where are you from?',
+    initialGreetingTranslation: 'Hi there! Mind if I sit here? I\'m Maya. What\'s your name and where are you from?',
     objectives: [
       { id: 'obj_intro_1', text: 'Share your name and country or city of origin', completed: false, hint: 'Say: Hi Maya, my name is... and I am from...' },
       { id: 'obj_intro_2', text: 'Tell her what you like doing in your free time', completed: false, hint: 'Say: In my free time, I like...' },
@@ -67,6 +68,7 @@ export const STARTER_SCENARIOS: Scenario[] = [
     imageUrl: 'https://images.unsplash.com/photo-1550966871-3ed3cdb5ed0c?auto=format&fit=crop&w=600&q=80',
     vocabularyDomain: ['croissant', 'café au lait', 'l\'addition', 's\'il vous plaît', 'merci'],
     initialGreeting: 'Bonjour ! Bienvenue au Petit Café. Vous désirez une table en terrasse ou à l\'intérieur ?',
+    initialGreetingTranslation: 'Hello! Welcome to Le Petit Café. Would you prefer a table on the terrace or inside?',
     objectives: [
       { id: 'obj_fr_1', text: 'Greet the waiter politely and state your seating preference', completed: false, hint: 'Say: Bonjour! Je voudrais une table en terrasse, s\'il vous plaît.' },
       { id: 'obj_fr_2', text: 'Order a croissant and a coffee', completed: false, hint: 'Say: Je voudrais un croissant et un café au lait, s\'il vous plaît.' },
@@ -79,7 +81,7 @@ export const STARTER_SCENARIOS: Scenario[] = [
     description: 'Check into your boutique hotel room, ask about breakfast hours and WiFi details in Spanish.',
     category: 'travel',
     targetLanguage: 'es',
-    cefrLevel: 'A2',
+    cefrLevel: 'A1',
     location: 'Hotel Gran Vía, Madrid',
     characterName: 'Sofia',
     characterRole: 'Hotel Receptionist',
@@ -87,6 +89,7 @@ export const STARTER_SCENARIOS: Scenario[] = [
     imageUrl: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=600&q=80',
     vocabularyDomain: ['reserva', 'habitación', 'desayuno', 'clave de wifi', 'piso'],
     initialGreeting: '¡Buenas tardes! Bienvenido al Hotel Gran Vía. ¿Tiene una reserva con nosotros?',
+    initialGreetingTranslation: 'Good afternoon! Welcome to Hotel Gran Vía. Do you have a reservation with us?',
     objectives: [
       { id: 'obj_es_1', text: 'Confirm reservation under your name', completed: false, hint: 'Say: Tengo una reserva a nombre de...' },
       { id: 'obj_es_2', text: 'Ask for the WiFi password and breakfast time', completed: false, hint: 'Say: ¿Cuál es la contraseña del WiFi y a qué hora es el desayuno?' },

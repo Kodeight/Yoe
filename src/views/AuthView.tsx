@@ -106,7 +106,7 @@ export const AuthView: React.FC<{ onComplete?: () => void }> = ({ onComplete }) 
             onClick={() => { setMode('signup'); setErrorMsg(''); setIsDuplicate(false); }}
             className={`flex-1 py-2.5 text-xs font-bold rounded-xl transition-all cursor-pointer ${
               mode === 'signup'
-                ? 'bg-gradient-to-r from-emerald-400 to-teal-400 text-slate-950 font-black shadow-md'
+                ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-extrabold shadow-md'
                 : 'text-slate-400 dark:text-slate-400 light-mode:text-slate-600 hover:text-slate-100'
             }`}
           >
@@ -117,7 +117,7 @@ export const AuthView: React.FC<{ onComplete?: () => void }> = ({ onComplete }) 
             onClick={() => { setMode('login'); setErrorMsg(''); setIsDuplicate(false); }}
             className={`flex-1 py-2.5 text-xs font-bold rounded-xl transition-all cursor-pointer ${
               mode === 'login'
-                ? 'bg-gradient-to-r from-emerald-400 to-teal-400 text-slate-950 font-black shadow-md'
+                ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-extrabold shadow-md'
                 : 'text-slate-400 dark:text-slate-400 light-mode:text-slate-600 hover:text-slate-100'
             }`}
           >
@@ -248,17 +248,17 @@ export const AuthView: React.FC<{ onComplete?: () => void }> = ({ onComplete }) 
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full mt-3 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 text-slate-950 font-black text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 hover:opacity-95 active:scale-98 transition-all cursor-pointer disabled:opacity-50"
+            className="w-full mt-3 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 text-white font-black text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 hover:opacity-95 active:scale-98 transition-all cursor-pointer disabled:opacity-50"
           >
             {isLoading ? (
               <div className="flex items-center gap-2">
-                <div className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
-                <span>{mode === 'signup' ? 'Creating Account...' : 'Signing In...'}</span>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                <span className="text-white">{mode === 'signup' ? 'Creating Account...' : 'Signing In...'}</span>
               </div>
             ) : (
               <>
-                <span>{mode === 'signup' ? 'Create Account' : 'Sign In'}</span>
-                <ArrowRight className="w-4 h-4" />
+                <span className="text-white font-bold">{mode === 'signup' ? 'Create Account' : 'Sign In'}</span>
+                <ArrowRight className="w-4 h-4 text-white" />
               </>
             )}
           </button>

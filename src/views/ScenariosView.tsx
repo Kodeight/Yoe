@@ -43,7 +43,7 @@ export const ScenariosView: React.FC = () => {
             onClick={() => setSelectedFilter(f)}
             className={`px-3 py-1.5 rounded-full text-xs font-bold capitalize transition-all cursor-pointer whitespace-nowrap ${
               selectedFilter === f
-                ? 'bg-gradient-to-r from-emerald-400 to-teal-400 text-slate-950 font-black shadow-md shadow-emerald-500/20'
+                ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-extrabold shadow-md shadow-emerald-500/20'
                 : 'glass-pill text-slate-300 dark:text-slate-300 light-mode:text-slate-700 hover:border-emerald-500/40'
             }`}
           >

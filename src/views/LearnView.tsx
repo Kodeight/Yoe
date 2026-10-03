@@ -96,7 +96,7 @@ export const LearnView: React.FC = () => {
           onClick={() => setActiveTab('course')}
           className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
             activeTab === 'course'
-              ? 'bg-gradient-to-r from-emerald-400 to-teal-400 text-slate-950 font-black shadow-md'
+              ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-extrabold shadow-md'
               : 'text-slate-400 dark:text-slate-400 light-mode:text-slate-600 hover:text-slate-100'
           }`}
         >
@@ -109,7 +109,7 @@ export const LearnView: React.FC = () => {
           onClick={() => setActiveTab('review')}
           className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
             activeTab === 'review'
-              ? 'bg-gradient-to-r from-emerald-400 to-teal-400 text-slate-950 font-black shadow-md'
+              ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-extrabold shadow-md'
               : 'text-slate-400 dark:text-slate-400 light-mode:text-slate-600 hover:text-slate-100'
           }`}
         >
@@ -122,7 +122,7 @@ export const LearnView: React.FC = () => {
           onClick={() => setActiveTab('progress')}
           className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
             activeTab === 'progress'
-              ? 'bg-gradient-to-r from-emerald-400 to-teal-400 text-slate-950 font-black shadow-md'
+              ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-extrabold shadow-md'
               : 'text-slate-400 dark:text-slate-400 light-mode:text-slate-600 hover:text-slate-100'
           }`}
         >
@@ -187,7 +187,7 @@ export const LearnView: React.FC = () => {
                 <div className="flex gap-2 justify-center pt-1">
                   <button
                     onClick={() => setActiveTab('course')}
-                    className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-400 to-teal-400 text-slate-950 font-bold text-xs shadow-md cursor-pointer hover:opacity-95"
+                    className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold text-xs shadow-md cursor-pointer hover:opacity-95"
                   >
                     Start First Lesson
                   </button>
@@ -436,10 +436,10 @@ export const LearnView: React.FC = () => {
 
                 <button
                   onClick={() => handleCompleteLesson(selectedLesson.id)}
-                  className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-400 to-teal-400 text-slate-950 font-black text-xs flex items-center justify-center gap-2 shadow-lg cursor-pointer"
+                  className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-black text-xs flex items-center justify-center gap-2 shadow-lg cursor-pointer hover:opacity-95"
                 >
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>Mark Completed (+{selectedLesson.xpReward} XP)</span>
+                  <CheckCircle2 className="w-4 h-4 text-white" />
+                  <span className="text-white font-bold">Mark Completed (+{selectedLesson.xpReward} XP)</span>
                 </button>
               </div>
             )}
@@ -462,10 +462,10 @@ export const LearnView: React.FC = () => {
                         <div className="p-4 rounded-2xl bg-cyan-500/10 border border-cyan-500/25 text-center space-y-2">
                           <button
                             onClick={() => speakText(q.audioText!, activeJourney?.targetLanguage)}
-                            className="py-2 px-4 rounded-xl bg-cyan-500 text-slate-950 font-bold text-xs inline-flex items-center gap-2 shadow-md cursor-pointer hover:opacity-95"
+                            className="py-2 px-4 rounded-xl bg-cyan-500 text-white font-bold text-xs inline-flex items-center gap-2 shadow-md cursor-pointer hover:opacity-95"
                           >
-                            <Volume2 className="w-4 h-4" />
-                            <span>Listen to Phrase</span>
+                            <Volume2 className="w-4 h-4 text-white" />
+                            <span className="text-white">Listen to Phrase</span>
                           </button>
                         </div>
                       )}
@@ -520,7 +520,7 @@ export const LearnView: React.FC = () => {
                               playFeedbackSound('stop');
                             }
                           }}
-                          className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-400 to-teal-400 text-slate-950 font-black text-xs disabled:opacity-40 cursor-pointer shadow-md"
+                          className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-black text-xs disabled:opacity-40 cursor-pointer shadow-md"
                         >
                           Check Answer
                         </button>
@@ -535,10 +535,10 @@ export const LearnView: React.FC = () => {
                               handleCompleteLesson(selectedLesson.id);
                             }
                           }}
-                          className="w-full py-3.5 rounded-2xl bg-emerald-500 text-slate-950 font-black text-xs cursor-pointer shadow-md flex items-center justify-center gap-2"
+                          className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-black text-xs cursor-pointer shadow-md flex items-center justify-center gap-2"
                         >
-                          <span>{currentQuizIndex + 1 < selectedLesson.quizQuestions!.length ? 'Next Question' : 'Complete Quiz'}</span>
-                          <ArrowRight className="w-4 h-4" />
+                          <span className="text-white font-bold">{currentQuizIndex + 1 < selectedLesson.quizQuestions!.length ? 'Next Question' : 'Complete Quiz'}</span>
+                          <ArrowRight className="w-4 h-4 text-white" />
                         </button>
                       )}
                     </div>
@@ -569,7 +569,7 @@ export const LearnView: React.FC = () => {
                             isMatched
                               ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400 line-through opacity-60'
                               : isSelected
-                              ? 'bg-emerald-500 text-slate-950 font-black'
+                              ? 'bg-emerald-500 text-white font-black shadow-md'
                               : 'glass-pill text-slate-200'
                           }`}
                         >
@@ -606,10 +606,10 @@ export const LearnView: React.FC = () => {
                 {Object.keys(matchedPairs).length === (selectedLesson.miniGameData.items?.length || 0) && (
                   <button
                     onClick={() => handleCompleteLesson(selectedLesson.id)}
-                    className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-400 to-teal-400 text-slate-950 font-black text-xs shadow-lg cursor-pointer flex items-center justify-center gap-2"
+                    className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-black text-xs shadow-lg cursor-pointer flex items-center justify-center gap-2"
                   >
-                    <CheckCircle2 className="w-4 h-4" />
-                    <span>Great Job! Claim +{selectedLesson.xpReward} XP</span>
+                    <CheckCircle2 className="w-4 h-4 text-white" />
+                    <span className="text-white font-bold">Great Job! Claim +{selectedLesson.xpReward} XP</span>
                   </button>
                 )}
               </div>
@@ -629,7 +629,7 @@ export const LearnView: React.FC = () => {
                     <button
                       key={i}
                       onClick={() => setBuiltSentence(prev => prev.filter((_, idx) => idx !== i))}
-                      className="px-3 py-1.5 rounded-xl bg-emerald-500 text-slate-950 font-bold text-xs cursor-pointer shadow-sm"
+                      className="px-3 py-1.5 rounded-xl bg-emerald-500 text-white font-bold text-xs cursor-pointer shadow-sm"
                     >
                       {w}
                     </button>
@@ -661,7 +661,7 @@ export const LearnView: React.FC = () => {
                       playFeedbackSound('stop');
                     }
                   }}
-                  className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-400 to-teal-400 text-slate-950 font-black text-xs cursor-pointer shadow-md"
+                  className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-black text-xs cursor-pointer shadow-md hover:opacity-95"
                 >
                   Verify Sentence
                 </button>
@@ -680,7 +680,7 @@ export const LearnView: React.FC = () => {
                 </div>
                 <button
                   onClick={() => handleCompleteLesson(selectedLesson.id)}
-                  className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-400 to-teal-400 text-slate-950 font-black text-xs cursor-pointer shadow-md"
+                  className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-black text-xs cursor-pointer shadow-md hover:opacity-95"
                 >
                   Complete Review (+{selectedLesson.xpReward} XP)
                 </button>

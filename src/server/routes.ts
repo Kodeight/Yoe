@@ -117,27 +117,29 @@ apiRouter.get('/scenarios/:id', (req: Request, res: Response) => {
 // AI Chat Interaction
 apiRouter.post('/ai/chat', async (req: Request, res: Response) => {
   try {
-    const { journeyId, scenarioId, userMessage, conversationHistory } = req.body;
+    const { journeyId, scenarioId, userMessage, conversationHistory, targetLanguage, supportLanguage, cefrLevel } = req.body;
 
-    const journey = db.getJourney(journeyId) || {
+    const scenario = db.getScenarioById(scenarioId) || db.getScenarios()[0];
+    const existingJourney = journeyId ? db.getJourney(journeyId) : null;
+
+    const journey: LearningJourney = existingJourney || {
       id: journeyId || 'temp_jrn',
       userId: 'temp_user',
-      targetLanguage: 'en',
-      supportLanguage: 'en',
-      cefrLevel: 'A1',
+      targetLanguage: (targetLanguage || scenario?.targetLanguage || 'es') as any,
+      supportLanguage: (supportLanguage || 'en') as any,
+      cefrLevel: (cefrLevel || scenario?.cefrLevel || 'A1') as any,
       streakDays: 0,
       totalMinutesSpoken: 0,
       points: 0,
       createdAt: new Date().toISOString()
     };
 
-    const scenario = db.getScenarioById(scenarioId) || db.getScenarios()[0];
-    const recentMistakes = journey ? db.getMistakes(journey.id) : [];
+    const recentMistakes = existingJourney ? db.getMistakes(existingJourney.id) : [];
 
     // Save user message
-    db.saveChatMessage(scenarioId, {
+    db.saveChatMessage(scenarioId || scenario.id, {
       id: `msg_usr_${Date.now()}`,
-      sessionId: scenarioId,
+      sessionId: scenarioId || scenario.id,
       sender: 'user',
       text: userMessage,
       timestamp: new Date().toISOString()
@@ -153,9 +155,9 @@ apiRouter.post('/ai/chat', async (req: Request, res: Response) => {
     });
 
     // Save tutor message
-    const tutorMsg = db.saveChatMessage(scenarioId, {
+    const tutorMsg = db.saveChatMessage(scenarioId || scenario.id, {
       id: `msg_ttr_${Date.now()}`,
-      sessionId: scenarioId,
+      sessionId: scenarioId || scenario.id,
       sender: 'tutor',
       text: aiResult.response,
       translation: aiResult.translation,
@@ -166,7 +168,7 @@ apiRouter.post('/ai/chat', async (req: Request, res: Response) => {
     });
 
     // Save correction if present
-    if (aiResult.correction && journey.id) {
+    if (aiResult.correction && journey.id && existingJourney) {
       db.addMistake(journey.id, {
         category: 'grammar',
         pattern: aiResult.correction.grammarNote || 'Language structure',
@@ -180,7 +182,7 @@ apiRouter.post('/ai/chat', async (req: Request, res: Response) => {
     }
 
     // Save vocabulary items if present
-    if (aiResult.vocabulary && journey.id) {
+    if (aiResult.vocabulary && journey.id && existingJourney) {
       for (const item of aiResult.vocabulary) {
         db.addVocabulary(journey.id, {
           word: item.word,
@@ -199,14 +201,13 @@ apiRouter.post('/ai/chat', async (req: Request, res: Response) => {
     }
 
     // Award real practice metrics
-    if (journey.id && db.getJourney(journey.id)) {
-      const liveJourney = db.getJourney(journey.id)!;
-      liveJourney.points = (liveJourney.points || 0) + 15;
-      liveJourney.totalMinutesSpoken = (liveJourney.totalMinutesSpoken || 0) + 1;
-      if (liveJourney.streakDays === 0) {
-        liveJourney.streakDays = 1;
+    if (existingJourney) {
+      existingJourney.points = (existingJourney.points || 0) + 15;
+      existingJourney.totalMinutesSpoken = (existingJourney.totalMinutesSpoken || 0) + 1;
+      if (existingJourney.streakDays === 0) {
+        existingJourney.streakDays = 1;
       }
-      db.saveJourney(liveJourney);
+      db.saveJourney(existingJourney);
     }
 
     res.json({
@@ -216,8 +217,8 @@ apiRouter.post('/ai/chat', async (req: Request, res: Response) => {
   } catch (err: any) {
     console.error('Error handling AI chat route:', err);
     res.status(500).json({
-      error: 'Failed to process AI chat message',
-      details: err.message
+      error: "Yoe couldn't connect right now. Please try again.",
+      details: err?.message || 'Gemini service error'
     });
   }
 });

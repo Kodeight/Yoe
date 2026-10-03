@@ -64,6 +64,7 @@ export interface Scenario {
   imageUrl?: string;
   objectives: ScenarioObjective[];
   initialGreeting: string;
+  initialGreetingTranslation?: string;
   vocabularyDomain: string[];
 }
 

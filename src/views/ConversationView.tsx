@@ -116,7 +116,7 @@ export const ConversationView: React.FC = () => {
         sessionId: activeScenario.id,
         sender: 'tutor',
         text: activeScenario.initialGreeting,
-        translation: 'Greetings! Let us begin our scenario conversation.',
+        translation: activeScenario.initialGreetingTranslation || (activeJourney.targetLanguage === 'es' ? 'Good afternoon! Welcome to Hotel Gran Vía. Do you have a reservation with us?' : activeScenario.initialGreeting),
         timestamp: new Date().toISOString()
       };
       setMessages([initialGreetingMsg]);
@@ -250,13 +250,16 @@ export const ConversationView: React.FC = () => {
           journeyId: activeJourney.id,
           scenarioId: activeScenario.id,
           userMessage: text.trim(),
-          conversationHistory: messages.map(m => ({ sender: m.sender, text: m.text }))
+          conversationHistory: messages.map(m => ({ sender: m.sender, text: m.text })),
+          targetLanguage: activeJourney.targetLanguage,
+          supportLanguage: activeJourney.supportLanguage,
+          cefrLevel: activeJourney.cefrLevel
         })
       });
 
       const data = await res.json();
 
-      if (data.message) {
+      if (res.ok && data.message) {
         setMessages(prev => [...prev, data.message]);
         playNotificationSound();
 
@@ -295,9 +298,13 @@ export const ConversationView: React.FC = () => {
         if (data.aiResponse?.vocabulary) {
           setSessionVocab(prev => [...prev, ...data.aiResponse.vocabulary]);
         }
+      } else {
+        const errorMsg = data?.error || "Yoe couldn't connect right now. Please try again.";
+        setLiveError(errorMsg);
       }
     } catch (err) {
       console.error('AI chat processing error:', err);
+      setLiveError("Yoe couldn't connect right now. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -340,10 +347,10 @@ export const ConversationView: React.FC = () => {
           <div className="pt-3 space-y-2.5">
             <button
               onClick={() => setActiveView('explore')}
-              className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 text-slate-950 font-black text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 cursor-pointer hover:opacity-95"
+              className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 text-white font-black text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 cursor-pointer hover:opacity-95"
             >
-              <Compass className="w-4 h-4" />
-              <span>Explore Scenario Worlds</span>
+              <Compass className="w-4 h-4 text-white" />
+              <span className="text-white font-bold">Explore Scenario Worlds</span>
             </button>
 
             {fallbackScenario && (
@@ -372,10 +379,10 @@ export const ConversationView: React.FC = () => {
   const currentEnergy = isLiveApiActive ? liveEnergy : audioEnergy;
 
   return (
-    <div className="flex flex-col h-[100dvh] max-w-md mx-auto bg-[var(--bg-primary)] text-slate-100 relative overflow-hidden">
+    <div className="flex flex-col h-[100dvh] w-full max-w-lg mx-auto bg-[var(--app-background)] text-[var(--text-primary)] relative overflow-hidden">
 
       {/* Top Compact Scenario Glass Header Bar */}
-      <div className="shrink-0 z-30 glass-header px-4 py-3 flex items-center justify-between safe-top-padding">
+      <div className="shrink-0 z-30 glass-header px-4 py-3 flex items-center justify-between safe-top-padding border-b border-white/10 dark:border-white/10 light-mode:border-slate-200">
         <button
           onClick={() => {
             if (liveSessionRef.current) {
@@ -391,15 +398,15 @@ export const ConversationView: React.FC = () => {
           <ArrowLeft className="w-4 h-4" />
         </button>
 
-        <div className="flex items-center gap-2 min-w-0">
-          <div className="min-w-0">
-            <h2 className="text-xs font-black text-slate-100 dark:text-slate-100 light-mode:text-slate-900 flex items-center gap-1.5 truncate">
+        <div className="flex items-center gap-2 min-w-0 px-2">
+          <div className="min-w-0 text-center">
+            <h2 className="text-xs font-black text-slate-100 dark:text-slate-100 light-mode:text-slate-900 flex items-center justify-center gap-1.5 truncate">
               <span>YOE</span>
-              <span className="px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-400 text-[9px] font-extrabold uppercase">
-                {activeJourney?.cefrLevel || 'A1'}
+              <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 text-[9px] font-extrabold uppercase">
+                {activeJourney?.cefrLevel || activeScenario.cefrLevel || 'A1'}
               </span>
             </h2>
-            <p className="text-[10px] text-slate-400 dark:text-slate-400 light-mode:text-slate-500 truncate max-w-[170px]">
+            <p className="text-[10px] text-slate-400 dark:text-slate-400 light-mode:text-slate-500 truncate max-w-[180px]">
               {activeScenario.title}
             </p>
           </div>
@@ -416,18 +423,19 @@ export const ConversationView: React.FC = () => {
             <MessageSquare className="w-3.5 h-3.5" />
           </button>
 
+          {/* Green Finish Button with White Text & White Icon */}
           <button
             onClick={handleOpenSummary}
-            className="px-2.5 py-1 rounded-full bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/25 text-[10px] font-bold text-emerald-400 flex items-center gap-1 cursor-pointer transition-colors"
+            className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-[10px] font-bold text-white flex items-center gap-1.5 cursor-pointer shadow-md shadow-emerald-500/20 transition-all active:scale-95"
             title="Complete and review session"
           >
-            <Award className="w-3.5 h-3.5" />
-            <span>Finish</span>
+            <Award className="w-3.5 h-3.5 text-white" />
+            <span className="text-white font-bold">Finish</span>
           </button>
 
           <button
             onClick={() => setShowMissions(!showMissions)}
-            className="px-2 py-1 rounded-full glass-pill text-[10px] font-bold text-emerald-400 flex items-center gap-1 cursor-pointer"
+            className="px-2 py-1.5 rounded-xl glass-pill text-[10px] font-bold text-emerald-400 flex items-center gap-1 cursor-pointer"
           >
             <Target className="w-3 h-3 text-emerald-400" />
             <span>{completedCount}/{totalObjectives}</span>
@@ -593,16 +601,16 @@ export const ConversationView: React.FC = () => {
 
           <button
             onClick={handleStartConversation}
-            className="w-full max-w-xs py-4 px-6 rounded-2xl bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 text-slate-950 font-black text-sm flex items-center justify-center gap-2.5 shadow-xl shadow-emerald-500/25 hover:shadow-emerald-500/40 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer"
+            className="w-full max-w-xs py-4 px-6 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 text-white font-black text-sm flex items-center justify-center gap-2.5 shadow-xl shadow-emerald-500/25 hover:shadow-emerald-500/40 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer"
           >
-            <Play className="w-5 h-5 fill-current" />
-            <span>Start Conversation</span>
+            <Play className="w-5 h-5 fill-current text-white" />
+            <span className="text-white font-extrabold">Start Conversation</span>
           </button>
         </div>
       ) : (
         /* Main Conversation Messages Scroll Area after Start */
         showTranscript ? (
-          <div className="flex-1 overflow-y-auto px-4 py-2 space-y-3.5 no-scrollbar pb-3">
+          <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3.5 no-scrollbar">
             {messages.map((msg) => {
               const isUser = msg.sender === 'user';
               const isCurrentlyPlaying = playingMsgId === msg.id && isSpeaking;
@@ -612,12 +620,12 @@ export const ConversationView: React.FC = () => {
                   <div
                     className={`max-w-[85%] rounded-3xl p-3.5 text-xs shadow-md transition-all ${
                       isUser
-                        ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 font-semibold rounded-br-sm'
+                        ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-semibold rounded-br-sm'
                         : 'glass-card text-slate-100 dark:text-slate-100 light-mode:text-slate-900 rounded-bl-sm'
                     }`}
                   >
                     <div className="flex items-center justify-between gap-3 mb-1">
-                      <span className={`text-[10px] font-extrabold uppercase tracking-wider ${isUser ? 'text-slate-900/70' : 'text-emerald-400'}`}>
+                      <span className={`text-[10px] font-extrabold uppercase tracking-wider ${isUser ? 'text-white/80' : 'text-emerald-400'}`}>
                         {isUser ? 'You' : 'Yoe'}
                       </span>
                       {!isUser && (
@@ -710,7 +718,7 @@ export const ConversationView: React.FC = () => {
               </div>
             )}
 
-            <div ref={messagesEndRef} />
+            <div ref={messagesEndRef} className="h-2" />
           </div>
         ) : (
           <div className="flex-1 flex items-center justify-center p-4">
@@ -726,7 +734,7 @@ export const ConversationView: React.FC = () => {
 
       {/* Structured Bottom Conversational Composer within Chat Viewport */}
       {hasStartedConversation && (
-        <div className="shrink-0 px-4 pt-1 pb-[calc(var(--navbar-height,64px)+max(env(safe-area-inset-bottom,0px),0.5rem))] z-30">
+        <div className="shrink-0 px-4 pt-1 pb-[max(env(safe-area-inset-bottom,0px),0.75rem)] z-30">
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -756,7 +764,7 @@ export const ConversationView: React.FC = () => {
               }}
               className={`p-3 rounded-2xl transition-all cursor-pointer shadow-lg shrink-0 ${
                 isSpeaking || liveState === 'speaking'
-                  ? 'bg-amber-500 text-slate-950 font-bold hover:bg-amber-400 animate-pulse'
+                  ? 'bg-amber-500 text-white font-bold hover:bg-amber-400 animate-pulse'
                   : isListening || liveState === 'listening'
                   ? 'bg-rose-500 text-white animate-pulse shadow-rose-500/40'
                   : 'glass-pill text-emerald-400 hover:border-emerald-500/40 hover:bg-emerald-500/10'
@@ -764,9 +772,9 @@ export const ConversationView: React.FC = () => {
               title={isSpeaking || liveState === 'speaking' ? 'Tap to interrupt' : isListening ? 'Stop & Send' : 'Speak with microphone'}
             >
               {isSpeaking || liveState === 'speaking' ? (
-                <Square className="w-5 h-5 fill-current" />
+                <Square className="w-5 h-5 fill-current text-white" />
               ) : isListening || liveState === 'listening' ? (
-                <MicOff className="w-5 h-5" />
+                <MicOff className="w-5 h-5 text-white" />
               ) : (
                 <Mic className="w-5 h-5" />
               )}
@@ -787,13 +795,13 @@ export const ConversationView: React.FC = () => {
               className="flex-1 bg-slate-950/60 dark:bg-slate-950/60 light-mode:bg-white border border-white/10 dark:border-white/10 light-mode:border-slate-200 rounded-2xl px-4 py-2.5 text-xs text-slate-100 dark:text-slate-100 light-mode:text-slate-900 placeholder-slate-500 focus:outline-none focus:border-emerald-400 transition-colors"
             />
 
-            {/* Send Button */}
+            {/* Send Button with White Icon */}
             <button
               type="submit"
               disabled={!inputText.trim() || isLoading}
-              className="p-3 rounded-2xl bg-gradient-to-r from-emerald-400 to-teal-400 text-slate-950 disabled:opacity-40 transition-all cursor-pointer shadow-md shrink-0"
+              className="p-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white disabled:opacity-40 transition-all cursor-pointer shadow-md shrink-0 flex items-center justify-center hover:opacity-95"
             >
-              <Send className="w-4 h-4" />
+              <Send className="w-4 h-4 text-white" />
             </button>
           </form>
         </div>
@@ -824,7 +832,7 @@ export const ConversationView: React.FC = () => {
                 sessionId: activeScenario.id,
                 sender: 'tutor',
                 text: activeScenario.initialGreeting,
-                translation: 'Greetings! Let us begin our scenario conversation.',
+                translation: activeScenario.initialGreetingTranslation || (activeJourney?.targetLanguage === 'es' ? 'Good afternoon! Welcome to Hotel Gran Vía. Do you have a reservation with us?' : activeScenario.initialGreeting),
                 timestamp: new Date().toISOString()
               }
             ]);

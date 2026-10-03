@@ -44,6 +44,7 @@ var STARTER_SCENARIOS = [
     imageUrl: "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=600&q=80",
     vocabularyDomain: ["name", "from", "hobby", "pleasure", "nice to meet you"],
     initialGreeting: "Hi there! Mind if I sit here? I'm Maya. What's your name and where are you from?",
+    initialGreetingTranslation: "Hi there! Mind if I sit here? I'm Maya. What's your name and where are you from?",
     objectives: [
       { id: "obj_intro_1", text: "Share your name and country or city of origin", completed: false, hint: "Say: Hi Maya, my name is... and I am from..." },
       { id: "obj_intro_2", text: "Tell her what you like doing in your free time", completed: false, hint: "Say: In my free time, I like..." },
@@ -64,6 +65,7 @@ var STARTER_SCENARIOS = [
     imageUrl: "https://images.unsplash.com/photo-1550966871-3ed3cdb5ed0c?auto=format&fit=crop&w=600&q=80",
     vocabularyDomain: ["croissant", "caf\xE9 au lait", "l'addition", "s'il vous pla\xEEt", "merci"],
     initialGreeting: "Bonjour ! Bienvenue au Petit Caf\xE9. Vous d\xE9sirez une table en terrasse ou \xE0 l'int\xE9rieur ?",
+    initialGreetingTranslation: "Hello! Welcome to Le Petit Caf\xE9. Would you prefer a table on the terrace or inside?",
     objectives: [
       { id: "obj_fr_1", text: "Greet the waiter politely and state your seating preference", completed: false, hint: "Say: Bonjour! Je voudrais une table en terrasse, s'il vous pla\xEEt." },
       { id: "obj_fr_2", text: "Order a croissant and a coffee", completed: false, hint: "Say: Je voudrais un croissant et un caf\xE9 au lait, s'il vous pla\xEEt." },
@@ -76,7 +78,7 @@ var STARTER_SCENARIOS = [
     description: "Check into your boutique hotel room, ask about breakfast hours and WiFi details in Spanish.",
     category: "travel",
     targetLanguage: "es",
-    cefrLevel: "A2",
+    cefrLevel: "A1",
     location: "Hotel Gran V\xEDa, Madrid",
     characterName: "Sofia",
     characterRole: "Hotel Receptionist",
@@ -84,6 +86,7 @@ var STARTER_SCENARIOS = [
     imageUrl: "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=600&q=80",
     vocabularyDomain: ["reserva", "habitaci\xF3n", "desayuno", "clave de wifi", "piso"],
     initialGreeting: "\xA1Buenas tardes! Bienvenido al Hotel Gran V\xEDa. \xBFTiene una reserva con nosotros?",
+    initialGreetingTranslation: "Good afternoon! Welcome to Hotel Gran V\xEDa. Do you have a reservation with us?",
     objectives: [
       { id: "obj_es_1", text: "Confirm reservation under your name", completed: false, hint: "Say: Tengo una reserva a nombre de..." },
       { id: "obj_es_2", text: "Ask for the WiFi password and breakfast time", completed: false, hint: "Say: \xBFCu\xE1l es la contrase\xF1a del WiFi y a qu\xE9 hora es el desayuno?" },
@@ -485,20 +488,12 @@ var db = new PersistentDatabase();
 
 // src/server/aiService.ts
 import { GoogleGenAI, Type } from "@google/genai";
-var apiKey = process.env.GEMINI_API_KEY || "AQ.Ab8RN6JQUS-fp1GOZb_2wVDFraAO48nyMYnf4cwhvvkGVCqg-g";
-var CANDIDATE_CHAT_MODELS = ["gemini-3.1-flash-lite", "gemini-3.8-flash", "gemini-flash-latest", "gemini-2.0-flash"];
+var ai = new GoogleGenAI({});
+var CANDIDATE_CHAT_MODELS = ["gemini-3.1-flash-lite", "gemini-flash-latest", "gemini-3.8-flash"];
 var ttsModel = "gemini-3.8-flash-lite-tts";
 var LIVE_MODEL = "gemini-3.8-live";
-var ai = new GoogleGenAI({
-  apiKey,
-  httpOptions: {
-    headers: {
-      "User-Agent": "aistudio-build"
-    }
-  }
-});
 function getCharacterVoice(characterName, role, genderPreference) {
-  const femaleRoles = ["receptionist", "barista", "waitress", "guide", "friend", "hostess", "doctor", "teacher", "clerk", "elena", "sofia", "clara", "sarah", "marie", "fatima"];
+  const femaleRoles = ["receptionist", "barista", "waitress", "guide", "friend", "hostess", "doctor", "teacher", "clerk", "elena", "sofia", "clara", "sarah", "marie", "fatima", "maya"];
   const nameOrRole = `${characterName} ${role}`.toLowerCase();
   const isFemale = femaleRoles.some((r) => nameOrRole.includes(r)) || genderPreference === "female";
   return isFemale ? "Kore" : "Puck";
@@ -513,47 +508,30 @@ You are YOE, the intelligent, warm, highly adaptive bilingual language-learning 
 Your universal identity across the entire application is always Yoe, the language-learning tutor.
 In this active practice scenario, you roleplay as "${scenario.characterName}" (${scenario.characterRole}) at ${scenario.location} in the scenario "${scenario.title}" solely within the context of roleplay to provide authentic, immersive conversational practice.
 
-[PEDAGOGICAL MISSION & SUPPORT LANGUAGE RULES - MANDATORY]
+[PEDAGOGICAL MISSION & MANDATORY LANGUAGE RULES]
 1. DESIRED LEARNING LANGUAGE: ${journey.targetLanguage.toUpperCase()} (This is the target language the learner wants to learn, practice, and master).
 2. SUPPORT / TEACHING / EXPLANATION LANGUAGE: ${journey.supportLanguage.toUpperCase()} (This is the language you use to teach, explain, translate, clarify grammar or vocabulary, and guide the learner).
-3. UI LANGUAGE: English / configured application interface language.
+3. CEFR Level: ${journey.cefrLevel || "A1"}
 
-[STRICT TOPIC INTEGRITY - NEVER DRIFT OFF TOPIC]
-- The conversation MUST stay strictly focused on the current scenario theme: "${scenario.title}" at ${scenario.location}.
-- Do NOT drift off topic or indulge in unrelated tangents or meta-discussions.
-- If the learner attempts to steer the conversation away from the scenario, warmly and politely acknowledge them, briefly clarify in ${journey.supportLanguage.toUpperCase()} if needed, and immediately bridge the dialogue back to the scenario setting and its communication objectives.
-
-[TEACHING USING THE SUPPORT LANGUAGE]
-- Speak primarily in ${journey.targetLanguage.toUpperCase()} to immerse the learner in the scenario.
-- Whenever the learner speaks in ${journey.supportLanguage.toUpperCase()}, asks for help ("How do I say...", "\xBFC\xF3mo se dice...?", "What does that mean?", "Can you explain...", etc.), or shows difficulty:
-  * IMMEDIATELY use ${journey.supportLanguage.toUpperCase()} to teach, explain the vocabulary, or explain the grammar rule clearly.
-  * After providing the clear explanation in ${journey.supportLanguage.toUpperCase()}, prompt them to try saying it in ${journey.targetLanguage.toUpperCase()}.
-- For beginner learners (A1/A2): Keep target language dialogue clear and bite-sized, and provide helpful coaching in ${journey.supportLanguage.toUpperCase()}.
-- Always provide accurate translations in ${journey.supportLanguage.toUpperCase()} in the "translation" field.
-- Always provide gentle, encouraging corrections and explanations in ${journey.supportLanguage.toUpperCase()} in the "correction" field.
-
-[LEARNER PROFILE & CEFR LEVEL]
-Target Language to Learn: ${journey.targetLanguage.toUpperCase()}
-Support/Explanation Language: ${journey.supportLanguage.toUpperCase()}
-Working CEFR Level: ${journey.cefrLevel}
+[CONVERSATION RULES - STRICT ADHERENCE]
+- Directly and contextually respond to the learner's actual utterance.
+- If the learner asks your name, introduce yourself as ${scenario.characterName}.
+- If the learner asks if you speak English or asks for clarification, respond helpfully in ${journey.targetLanguage.toUpperCase()} and provide the explanation.
+- If the learner states what they need (e.g., booking a room, ordering food, checking in), advance the scenario dialogue naturally.
+- Keep character dialogue natural, concise, and appropriate for ${journey.cefrLevel || "A1"} level in ${journey.targetLanguage.toUpperCase()}.
+- ALWAYS provide an accurate, natural translation of your response in ${journey.supportLanguage.toUpperCase()} in the "translation" field.
+- If the learner makes an obvious grammatical or vocabulary mistake, provide a gentle note in the "correction" field.
+- Provide 2-3 relevant suggested responses in "suggestedNextReplies" with translations in ${journey.supportLanguage.toUpperCase()}.
+- PROGRESS OBJECTIVES: Check if the learner satisfied any of the scenario objectives:
+${scenario.objectives.map((o) => `  * [ID: ${o.id}] ${o.text}`).join("\n")}
+  List satisfied IDs in "completedObjectiveIds".
 ${mistakesContext}
-
-[ADAPTIVE BILINGUAL TUTORING BEHAVIOR]
-1. RECASTING OVER HARSH CORRECTION:
-   - Never interrupt or lecture during the conversational turn.
-   - Recast mistakes naturally in your response in ${journey.targetLanguage.toUpperCase()} so the learner hears the correct phrasing.
-   - Record explicit corrections with clear explanations in ${journey.supportLanguage.toUpperCase()} in the structured JSON.
-2. NATURAL REALISTIC DIALOGUE:
-   - Keep character dialogue natural, warm, and appropriate to the role (${scenario.characterRole}).
-3. INVISIBLE SCENARIO OBJECTIVES:
-${scenario.objectives.map((o) => `   * [ID: ${o.id}] ${o.text}`).join("\n")}
-   - Progress through these objectives naturally during conversation. List any satisfied objective IDs in "completedObjectiveIds".
 `.trim();
 }
 async function processScenarioTurn(req) {
   const { scenario, journey, conversationHistory, userMessage, recentMistakes } = req;
   const systemInstruction = buildConversationSystemInstruction(scenario, journey, recentMistakes);
-  const formattedHistory = conversationHistory.slice(-12).map((m) => `${m.sender.toUpperCase()}: ${m.text}`).join("\n");
+  const formattedHistory = conversationHistory.slice(-10).map((m) => `${m.sender.toUpperCase()}: ${m.text}`).join("\n");
   const userPrompt = `
 CONVERSATION SO FAR:
 ${formattedHistory || "(Start of conversation)"}
@@ -561,8 +539,9 @@ ${formattedHistory || "(Start of conversation)"}
 LATEST LEARNER UTTERANCE:
 "${userMessage}"
 
-Respond as Yoe (roleplaying as ${scenario.characterName}) in authentic ${journey.targetLanguage.toUpperCase()}. Stay strictly on topic for the scenario "${scenario.title}". Teach and explain using ${journey.supportLanguage.toUpperCase()} whenever helpful. Return strictly JSON adhering to the schema.
+Respond as Yoe (roleplaying as ${scenario.characterName}) in authentic ${journey.targetLanguage.toUpperCase()} for scenario "${scenario.title}" at ${scenario.location}. Respond directly to what the learner said. Return strictly JSON.
 `.trim();
+  let lastError = null;
   for (const modelCandidate of CANDIDATE_CHAT_MODELS) {
     try {
       const aiResult = await ai.models.generateContent({
@@ -641,56 +620,16 @@ Respond as Yoe (roleplaying as ${scenario.characterName}) in authentic ${journey
             parsed.audioBase64 = audioBase64;
           }
         } catch (audioErr) {
-          console.warn("Native speech synthesis note (continuing with text):", audioErr);
+          console.warn("Native speech synthesis note (continuing with text response):", audioErr);
         }
         return parsed;
       }
     } catch (modelErr) {
-      console.warn(`Model ${modelCandidate} note (${modelErr?.message || modelErr}), trying next candidate...`);
+      lastError = modelErr;
+      console.warn(`Model ${modelCandidate} error (${modelErr?.message || modelErr}), trying next candidate...`);
     }
   }
-  const lowerMsg = userMessage.toLowerCase().trim();
-  let dynamicResponse = "";
-  let dynamicTranslation = "";
-  if (journey.targetLanguage === "es") {
-    if (lowerMsg.includes("hola") || lowerMsg.includes("me llamo") || lowerMsg.includes("soy") || lowerMsg.includes("name") || lowerMsg.includes("hello")) {
-      dynamicResponse = `\xA1Hola! Mucho gusto en conocerte. Yo soy ${scenario.characterName}, ${scenario.characterRole} aqu\xED en ${scenario.location}. \xBFEn qu\xE9 te puedo ayudar hoy?`;
-      dynamicTranslation = `Hello! Nice to meet you. I am ${scenario.characterName}, the ${scenario.characterRole} here at ${scenario.location}. How can I help you today?`;
-    } else if (lowerMsg.includes("reserva") || lowerMsg.includes("hotel") || lowerMsg.includes("habitaci\xF3n") || lowerMsg.includes("room")) {
-      dynamicResponse = `\xA1Excelente! D\xE9jame revisar nuestro sistema para tu estad\xEDa. \xBFA qu\xE9 nombre est\xE1 tu reserva?`;
-      dynamicTranslation = `Excellent! Let me check our system for your stay. Under what name is your reservation?`;
-    } else if (lowerMsg.includes("caf\xE9") || lowerMsg.includes("cuenta") || lowerMsg.includes("mesa") || lowerMsg.includes("order")) {
-      dynamicResponse = `\xA1Por supuesto! Tenemos caf\xE9 reci\xE9n hecho y delicias tradicionales. \xBFTe gustar\xEDa algo para acompa\xF1ar?`;
-      dynamicTranslation = `Of course! We have fresh coffee and traditional treats. Would you like something to accompany it?`;
-    } else {
-      dynamicResponse = `\xA1Muy bien! Te escucho con atenci\xF3n en ${scenario.location}. Cu\xE9ntame, \xBFqu\xE9 te gustar\xEDa hacer a continuaci\xF3n?`;
-      dynamicTranslation = `Very well! I am listening attentively here at ${scenario.location}. Tell me, what would you like to do next?`;
-    }
-  } else {
-    dynamicResponse = `Hello! It is wonderful to speak with you at ${scenario.location}. Tell me more about what you would like to explore today!`;
-    dynamicTranslation = `Hello! It is wonderful to speak with you at ${scenario.location}. Tell me more about what you would like to explore today!`;
-  }
-  const fallbackResult = {
-    response: dynamicResponse,
-    translation: dynamicTranslation,
-    suggestedNextReplies: journey.targetLanguage === "es" ? [
-      { phrase: "\xBFPodr\xEDas darme una recomendaci\xF3n?", translation: "Could you give me a recommendation?" },
-      { phrase: "S\xED, me gustar\xEDa saber m\xE1s detalles.", translation: "Yes, I would like to know more details." },
-      { phrase: "\xA1Muchas gracias por la atenci\xF3n!", translation: "Thank you very much for the attention!" }
-    ] : [
-      { phrase: "Could you recommend something?", translation: "Could you recommend something?" },
-      { phrase: "Yes, that sounds great.", translation: "Yes, that sounds great." }
-    ]
-  };
-  try {
-    const voiceName = getCharacterVoice(scenario.characterName, scenario.characterRole);
-    const audioBase64 = await generateScenarioSpeech(fallbackResult.response, voiceName);
-    if (audioBase64) {
-      fallbackResult.audioBase64 = audioBase64;
-    }
-  } catch (e) {
-  }
-  return fallbackResult;
+  throw new Error(`Gemini API connection error: ${lastError?.message || "Service unavailable"}`);
 }
 async function generateScenarioSpeech(text, voiceName = "Kore") {
   if (!text || !text.trim()) return null;
@@ -740,32 +679,34 @@ ${answers.map((a, i) => `Q${i + 1}: ${a}`).join("\n")}
 
 Determine the learner's initial working CEFR level (A1, A2, B1, B2, C1, C2) and return structured JSON.
   `.trim();
-  try {
-    const res = await ai.models.generateContent({
-      model: CANDIDATE_CHAT_MODELS[0],
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            estimatedCefrLevel: {
-              type: Type.STRING,
-              enum: ["A1", "A2", "B1", "B2", "C1", "C2"]
+  for (const model of CANDIDATE_CHAT_MODELS) {
+    try {
+      const res = await ai.models.generateContent({
+        model,
+        contents: prompt,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              estimatedCefrLevel: {
+                type: Type.STRING,
+                enum: ["A1", "A2", "B1", "B2", "C1", "C2"]
+              },
+              strengths: { type: Type.ARRAY, items: { type: Type.STRING } },
+              focusAreas: { type: Type.ARRAY, items: { type: Type.STRING } },
+              welcomeMessage: { type: Type.STRING }
             },
-            strengths: { type: Type.ARRAY, items: { type: Type.STRING } },
-            focusAreas: { type: Type.ARRAY, items: { type: Type.STRING } },
-            welcomeMessage: { type: Type.STRING }
-          },
-          required: ["estimatedCefrLevel", "strengths", "focusAreas", "welcomeMessage"]
+            required: ["estimatedCefrLevel", "strengths", "focusAreas", "welcomeMessage"]
+          }
         }
+      });
+      if (res.text) {
+        return JSON.parse(res.text);
       }
-    });
-    if (res.text) {
-      return JSON.parse(res.text);
+    } catch (err) {
+      console.warn(`Calibration model ${model} error, trying next...`, err);
     }
-  } catch (err) {
-    console.error("Calibration error:", err);
   }
   return {
     estimatedCefrLevel: experienceLevel || "A1",
@@ -1127,23 +1068,24 @@ apiRouter.get("/scenarios/:id", (req, res) => {
 });
 apiRouter.post("/ai/chat", async (req, res) => {
   try {
-    const { journeyId, scenarioId, userMessage, conversationHistory } = req.body;
-    const journey = db.getJourney(journeyId) || {
+    const { journeyId, scenarioId, userMessage, conversationHistory, targetLanguage, supportLanguage, cefrLevel } = req.body;
+    const scenario = db.getScenarioById(scenarioId) || db.getScenarios()[0];
+    const existingJourney = journeyId ? db.getJourney(journeyId) : null;
+    const journey = existingJourney || {
       id: journeyId || "temp_jrn",
       userId: "temp_user",
-      targetLanguage: "en",
-      supportLanguage: "en",
-      cefrLevel: "A1",
+      targetLanguage: targetLanguage || scenario?.targetLanguage || "es",
+      supportLanguage: supportLanguage || "en",
+      cefrLevel: cefrLevel || scenario?.cefrLevel || "A1",
       streakDays: 0,
       totalMinutesSpoken: 0,
       points: 0,
       createdAt: (/* @__PURE__ */ new Date()).toISOString()
     };
-    const scenario = db.getScenarioById(scenarioId) || db.getScenarios()[0];
-    const recentMistakes = journey ? db.getMistakes(journey.id) : [];
-    db.saveChatMessage(scenarioId, {
+    const recentMistakes = existingJourney ? db.getMistakes(existingJourney.id) : [];
+    db.saveChatMessage(scenarioId || scenario.id, {
       id: `msg_usr_${Date.now()}`,
-      sessionId: scenarioId,
+      sessionId: scenarioId || scenario.id,
       sender: "user",
       text: userMessage,
       timestamp: (/* @__PURE__ */ new Date()).toISOString()
@@ -1155,9 +1097,9 @@ apiRouter.post("/ai/chat", async (req, res) => {
       userMessage,
       recentMistakes
     });
-    const tutorMsg = db.saveChatMessage(scenarioId, {
+    const tutorMsg = db.saveChatMessage(scenarioId || scenario.id, {
       id: `msg_ttr_${Date.now()}`,
-      sessionId: scenarioId,
+      sessionId: scenarioId || scenario.id,
       sender: "tutor",
       text: aiResult.response,
       translation: aiResult.translation,
@@ -1166,7 +1108,7 @@ apiRouter.post("/ai/chat", async (req, res) => {
       learningSignals: aiResult.learningSignals,
       vocabularyLearned: aiResult.vocabulary
     });
-    if (aiResult.correction && journey.id) {
+    if (aiResult.correction && journey.id && existingJourney) {
       db.addMistake(journey.id, {
         category: "grammar",
         pattern: aiResult.correction.grammarNote || "Language structure",
@@ -1178,7 +1120,7 @@ apiRouter.post("/ai/chat", async (req, res) => {
         resolved: false
       });
     }
-    if (aiResult.vocabulary && journey.id) {
+    if (aiResult.vocabulary && journey.id && existingJourney) {
       for (const item of aiResult.vocabulary) {
         db.addVocabulary(journey.id, {
           word: item.word,
@@ -1195,14 +1137,13 @@ apiRouter.post("/ai/chat", async (req, res) => {
         });
       }
     }
-    if (journey.id && db.getJourney(journey.id)) {
-      const liveJourney = db.getJourney(journey.id);
-      liveJourney.points = (liveJourney.points || 0) + 15;
-      liveJourney.totalMinutesSpoken = (liveJourney.totalMinutesSpoken || 0) + 1;
-      if (liveJourney.streakDays === 0) {
-        liveJourney.streakDays = 1;
+    if (existingJourney) {
+      existingJourney.points = (existingJourney.points || 0) + 15;
+      existingJourney.totalMinutesSpoken = (existingJourney.totalMinutesSpoken || 0) + 1;
+      if (existingJourney.streakDays === 0) {
+        existingJourney.streakDays = 1;
       }
-      db.saveJourney(liveJourney);
+      db.saveJourney(existingJourney);
     }
     res.json({
       message: tutorMsg,
@@ -1211,8 +1152,8 @@ apiRouter.post("/ai/chat", async (req, res) => {
   } catch (err) {
     console.error("Error handling AI chat route:", err);
     res.status(500).json({
-      error: "Failed to process AI chat message",
-      details: err.message
+      error: "Yoe couldn't connect right now. Please try again.",
+      details: err?.message || "Gemini service error"
     });
   }
 });

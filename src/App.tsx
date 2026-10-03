@@ -50,8 +50,8 @@ export default function App() {
         {activeView === 'grammar' && <GrammarView />}
       </main>
 
-      {/* Persistent Liquid Glass Bottom Navigation (Always Visible) */}
-      <BottomNav />
+      {/* Persistent Liquid Glass Bottom Navigation (Hidden during active Chat session) */}
+      {!isDedicatedChat && <BottomNav />}
 
       {/* Authentication Modal / Overlay if prompted */}
       {showAuthModal && (
