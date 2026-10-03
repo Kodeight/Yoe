@@ -1000,7 +1000,7 @@ export const ConversationView: React.FC = () => {
                   ? t.tapToInterrupt
                   : t.replyToYoe
               }
-              className="flex-1 bg-slate-100 dark:bg-slate-900/80 light-mode:bg-slate-100 border border-slate-200 dark:border-white/10 light-mode:border-slate-200 rounded-2xl px-4 py-2.5 text-xs text-[var(--text-primary)] placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-emerald-400 transition-colors"
+              className="flex-1 bg-slate-900 light-mode:bg-slate-100 border border-white/10 light-mode:border-slate-200 rounded-2xl px-4 py-2.5 text-xs text-[var(--text-primary)] placeholder-slate-400 focus:outline-none focus:border-emerald-400 transition-colors"
             />
 
             {/* Send Button */}

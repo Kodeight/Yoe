@@ -219,28 +219,26 @@ export const ProfileView: React.FC = () => {
       </div>
 
       {/* SECTION 4: CHILD NAVIGATION LINK TO SETTINGS */}
-      <div className="rounded-3xl glass-card p-2 shadow-md">
-        <button
-          type="button"
-          onClick={() => setActiveView('profile-settings')}
-          className="w-full p-3 rounded-2xl glass-pill hover:bg-emerald-500/10 hover:border-emerald-500/40 transition-all flex items-center justify-between cursor-pointer group"
-        >
-          <div className="flex items-center gap-3 text-start">
-            <div className="p-2 rounded-xl bg-emerald-500/15 text-emerald-400 group-hover:scale-105 transition-transform">
-              <Settings className="w-4 h-4" />
-            </div>
-            <div>
-              <h4 className="text-xs font-bold text-[var(--text-primary)] group-hover:text-emerald-400 transition-colors">
-                {t.openSettings}
-              </h4>
-              <p className="text-[10px] text-[var(--text-muted)]">
-                {t.settingsSubtitle}
-              </p>
-            </div>
+      <button
+        type="button"
+        onClick={() => setActiveView('profile-settings')}
+        className="w-full glass-card p-3.5 rounded-3xl hover:border-emerald-500/40 transition-all flex items-center justify-between cursor-pointer group shadow-md"
+      >
+        <div className="flex items-center gap-3 text-start">
+          <div className="p-2 rounded-xl bg-emerald-500/15 text-emerald-400 group-hover:scale-105 transition-transform">
+            <Settings className="w-4 h-4" />
           </div>
-          <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-emerald-400 group-hover:translate-x-0.5 rtl:group-hover:-translate-x-0.5 rtl-mirror transition-all" />
-        </button>
-      </div>
+          <div>
+            <h4 className="text-xs font-bold text-[var(--text-primary)] group-hover:text-emerald-400 transition-colors">
+              {t.openSettings}
+            </h4>
+            <p className="text-[10px] text-[var(--text-muted)]">
+              {t.settingsSubtitle}
+            </p>
+          </div>
+        </div>
+        <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-emerald-400 group-hover:translate-x-0.5 rtl:group-hover:-translate-x-0.5 rtl-mirror transition-all" />
+      </button>
 
     </div>
   );
