@@ -80,7 +80,7 @@ export const ScenariosView: React.FC = () => {
                   onError={(e) => {
                     e.currentTarget.src = 'https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?auto=format&fit=crop&w=600&q=80';
                   }}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  className="w-full h-full object-cover transition-opacity"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                 <span className="absolute bottom-1 left-1.5 text-xs">{scen.avatar}</span>
@@ -113,7 +113,7 @@ export const ScenariosView: React.FC = () => {
               </div>
 
               {/* Enter Button */}
-              <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-emerald-400 to-teal-400 flex items-center justify-center text-slate-950 shadow-md group-hover:scale-110 transition-transform shrink-0">
+              <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-emerald-400 to-teal-400 flex items-center justify-center text-slate-950 shadow-md shrink-0">
                 <Play className="w-4 h-4 fill-slate-950 ml-0.5" />
               </div>
             </div>

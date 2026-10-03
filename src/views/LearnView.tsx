@@ -89,45 +89,54 @@ export const LearnView: React.FC = () => {
   return (
     <div className="pb-24 pt-3 px-5 sm:px-6 max-w-md mx-auto space-y-4 animate-in fade-in duration-300">
 
-      {/* Top Segmented Navigation Tab Control with balanced button widths */}
-      <div className="p-1 rounded-2xl glass-pill flex items-center gap-1 shadow-md">
+      {/* Top Neutral Tab Navigation with Animated Left-to-Right Green Underline Bar */}
+      <div className="relative border-b border-white/10 dark:border-white/10 light-mode:border-slate-200 pb-2 flex items-center justify-between gap-1">
         <button
           type="button"
           onClick={() => setActiveTab('course')}
-          className={`flex-1 px-3 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+          className={`relative flex-1 py-2 px-2 text-xs font-bold transition-colors cursor-pointer flex items-center justify-center gap-1.5 ${
             activeTab === 'course'
-              ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-extrabold shadow-md'
-              : 'text-slate-400 dark:text-slate-400 light-mode:text-slate-600 hover:text-slate-100'
+              ? 'text-emerald-400 dark:text-emerald-400 light-mode:text-emerald-600 font-extrabold'
+              : 'text-slate-400 dark:text-slate-400 light-mode:text-slate-600 hover:text-slate-200'
           }`}
         >
           <BookOpen className="w-3.5 h-3.5" />
           <span>Course Units</span>
+          {activeTab === 'course' && (
+            <span className="absolute bottom-0 left-1 right-1 h-0.5 rounded-full bg-gradient-to-r from-emerald-400 to-teal-400 animate-underline-expand" />
+          )}
         </button>
 
         <button
           type="button"
           onClick={() => setActiveTab('review')}
-          className={`flex-1 px-3 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+          className={`relative flex-1 py-2 px-2 text-xs font-bold transition-colors cursor-pointer flex items-center justify-center gap-1.5 ${
             activeTab === 'review'
-              ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-extrabold shadow-md'
-              : 'text-slate-400 dark:text-slate-400 light-mode:text-slate-600 hover:text-slate-100'
+              ? 'text-emerald-400 dark:text-emerald-400 light-mode:text-emerald-600 font-extrabold'
+              : 'text-slate-400 dark:text-slate-400 light-mode:text-slate-600 hover:text-slate-200'
           }`}
         >
           <RotateCcw className="w-3.5 h-3.5" />
           <span>Adaptive Memory</span>
+          {activeTab === 'review' && (
+            <span className="absolute bottom-0 left-1 right-1 h-0.5 rounded-full bg-gradient-to-r from-emerald-400 to-teal-400 animate-underline-expand" />
+          )}
         </button>
 
         <button
           type="button"
           onClick={() => setActiveTab('progress')}
-          className={`px-2.5 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1 shrink-0 ${
+          className={`relative flex-1 py-2 px-2 text-xs font-bold transition-colors cursor-pointer flex items-center justify-center gap-1.5 ${
             activeTab === 'progress'
-              ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-extrabold shadow-md'
-              : 'text-slate-400 dark:text-slate-400 light-mode:text-slate-600 hover:text-slate-100'
+              ? 'text-emerald-400 dark:text-emerald-400 light-mode:text-emerald-600 font-extrabold'
+              : 'text-slate-400 dark:text-slate-400 light-mode:text-slate-600 hover:text-slate-200'
           }`}
         >
           <Target className="w-3.5 h-3.5" />
           <span>Progress</span>
+          {activeTab === 'progress' && (
+            <span className="absolute bottom-0 left-1 right-1 h-0.5 rounded-full bg-gradient-to-r from-emerald-400 to-teal-400 animate-underline-expand" />
+          )}
         </button>
       </div>
 

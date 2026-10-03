@@ -52,14 +52,15 @@ export const ProfileView: React.FC = () => {
           </p>
         </div>
 
-        {/* Quick Settings Icon Button - Theme Neutral Surface */}
+        {/* Quick Settings Icon Button - Reusing Shared Glass-Pill Button Style */}
         <button
+          type="button"
           onClick={() => setActiveView('profile-settings')}
-          className="p-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-transparent dark:hover:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 shadow-sm transition-all cursor-pointer"
+          className="p-2.5 rounded-2xl glass-pill hover:border-emerald-500/40 text-slate-300 dark:text-slate-300 light-mode:text-slate-700 transition-colors cursor-pointer shrink-0"
           title={t.openSettings}
           aria-label={t.openSettings}
         >
-          <Settings className="w-4 h-4 text-slate-700 dark:text-slate-300" />
+          <Settings className="w-4 h-4" />
         </button>
       </div>
 

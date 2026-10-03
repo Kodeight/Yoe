@@ -42,8 +42,8 @@ export const BottomNav: React.FC = () => {
                 }`}
               >
                 <Icon
-                  className={`w-5 h-5 mb-0.5 transition-transform duration-150 ${
-                    isActive ? 'scale-105 stroke-[2.5]' : 'stroke-[1.8]'
+                  className={`w-5 h-5 mb-0.5 transition-colors ${
+                    isActive ? 'stroke-[2.5]' : 'stroke-[1.8]'
                   }`}
                 />
                 <span className="text-[10px] tracking-tight">{item.label}</span>

@@ -233,6 +233,25 @@ input:-webkit-autofill:active {
 }
 
 /* Animations & Keyframes */
+@keyframes underlineExpand {
+  0% {
+    transform: scaleX(0);
+    opacity: 0;
+  }
+  30% {
+    opacity: 1;
+  }
+  100% {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+}
+
+.animate-underline-expand {
+  transform-origin: left;
+  animation: underlineExpand 300ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
 @keyframes orbBreathing {
   0%, 100% {
     transform: scale(1);
