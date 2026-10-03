@@ -31,7 +31,17 @@ import {
 import { SessionSummaryModal } from '../components/SessionSummaryModal';
 
 export const ConversationView: React.FC = () => {
-  const { activeScenario, activeJourney, scenarios, setActiveScenarioId, setActiveView, refreshProgress, uiLanguage } = useApp();
+  const {
+    activeScenario,
+    activeJourney,
+    scenarios,
+    recommendations,
+    completeScenario,
+    setActiveScenarioId,
+    setActiveView,
+    refreshProgress,
+    uiLanguage
+  } = useApp();
   const {
     isListening,
     transcript,
@@ -656,6 +666,13 @@ export const ConversationView: React.FC = () => {
       <div className="shrink-0 flex flex-col items-center justify-center pt-2 pb-1 select-none relative">
         <div
           onClick={() => {
+            // Trigger tactile haptic vibration on touch (Requirement 22)
+            if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+              try {
+                navigator.vibrate([20, 30, 20]);
+              } catch (e) {}
+            }
+
             if (!hasStartedConversation || !isLiveApiActive) {
               handleStartConversation();
             } else if (isLiveApiActive && liveSessionRef.current) {
@@ -887,11 +904,12 @@ export const ConversationView: React.FC = () => {
               e.preventDefault();
               handleSendMessage();
             }}
-            className="glass-nav p-2 rounded-3xl flex items-center gap-2 shadow-2xl border border-white/10 dark:border-white/10 light-mode:border-slate-200"
+            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 shadow-xl p-2 rounded-3xl flex items-center gap-2"
           >
-            {/* Real Microphone / Call Controls */}
+            {/* Real Microphone / Call Controls (Requirements 8 & 9: Paired Identical Dimensions & Solid Surfaces) */}
             {isLiveApiActive ? (
               <>
+                {/* Mute Button */}
                 <button
                   type="button"
                   onClick={() => {
@@ -901,26 +919,26 @@ export const ConversationView: React.FC = () => {
                       liveSessionRef.current.setMuted(next);
                     }
                   }}
-                  className={`p-3 rounded-2xl transition-all cursor-pointer shadow-lg shrink-0 ${
+                  className={`w-11 h-11 p-2.5 rounded-2xl flex items-center justify-center transition-all cursor-pointer shadow-sm shrink-0 border ${
                     isMicMuted
-                      ? 'bg-rose-500/25 border border-rose-500/50 text-rose-400 shadow-rose-500/20'
-                      : 'bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/30 shadow-emerald-500/20'
+                      ? 'bg-rose-500/20 border-rose-500/40 text-rose-500'
+                      : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/90 dark:hover:bg-slate-700/90 border-slate-200 dark:border-white/10 text-emerald-400'
                   }`}
                   title={isMicMuted ? t.unmuteMic : t.muteMic}
                   aria-label={isMicMuted ? t.unmuteMic : t.muteMic}
                 >
                   {isMicMuted ? (
-                    <MicOff className="w-5 h-5 text-rose-400" />
+                    <MicOff className="w-5 h-5 text-rose-500" />
                   ) : (
                     <Mic className="w-5 h-5 text-emerald-400" />
                   )}
                 </button>
 
-                {/* Stop Voice Session Button (Stops call, keeps chat room open) */}
+                {/* Stop Voice Call Button (Paired identically with Mute) */}
                 <button
                   type="button"
                   onClick={handleStopConversation}
-                  className="p-3 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-400 hover:bg-rose-500/25 transition-all cursor-pointer shadow-md shrink-0 flex items-center justify-center"
+                  className="w-11 h-11 p-2.5 rounded-2xl flex items-center justify-center transition-all cursor-pointer shadow-sm shrink-0 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/90 dark:hover:bg-slate-700/90 border border-slate-200 dark:border-white/10 text-rose-400"
                   title="Stop voice call (re-read chat)"
                   aria-label="Stop voice call"
                 >
@@ -931,11 +949,11 @@ export const ConversationView: React.FC = () => {
               <button
                 type="button"
                 onClick={handleStartConversation}
-                className="p-3 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/30 shadow-emerald-500/20 transition-all cursor-pointer shadow-md shrink-0 flex items-center justify-center"
+                className="w-11 h-11 p-2.5 rounded-2xl bg-emerald-500/15 border border-emerald-500/35 text-emerald-500 hover:bg-emerald-500/25 shadow-sm transition-all cursor-pointer shrink-0 flex items-center justify-center"
                 title="Resume Voice Call"
                 aria-label="Resume Voice Call"
               >
-                <Mic className="w-5 h-5 text-emerald-400" />
+                <Mic className="w-5 h-5 text-emerald-500" />
               </button>
             )}
 
@@ -951,14 +969,14 @@ export const ConversationView: React.FC = () => {
                   ? t.tapToInterrupt
                   : t.replyToYoe
               }
-              className="flex-1 bg-slate-950/60 dark:bg-slate-950/60 light-mode:bg-white border border-white/10 dark:border-white/10 light-mode:border-slate-200 rounded-2xl px-4 py-2.5 text-xs text-slate-100 dark:text-slate-100 light-mode:text-slate-900 placeholder-slate-500 focus:outline-none focus:border-emerald-400 transition-colors"
+              className="flex-1 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-white/10 rounded-2xl px-4 py-2.5 text-xs text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-emerald-400 transition-colors"
             />
 
-            {/* Send Button with White Icon */}
+            {/* Send Button */}
             <button
               type="submit"
               disabled={!inputText.trim() || isLoading}
-              className="p-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white disabled:opacity-40 transition-all cursor-pointer shadow-md shrink-0 flex items-center justify-center hover:opacity-95"
+              className="w-11 h-11 p-2.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white disabled:opacity-40 transition-all cursor-pointer shadow-md shrink-0 flex items-center justify-center"
             >
               <Send className="w-4 h-4 text-white" />
             </button>
@@ -977,8 +995,20 @@ export const ConversationView: React.FC = () => {
             mistakes: sessionMistakes,
             vocabularyLearned: sessionVocab
           }}
+          recommendations={recommendations}
+          allScenarios={scenarios}
+          onSelectScenario={(newScenarioId) => {
+            setShowSummaryModal(false);
+            completeScenario(activeScenario.id, {
+              durationMinutes: Math.max(1, Math.round((Date.now() - sessionStartTime) / 60000))
+            });
+            setActiveScenarioId(newScenarioId);
+          }}
           onClose={() => {
             setShowSummaryModal(false);
+            completeScenario(activeScenario.id, {
+              durationMinutes: Math.max(1, Math.round((Date.now() - sessionStartTime) / 60000))
+            });
             refreshProgress();
             setActiveView('home');
           }}
@@ -999,6 +1029,9 @@ export const ConversationView: React.FC = () => {
           }}
           onGoHome={() => {
             setShowSummaryModal(false);
+            completeScenario(activeScenario.id, {
+              durationMinutes: Math.max(1, Math.round((Date.now() - sessionStartTime) / 60000))
+            });
             refreshProgress();
             setActiveView('home');
           }}

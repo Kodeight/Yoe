@@ -54,7 +54,7 @@ export interface Scenario {
   id: string;
   title: string;
   description: string;
-  category: 'travel' | 'dining' | 'shopping' | 'social' | 'work' | 'daily' | 'academic';
+  category: 'travel' | 'dining' | 'shopping' | 'social' | 'work' | 'daily' | 'academic' | 'practical' | 'emergency' | 'culture' | 'daily-life';
   targetLanguage: LanguageCode;
   cefrLevel: CEFRLevel;
   location: string;

@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { User, LearningJourney, Scenario, VocabularyItem, MistakeRecord, LanguageCode, Language } from '../types';
+import { User, LearningJourney, Scenario, VocabularyItem, MistakeRecord, LanguageCode, Language, CourseUnit } from '../types';
 import { applyDocumentDirection } from '../utils/i18n';
 
 export type AppView = 'home' | 'chat' | 'learn' | 'explore' | 'profile' | 'profile-settings' | 'vocab' | 'grammar' | 'auth';
@@ -10,6 +10,9 @@ interface AppContextType {
   activeJourney: LearningJourney | null;
   activeScenario: Scenario | null;
   scenarios: Scenario[];
+  courses: CourseUnit[];
+  completedScenarioIds: string[];
+  recommendations: Scenario[];
   vocabulary: VocabularyItem[];
   mistakes: MistakeRecord[];
   activeView: AppView;
@@ -24,6 +27,7 @@ interface AppContextType {
   setActiveView: (view: AppView) => void;
   setActiveJourney: (journey: LearningJourney) => void;
   setActiveScenarioId: (scenarioId: string) => void;
+  completeScenario: (scenarioId: string, stats?: { xpEarned?: number; durationMinutes?: number }) => Promise<Scenario[]>;
   toggleTheme: () => void;
   setThemeMode: (mode: 'dark' | 'light') => void;
   setUiLanguage: (lang: LanguageCode) => void;
@@ -46,6 +50,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [journeys, setJourneys] = useState<LearningJourney[]>([]);
   const [activeJourney, setActiveJourneyState] = useState<LearningJourney | null>(null);
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
+  const [courses, setCourses] = useState<CourseUnit[]>([]);
+  const [completedScenarioIds, setCompletedScenarioIds] = useState<string[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('yoe_completed_scenarios');
+      return saved ? JSON.parse(saved) : [];
+    }
+    return [];
+  });
+  const [recommendations, setRecommendations] = useState<Scenario[]>([]);
   const [activeScenario, setActiveScenario] = useState<Scenario | null>(null);
   const [vocabulary, setVocabulary] = useState<VocabularyItem[]>([]);
   const [mistakes, setMistakes] = useState<MistakeRecord[]>([]);
@@ -273,6 +286,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const loadScenariosAndData = async (journey: LearningJourney) => {
     try {
+      // 1. Load database-driven scenarios for target language
       const scenRes = await fetch(`/api/scenarios?targetLanguage=${journey.targetLanguage}`);
       const scenData = await scenRes.json();
       const loadedScenarios = scenData.scenarios || [];
@@ -283,6 +297,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setActiveScenario(match);
       }
 
+      // 2. Load database-driven curriculum courses
+      const courseRes = await fetch(`/api/courses?targetLanguage=${journey.targetLanguage}`);
+      const courseData = await courseRes.json();
+      const loadedCourses = courseData.courses || [];
+      setCourses(loadedCourses);
+
+      // 3. Load dynamic recommendations
+      const recRes = await fetch(`/api/recommendations?targetLanguage=${journey.targetLanguage}&userId=${user?.id || 'guest_user'}`);
+      const recData = await recRes.json();
+      setRecommendations(recData.recommendations || loadedScenarios.slice(0, 6));
+
+      // 4. Load adaptive memory vocabulary & mistakes
       const vocabRes = await fetch(`/api/vocabulary?journeyId=${journey.id}`);
       const vocabData = await vocabRes.json();
       const loadedVocab = vocabData.vocabulary || [];
@@ -298,21 +324,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         localStorage.setItem('yoe_cached_vocabulary', JSON.stringify(loadedVocab));
         localStorage.setItem('yoe_cached_mistakes', JSON.stringify(loadedMistakes));
         localStorage.setItem('yoe_cached_scenarios', JSON.stringify(loadedScenarios));
-      }
-
-      // Send to service worker listener to cache for offline review
-      if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-        navigator.serviceWorker.controller.postMessage({
-          type: 'CACHE_LEARNED_LESSONS',
-          payload: {
-            vocabularyUrl: `/api/vocabulary?journeyId=${journey.id}`,
-            vocabulary: loadedVocab,
-            mistakesUrl: `/api/mistakes?journeyId=${journey.id}`,
-            mistakes: loadedMistakes,
-            scenariosUrl: `/api/scenarios?targetLanguage=${journey.targetLanguage}`,
-            scenarios: loadedScenarios
-          }
-        });
+        localStorage.setItem('yoe_cached_courses', JSON.stringify(loadedCourses));
       }
     } catch (err) {
       console.warn('Network offline or error loading journey details. Recovering from offline cache:', err);
@@ -320,6 +332,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const offlineVocab = localStorage.getItem('yoe_cached_vocabulary');
         const offlineMstk = localStorage.getItem('yoe_cached_mistakes');
         const offlineScen = localStorage.getItem('yoe_cached_scenarios');
+        const offlineCourses = localStorage.getItem('yoe_cached_courses');
         if (offlineVocab) setVocabulary(JSON.parse(offlineVocab));
         if (offlineMstk) setMistakes(JSON.parse(offlineMstk));
         if (offlineScen) {
@@ -327,8 +340,54 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           setScenarios(sc);
           if (sc.length > 0) setActiveScenario(sc[0]);
         }
+        if (offlineCourses) {
+          setCourses(JSON.parse(offlineCourses));
+        }
       }
     }
+  };
+
+  const completeScenario = async (
+    scenarioId: string,
+    stats: { xpEarned?: number; durationMinutes?: number } = {}
+  ): Promise<Scenario[]> => {
+    // 1. Update local completed list
+    const updatedCompleted = Array.from(new Set([...completedScenarioIds, scenarioId]));
+    setCompletedScenarioIds(updatedCompleted);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('yoe_completed_scenarios', JSON.stringify(updatedCompleted));
+    }
+
+    // 2. Persist to server database
+    try {
+      const res = await fetch('/api/progress/complete-scenario', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+        body: JSON.stringify({
+          userId: user?.id || 'guest_user',
+          journeyId: activeJourney?.id,
+          scenarioId,
+          xpEarned: stats.xpEarned || 50,
+          durationMinutes: stats.durationMinutes || 3
+        })
+      });
+      const data = await res.json();
+      if (data.journey && activeJourney) {
+        setActiveJourneyState(data.journey);
+      }
+      if (data.nextRecommended && data.nextRecommended.length > 0) {
+        setRecommendations(data.nextRecommended);
+        return data.nextRecommended;
+      }
+    } catch (e) {
+      console.warn('Could not sync completed scenario with server:', e);
+    }
+
+    // Fallback dynamic next recommendations
+    const remaining = scenarios.filter(s => !updatedCompleted.includes(s.id));
+    const nextList = remaining.length > 0 ? remaining.slice(0, 6) : scenarios.slice(0, 6);
+    setRecommendations(nextList);
+    return nextList;
   };
 
   const setActiveJourney = (journey: LearningJourney) => {
@@ -596,6 +655,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         activeJourney,
         activeScenario,
         scenarios,
+        courses,
+        completedScenarioIds,
+        recommendations,
         vocabulary,
         mistakes,
         activeView,
@@ -610,6 +672,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setActiveView,
         setActiveJourney,
         setActiveScenarioId,
+        completeScenario,
         toggleTheme,
         setThemeMode,
         setUiLanguage,

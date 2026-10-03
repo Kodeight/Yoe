@@ -95,43 +95,43 @@ export const ProgressView: React.FC = () => {
   }, [last7DaysData]);
 
   return (
-    <div className="pb-24 pt-4 px-4 max-w-md mx-auto space-y-4 animate-in fade-in duration-300">
+    <div className="pb-28 pt-5 px-5 sm:px-6 max-w-md mx-auto space-y-5 animate-in fade-in duration-300">
 
-      {/* Header */}
-      <div>
+      {/* Header with comfortable breathing room */}
+      <div className="pt-1">
         <h1 className="text-xl font-bold text-slate-100 dark:text-slate-100 light-mode:text-slate-900 tracking-tight flex items-center gap-2">
-          <BarChart2 className="w-5 h-5 text-emerald-400" />
+          <BarChart2 className="w-5 h-5 text-emerald-400 shrink-0" />
           <span>CEFR Progression & Mastery</span>
         </h1>
-        <p className="text-xs text-slate-400 dark:text-slate-400 light-mode:text-slate-500 mt-0.5">
+        <p className="text-xs text-slate-400 dark:text-slate-400 light-mode:text-slate-500 mt-1">
           Real language competencies acquired through interactive scenarios
         </p>
       </div>
 
-      {/* Main CEFR Level Meter Card */}
-      <div className="rounded-3xl glass-card p-5 shadow-xl relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
+      {/* Main CEFR Level Meter Card with generous padding */}
+      <div className="rounded-3xl glass-card p-6 shadow-xl relative overflow-hidden space-y-4">
+        <div className="absolute top-0 right-0 w-36 h-36 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
 
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between">
           <div>
-            <span className="text-[10px] font-extrabold uppercase tracking-widest text-emerald-400 dark:text-emerald-400 light-mode:text-emerald-600 block mb-0.5">
+            <span className="text-[10px] font-extrabold uppercase tracking-widest text-emerald-400 dark:text-emerald-400 light-mode:text-emerald-600 block mb-1">
               Working Proficiency
             </span>
             <h2 className="text-3xl font-black text-slate-100 dark:text-slate-100 light-mode:text-slate-900 tracking-tight flex items-center gap-2">
               <span>Level {level}</span>
-              <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/25">
+              <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/25">
                 {level === 'A1' ? 'Beginner' : level === 'A2' ? 'Elementary' : level === 'B1' ? 'Intermediate' : 'Advanced'}
               </span>
             </h2>
           </div>
 
-          <div className="w-13 h-13 rounded-2xl bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center text-emerald-400 shadow-md">
+          <div className="w-13 h-13 rounded-2xl bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center text-emerald-400 shadow-md shrink-0">
             <Award className="w-7 h-7" />
           </div>
         </div>
 
         {/* CEFR Scale Step Grid */}
-        <div className="grid grid-cols-6 gap-1.5 mb-3">
+        <div className="grid grid-cols-6 gap-2">
           {['A1', 'A2', 'B1', 'B2', 'C1', 'C2'].map((lvl) => {
             const isCurrent = lvl === level;
             return (
@@ -158,8 +158,8 @@ export const ProgressView: React.FC = () => {
         </p>
       </div>
 
-      {/* 7-DAY VISUAL ACTIVITY CHART (Recharts) */}
-      <div className="rounded-3xl glass-card p-5 shadow-xl space-y-4">
+      {/* 7-DAY VISUAL ACTIVITY CHART (Recharts) with clean spacing */}
+      <div className="rounded-3xl glass-card p-6 shadow-xl space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400">
@@ -320,11 +320,11 @@ export const ProgressView: React.FC = () => {
         </div>
       )}
 
-      {/* Real Metrics Summary Cards */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="rounded-2xl glass-card p-4 space-y-1">
+      {/* Real Metrics Summary Cards with generous breathing room */}
+      <div className="grid grid-cols-2 gap-3.5">
+        <div className="rounded-3xl glass-card p-4.5 space-y-1.5 shadow-sm">
           <div className="flex items-center gap-2 text-slate-400 dark:text-slate-400 light-mode:text-slate-600 text-xs">
-            <Clock className="w-4 h-4 text-cyan-400" />
+            <Clock className="w-4 h-4 text-cyan-400 shrink-0" />
             <span>Spoken Time</span>
           </div>
           <div className="text-xl font-black text-slate-100 dark:text-slate-100 light-mode:text-slate-900">
@@ -332,9 +332,9 @@ export const ProgressView: React.FC = () => {
           </div>
         </div>
 
-        <div className="rounded-2xl glass-card p-4 space-y-1">
+        <div className="rounded-3xl glass-card p-4.5 space-y-1.5 shadow-sm">
           <div className="flex items-center gap-2 text-slate-400 dark:text-slate-400 light-mode:text-slate-600 text-xs">
-            <Flame className="w-4 h-4 text-amber-400" />
+            <Flame className="w-4 h-4 text-amber-400 shrink-0" />
             <span>Daily Streak</span>
           </div>
           <div className="text-xl font-black text-slate-100 dark:text-slate-100 light-mode:text-slate-900">
@@ -344,10 +344,10 @@ export const ProgressView: React.FC = () => {
 
         <div
           onClick={() => setActiveView('vocab')}
-          className="rounded-2xl glass-card p-4 space-y-1 cursor-pointer hover:border-purple-500/40 transition-colors"
+          className="rounded-3xl glass-card p-4.5 space-y-1.5 cursor-pointer hover:border-purple-500/40 transition-colors shadow-sm"
         >
           <div className="flex items-center gap-2 text-slate-400 dark:text-slate-400 light-mode:text-slate-600 text-xs">
-            <BookOpen className="w-4 h-4 text-purple-400" />
+            <BookOpen className="w-4 h-4 text-purple-400 shrink-0" />
             <span>Vocabulary Bank</span>
           </div>
           <div className="text-xl font-black text-slate-100 dark:text-slate-100 light-mode:text-slate-900">
@@ -357,10 +357,10 @@ export const ProgressView: React.FC = () => {
 
         <div
           onClick={() => setActiveView('grammar')}
-          className="rounded-2xl glass-card p-4 space-y-1 cursor-pointer hover:border-amber-500/40 transition-colors"
+          className="rounded-3xl glass-card p-4.5 space-y-1.5 cursor-pointer hover:border-amber-500/40 transition-colors shadow-sm"
         >
           <div className="flex items-center gap-2 text-slate-400 dark:text-slate-400 light-mode:text-slate-600 text-xs">
-            <TrendingUp className="w-4 h-4 text-emerald-400" />
+            <TrendingUp className="w-4 h-4 text-emerald-400 shrink-0" />
             <span>Grammar Bank</span>
           </div>
           <div className="text-xl font-black text-slate-100 dark:text-slate-100 light-mode:text-slate-900">

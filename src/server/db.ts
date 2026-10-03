@@ -1,7 +1,8 @@
 import pg from 'pg';
 import fs from 'fs';
 import path from 'path';
-import { User, LearningJourney, VocabularyItem, MistakeRecord, ChatMessage, Language, Scenario } from '../types';
+import { User, LearningJourney, VocabularyItem, MistakeRecord, ChatMessage, Language, Scenario, CourseUnit, Lesson } from '../types';
+import { INITIAL_DATABASE_SCENARIOS, INITIAL_DATABASE_COURSES } from './learningLibrary';
 
 const { Pool } = pg;
 
@@ -20,6 +21,10 @@ export interface DatabaseUser {
   uiLanguage: string;
   theme: string;
   subscriptionStatus: string;
+  subscriptionPlan?: string;
+  isPremium?: boolean;
+  trialStartedAt?: string;
+  trialEndsAt?: string;
   emailVerified: boolean;
   status: string;
   activeJourneyId?: string;
@@ -32,71 +37,8 @@ export interface DatabaseUser {
 import { SUPPORTED_LANGUAGES } from '../constants/languages';
 export { SUPPORTED_LANGUAGES };
 
-export const STARTER_SCENARIOS: Scenario[] = [
-  {
-    id: 'scen_a1_intro_maya',
-    title: 'Introduce Yourself & Make a Friend',
-    description: 'Break the ice in a friendly setting, share your name, where you are from, and your favorite hobbies.',
-    category: 'social',
-    targetLanguage: 'en',
-    cefrLevel: 'A1',
-    location: 'Community Botanical Garden Cafe',
-    characterName: 'Yoe',
-    characterRole: 'Friendly Local',
-    avatar: '🤝',
-    imageUrl: 'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=600&q=80',
-    vocabularyDomain: ['name', 'from', 'hobby', 'pleasure', 'nice to meet you'],
-    initialGreeting: 'Hi there! Mind if I sit here? I\'m Yoe. What\'s your name and where are you from?',
-    initialGreetingTranslation: 'Hi there! Mind if I sit here? I\'m Yoe. What\'s your name and where are you from?',
-    objectives: [
-      { id: 'obj_intro_1', text: 'Share your name and country or city of origin', completed: false, hint: 'Say: Hi Yoe, my name is... and I am from...' },
-      { id: 'obj_intro_2', text: 'Tell Yoe what you like doing in your free time', completed: false, hint: 'Say: In my free time, I like...' },
-      { id: 'obj_intro_3', text: 'Ask Yoe a polite question back', completed: false, hint: 'Say: What about you, Yoe? Do you live nearby?' }
-    ]
-  },
-  {
-    id: 'scen_cafe_paris',
-    title: 'Bistro in Paris',
-    description: 'Order breakfast at a quaint Parisian café and practice polite French requests.',
-    category: 'dining',
-    targetLanguage: 'fr',
-    cefrLevel: 'A1',
-    location: 'Le Petit Café, Saint-Germain-des-Prés',
-    characterName: 'Yoe',
-    characterRole: 'Bistro Server',
-    avatar: '🥐',
-    imageUrl: 'https://images.unsplash.com/photo-1550966871-3ed3cdb5ed0c?auto=format&fit=crop&w=600&q=80',
-    vocabularyDomain: ['croissant', 'café au lait', 'l\'addition', 's\'il vous plaît', 'merci'],
-    initialGreeting: 'Bonjour ! Je suis Yoe. Bienvenue au Petit Café. Vous désirez une table en terrasse ou à l\'intérieur ?',
-    initialGreetingTranslation: 'Hello! I am Yoe. Welcome to Le Petit Café. Would you prefer a table on the terrace or inside?',
-    objectives: [
-      { id: 'obj_fr_1', text: 'Greet Yoe politely and state your seating preference', completed: false, hint: 'Say: Bonjour Yoe! Je voudrais une table en terrasse, s\'il vous plaît.' },
-      { id: 'obj_fr_2', text: 'Order a croissant and a coffee', completed: false, hint: 'Say: Je voudrais un croissant et un café au lait, s\'il vous plaît.' },
-      { id: 'obj_fr_3', text: 'Ask for the check at the end of breakfast', completed: false, hint: 'Say: L\'addition, s\'il vous plaît.' }
-    ]
-  },
-  {
-    id: 'scen_hotel_madrid',
-    title: 'Hotel Check-In Madrid',
-    description: 'Check into your boutique hotel room, ask about breakfast hours and WiFi details in Spanish.',
-    category: 'travel',
-    targetLanguage: 'es',
-    cefrLevel: 'A1',
-    location: 'Hotel Gran Vía, Madrid',
-    characterName: 'Yoe',
-    characterRole: 'Hotel Receptionist',
-    avatar: '🏨',
-    imageUrl: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=600&q=80',
-    vocabularyDomain: ['reserva', 'habitación', 'desayuno', 'clave de wifi', 'piso'],
-    initialGreeting: '¡Buenas tardes! Soy Yoe. Bienvenido al Hotel Gran Vía. ¿Tiene una reserva con nosotros?',
-    initialGreetingTranslation: 'Good afternoon! I am Yoe. Welcome to Hotel Gran Vía. Do you have a reservation with us?',
-    objectives: [
-      { id: 'obj_es_1', text: 'Confirm reservation under your name', completed: false, hint: 'Say: Hola Yoe, tengo una reserva a nombre de...' },
-      { id: 'obj_es_2', text: 'Ask for the WiFi password and breakfast time', completed: false, hint: 'Say: ¿Cuál es la contraseña del WiFi y a qué hora es el desayuno?' },
-      { id: 'obj_es_3', text: 'Inquire about keycard or room floor', completed: false, hint: 'Say: ¿En qué piso está la habitación?' }
-    ]
-  }
-];
+export const STARTER_SCENARIOS: Scenario[] = INITIAL_DATABASE_SCENARIOS;
+export const STARTER_COURSES: CourseUnit[] = INITIAL_DATABASE_COURSES;
 
 class PersistentDatabase {
   private pool: pg.Pool | null = null;
@@ -104,12 +46,18 @@ class PersistentDatabase {
   private localStore: {
     users: DatabaseUser[];
     journeys: LearningJourney[];
+    scenarios: Scenario[];
+    courses: CourseUnit[];
+    completedScenarios: Record<string, string[]>;
     vocabulary: Record<string, VocabularyItem[]>;
     mistakes: Record<string, MistakeRecord[]>;
     chatHistories: Record<string, ChatMessage[]>;
   } = {
     users: [],
     journeys: [],
+    scenarios: INITIAL_DATABASE_SCENARIOS,
+    courses: INITIAL_DATABASE_COURSES,
+    completedScenarios: {},
     vocabulary: {},
     mistakes: {},
     chatHistories: {}
@@ -127,7 +75,14 @@ class PersistentDatabase {
       }
       if (fs.existsSync(DB_FILE)) {
         const raw = fs.readFileSync(DB_FILE, 'utf8');
-        this.localStore = { ...this.localStore, ...JSON.parse(raw) };
+        const parsed = JSON.parse(raw);
+        this.localStore = {
+          ...this.localStore,
+          ...parsed,
+          scenarios: parsed.scenarios && parsed.scenarios.length >= INITIAL_DATABASE_SCENARIOS.length ? parsed.scenarios : INITIAL_DATABASE_SCENARIOS,
+          courses: parsed.courses && parsed.courses.length >= INITIAL_DATABASE_COURSES.length ? parsed.courses : INITIAL_DATABASE_COURSES,
+          completedScenarios: parsed.completedScenarios || {}
+        };
       } else {
         this.saveFileStore();
       }
@@ -435,19 +390,115 @@ class PersistentDatabase {
     return journey;
   }
 
-  getScenarios(targetLang?: string): Scenario[] {
-    if (!targetLang) return STARTER_SCENARIOS;
-    const directMatches = STARTER_SCENARIOS.filter(s => s.targetLanguage === targetLang);
-    if (directMatches.length > 0) return directMatches;
-    return STARTER_SCENARIOS;
+  getScenarios(targetLang?: string, category?: string, cefrLevel?: string): Scenario[] {
+    const all = this.localStore.scenarios && this.localStore.scenarios.length > 0
+      ? this.localStore.scenarios
+      : INITIAL_DATABASE_SCENARIOS;
+
+    return all.filter(s => {
+      if (targetLang && s.targetLanguage !== targetLang) {
+        // Fallback matching if exact target language has fewer scenarios
+        return true;
+      }
+      if (category && category !== 'all' && s.category !== category) return false;
+      if (cefrLevel && cefrLevel !== 'all' && s.cefrLevel !== cefrLevel) return false;
+      return true;
+    });
+  }
+
+  getScenarioById(id: string): Scenario | undefined {
+    const all = this.localStore.scenarios && this.localStore.scenarios.length > 0
+      ? this.localStore.scenarios
+      : INITIAL_DATABASE_SCENARIOS;
+    return all.find(s => s.id === id);
+  }
+
+  getCourses(targetLang?: string, cefrLevel?: string): CourseUnit[] {
+    const all = this.localStore.courses && this.localStore.courses.length > 0
+      ? this.localStore.courses
+      : INITIAL_DATABASE_COURSES;
+
+    return all.filter(c => {
+      if (targetLang && c.targetLanguage !== targetLang) return false;
+      if (cefrLevel && cefrLevel !== 'all' && c.cefrLevel !== cefrLevel) return false;
+      return true;
+    });
+  }
+
+  getCourseById(id: string): CourseUnit | undefined {
+    const all = this.localStore.courses && this.localStore.courses.length > 0
+      ? this.localStore.courses
+      : INITIAL_DATABASE_COURSES;
+    return all.find(c => c.id === id);
+  }
+
+  getLessonById(lessonId: string): { lesson: Lesson; course: CourseUnit } | undefined {
+    const courses = this.localStore.courses && this.localStore.courses.length > 0
+      ? this.localStore.courses
+      : INITIAL_DATABASE_COURSES;
+
+    for (const course of courses) {
+      const lesson = course.lessons.find(l => l.id === lessonId);
+      if (lesson) {
+        return { lesson, course };
+      }
+    }
+    return undefined;
+  }
+
+  getCompletedScenarioIds(userId: string): string[] {
+    return this.localStore.completedScenarios[userId] || [];
+  }
+
+  async recordCompletedScenario(
+    userId: string,
+    journeyId: string,
+    scenarioId: string,
+    stats: { xpEarned: number; durationMinutes: number }
+  ): Promise<{ journey: LearningJourney | undefined; nextRecommended: Scenario[] }> {
+    // 1. Mark scenario as completed in user's completed history
+    let completed = this.localStore.completedScenarios[userId];
+    if (!completed) {
+      completed = [];
+      this.localStore.completedScenarios[userId] = completed;
+    }
+    if (!completed.includes(scenarioId)) {
+      completed.push(scenarioId);
+    }
+
+    // 2. Update user journey points and minutes
+    const journey = this.getJourney(journeyId);
+    if (journey) {
+      journey.points += Math.max(stats.xpEarned || 50, 10);
+      journey.totalMinutesSpoken += Math.max(stats.durationMinutes || 2, 1);
+      journey.streakDays = Math.max(journey.streakDays, 1);
+      await this.saveJourney(journey);
+    }
+
+    this.saveFileStore();
+
+    // 3. Generate dynamic next scenario recommendations (Never force completed scenario!)
+    const nextRecommended = this.getRecommendations(userId, journey?.targetLanguage, journey?.cefrLevel);
+
+    return { journey, nextRecommended };
+  }
+
+  getRecommendations(userId: string, targetLang?: string, cefrLevel?: string): Scenario[] {
+    const completed = this.getCompletedScenarioIds(userId);
+    const all = this.getScenarios(targetLang, undefined, cefrLevel);
+
+    // Prioritize uncompleted scenarios matching user language and level
+    const uncompleted = all.filter(s => !completed.includes(s.id));
+    if (uncompleted.length >= 3) {
+      return uncompleted.slice(0, 6);
+    }
+
+    // If all completed or fewer available, shuffle across other rich categories
+    return all.slice(0, 6);
   }
 
   getJourney(id: string): LearningJourney | undefined {
     return this.localStore.journeys.find(j => j.id === id);
-  }
-
-  getScenarioById(id: string): Scenario | undefined {
-    return STARTER_SCENARIOS.find(s => s.id === id);
   }
 
   getUser(id: string): DatabaseUser | undefined {

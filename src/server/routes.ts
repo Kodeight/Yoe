@@ -152,10 +152,12 @@ apiRouter.put('/journeys/:id', requireAuth, async (req: AuthRequest, res: Respon
   res.json({ journey });
 });
 
-// Scenarios
+// Scenarios & Learning Library (Database-Driven)
 apiRouter.get('/scenarios', (req: Request, res: Response) => {
   const lang = req.query.targetLanguage as string;
-  const scenarios = db.getScenarios(lang);
+  const category = req.query.category as string;
+  const level = req.query.cefrLevel as string;
+  const scenarios = db.getScenarios(lang, category, level);
   res.json({ scenarios });
 });
 
@@ -166,6 +168,62 @@ apiRouter.get('/scenarios/:id', (req: Request, res: Response) => {
     return;
   }
   res.json({ scenario });
+});
+
+// Courses & Lessons (Database-Driven)
+apiRouter.get('/courses', (req: Request, res: Response) => {
+  const lang = req.query.targetLanguage as string;
+  const level = req.query.cefrLevel as string;
+  const courses = db.getCourses(lang, level);
+  res.json({ courses });
+});
+
+apiRouter.get('/courses/:id', (req: Request, res: Response) => {
+  const course = db.getCourseById(req.params.id);
+  if (!course) {
+    res.status(404).json({ error: 'Course not found' });
+    return;
+  }
+  res.json({ course });
+});
+
+apiRouter.get('/lessons/:id', (req: Request, res: Response) => {
+  const match = db.getLessonById(req.params.id);
+  if (!match) {
+    res.status(404).json({ error: 'Lesson not found' });
+    return;
+  }
+  res.json(match);
+});
+
+// Dynamic Scenario Recommendations (Never forces completed scenario repeatedly)
+apiRouter.get('/recommendations', (req: Request, res: Response) => {
+  const userId = (req.query.userId as string) || 'guest_user';
+  const targetLanguage = req.query.targetLanguage as string;
+  const cefrLevel = req.query.cefrLevel as string;
+  const recommendations = db.getRecommendations(userId, targetLanguage, cefrLevel);
+  res.json({ recommendations });
+});
+
+// Scenario Completion & Progress Tracking (Database Persistence)
+apiRouter.post('/progress/complete-scenario', async (req: Request, res: Response) => {
+  try {
+    const { userId, journeyId, scenarioId, xpEarned, durationMinutes } = req.body;
+    const result = await db.recordCompletedScenario(
+      userId || 'guest_user',
+      journeyId,
+      scenarioId,
+      { xpEarned: Number(xpEarned) || 50, durationMinutes: Number(durationMinutes) || 3 }
+    );
+    res.json({
+      success: true,
+      journey: result.journey,
+      nextRecommended: result.nextRecommended
+    });
+  } catch (err: any) {
+    console.error('[COMPLETE SCENARIO ERROR]:', err);
+    res.status(500).json({ error: 'Failed to record completed scenario' });
+  }
 });
 
 // AI Live Initial Greeting Endpoint

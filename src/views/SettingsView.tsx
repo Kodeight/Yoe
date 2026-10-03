@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { useAudio } from '../context/AudioContext';
 import { PushNotificationScheduler } from '../components/PushNotificationScheduler';
+import { Toggle } from '../components/Toggle';
 import { getTranslation } from '../utils/i18n';
 import {
   ArrowLeft,
@@ -181,21 +182,11 @@ export const SettingsView: React.FC = () => {
               Play sound chime for new learning turns
             </p>
           </div>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={notificationSoundsEnabled}
-            onClick={toggleNotificationSounds}
-            className={`w-11 h-6 rounded-full transition-colors relative cursor-pointer shrink-0 focus:outline-none ${
-              notificationSoundsEnabled ? 'bg-emerald-500' : 'bg-slate-700'
-            }`}
-          >
-            <div
-              className={`w-4 h-4 rounded-full bg-white transition-transform absolute top-1 left-1 ${
-                notificationSoundsEnabled ? 'translate-x-5 rtl:-translate-x-5' : 'translate-x-0'
-              }`}
-            />
-          </button>
+          <Toggle
+            checked={notificationSoundsEnabled}
+            onChange={toggleNotificationSounds}
+            aria-label={t.notificationSounds}
+          />
         </div>
 
         {/* Speech Feedback Sound Toggle */}
@@ -208,21 +199,11 @@ export const SettingsView: React.FC = () => {
               Audio confirmation tones when voice recording starts/ends
             </p>
           </div>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={speechFeedbackEnabled}
-            onClick={toggleSpeechFeedback}
-            className={`w-11 h-6 rounded-full transition-colors relative cursor-pointer shrink-0 focus:outline-none ${
-              speechFeedbackEnabled ? 'bg-emerald-500' : 'bg-slate-700'
-            }`}
-          >
-            <div
-              className={`w-4 h-4 rounded-full bg-white transition-transform absolute top-1 left-1 ${
-                speechFeedbackEnabled ? 'translate-x-5 rtl:-translate-x-5' : 'translate-x-0'
-              }`}
-            />
-          </button>
+          <Toggle
+            checked={speechFeedbackEnabled}
+            onChange={toggleSpeechFeedback}
+            aria-label={t.soundEffects}
+          />
         </div>
       </div>
 

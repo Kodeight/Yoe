@@ -46,12 +46,12 @@ export const AppBootLoader: React.FC = () => {
         {/* Soft atmospheric ambient glow */}
         <div className="absolute w-32 h-32 rounded-full bg-[var(--accent-soft)] blur-3xl pointer-events-none" />
 
-        {/* Real Yoe Logo with gentle, calm floating and breathing motion */}
+        {/* Real Yoe Logo with gentle, calm floating and breathing motion (~1.6x scaled up for brand presence) */}
         <div className="relative z-10 animate-bounce-subtle">
           <img
             src="/logo.png"
             alt="Yoe"
-            className="w-[92px] h-[92px] md:w-[110px] md:h-[110px] object-contain drop-shadow-xl"
+            className="w-[145px] h-[145px] sm:w-[170px] sm:h-[170px] object-contain drop-shadow-2xl"
           />
         </div>
 

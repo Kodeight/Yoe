@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { getTranslation } from '../utils/i18n';
 import { Bell, Clock, ShieldCheck, Send, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { Toggle } from './Toggle';
 import {
   getNotificationConfig,
   saveNotificationConfig,
@@ -116,22 +117,12 @@ export const PushNotificationScheduler: React.FC = () => {
           </div>
         </div>
 
-        {/* Master Toggle */}
-        <button
-          type="button"
-          role="switch"
-          aria-checked={config.enabled}
-          onClick={handleToggle}
-          className={`w-11 h-6 rounded-full transition-colors relative cursor-pointer shrink-0 focus:outline-none ${
-            config.enabled ? 'bg-emerald-500' : 'bg-slate-700'
-          }`}
-        >
-          <div
-            className={`w-4 h-4 rounded-full bg-white transition-transform absolute top-1 left-1 ${
-              config.enabled ? 'translate-x-5 rtl:-translate-x-5' : 'translate-x-0'
-            }`}
-          />
-        </button>
+        {/* Master Toggle with Guaranteed Circular Thumb in LTR & RTL */}
+        <Toggle
+          checked={config.enabled}
+          onChange={handleToggle}
+          aria-label={t.dailyReminders}
+        />
       </div>
 
       {/* Permission Status Pill */}
