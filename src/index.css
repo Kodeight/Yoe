@@ -86,7 +86,6 @@
 
 html {
   background-color: var(--app-background);
-  color-scheme: dark;
 }
 
 html.light-mode {

@@ -102,8 +102,9 @@ export const ConversationView: React.FC = () => {
     }
   };
 
-  // Prepare initial scenario state on mount WITHOUT autostarting audio/mic
+  // Prepare initial scenario state on mount with LIVE AI-generated greeting
   useEffect(() => {
+    let isCancelled = false;
     if (activeScenario && activeJourney) {
       setHasStartedConversation(false);
       setIsLiveApiActive(false);
@@ -111,18 +112,50 @@ export const ConversationView: React.FC = () => {
       setLiveError(null);
       clearAudioError();
 
-      const initialGreetingMsg: ChatMessage = {
-        id: `msg_init_${activeScenario.id}`,
-        sessionId: activeScenario.id,
-        sender: 'tutor',
-        text: activeScenario.initialGreeting,
-        translation: activeScenario.initialGreetingTranslation || (activeJourney.targetLanguage === 'es' ? 'Good afternoon! Welcome to Hotel Gran Vía. Do you have a reservation with us?' : activeScenario.initialGreeting),
-        timestamp: new Date().toISOString()
-      };
-      setMessages([initialGreetingMsg]);
+      // Fetch live AI-generated initial greeting from Gemini
+      fetch('/api/ai/initial-greeting', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          scenarioId: activeScenario.id,
+          journeyId: activeJourney.id,
+          targetLanguage: activeJourney.targetLanguage,
+          supportLanguage: activeJourney.supportLanguage,
+          cefrLevel: activeJourney.cefrLevel
+        })
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (isCancelled) return;
+          const greetingText = data.greeting?.response || activeScenario.initialGreeting;
+          const greetingTrans = data.greeting?.translation || activeScenario.initialGreetingTranslation || greetingText;
+          const initialGreetingMsg: ChatMessage = {
+            id: `msg_init_${activeScenario.id}_${Date.now()}`,
+            sessionId: activeScenario.id,
+            sender: 'tutor',
+            text: greetingText,
+            translation: greetingTrans,
+            audioUrl: data.greeting?.audioBase64 ? `data:audio/wav;base64,${data.greeting.audioBase64}` : undefined,
+            timestamp: new Date().toISOString()
+          };
+          setMessages([initialGreetingMsg]);
+        })
+        .catch(() => {
+          if (isCancelled) return;
+          const initialGreetingMsg: ChatMessage = {
+            id: `msg_init_${activeScenario.id}`,
+            sessionId: activeScenario.id,
+            sender: 'tutor',
+            text: activeScenario.initialGreeting,
+            translation: activeScenario.initialGreetingTranslation || activeScenario.initialGreeting,
+            timestamp: new Date().toISOString()
+          };
+          setMessages([initialGreetingMsg]);
+        });
     }
 
     return () => {
+      isCancelled = true;
       if (liveSessionRef.current) {
         liveSessionRef.current.cleanup();
         liveSessionRef.current = null;

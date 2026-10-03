@@ -79,8 +79,8 @@ export const STARTER_COURSE_UNITS: CourseUnit[] = [
           {
             id: 'q_es_listen_1',
             type: 'listening',
-            question: 'What does Maya ask in this phrase?',
-            audioText: '¡Hola! Me llamo Maya. ¿De dónde eres tú?',
+            question: 'What does Yoe ask in this phrase?',
+            audioText: '¡Hola! Me llamo Yoe. ¿De dónde eres tú?',
             options: [
               'What is your job?',
               'Where are you from?',

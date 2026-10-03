@@ -15,6 +15,9 @@ export const BottomNav: React.FC = () => {
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-40 pointer-events-none">
+      {/* Subtle Atmospheric Bottom Gradient (Theme-Matched, Smooth Upward Fade Behind Navbar) */}
+      <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#070b12]/95 via-[#070b12]/50 to-transparent dark:from-[#070b12]/95 dark:via-[#070b12]/50 light-mode:from-slate-100/95 light-mode:via-slate-100/50 pointer-events-none" />
+
       {/* Floating Pristine Liquid Glass Navigation Bar */}
       <div className="max-w-md mx-auto px-4 pb-[max(env(safe-area-inset-bottom,0px),0.75rem)] relative z-10 pointer-events-auto">
         <nav className="flex items-center justify-around glass-nav rounded-3xl p-1.5 transition-all shadow-xl">

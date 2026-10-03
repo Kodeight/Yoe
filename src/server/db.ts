@@ -41,17 +41,17 @@ export const STARTER_SCENARIOS: Scenario[] = [
     targetLanguage: 'en',
     cefrLevel: 'A1',
     location: 'Community Botanical Garden Cafe',
-    characterName: 'Maya',
-    characterRole: 'Friendly Local Designer',
+    characterName: 'Yoe',
+    characterRole: 'Friendly Local',
     avatar: '🤝',
     imageUrl: 'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=600&q=80',
     vocabularyDomain: ['name', 'from', 'hobby', 'pleasure', 'nice to meet you'],
-    initialGreeting: 'Hi there! Mind if I sit here? I\'m Maya. What\'s your name and where are you from?',
-    initialGreetingTranslation: 'Hi there! Mind if I sit here? I\'m Maya. What\'s your name and where are you from?',
+    initialGreeting: 'Hi there! Mind if I sit here? I\'m Yoe. What\'s your name and where are you from?',
+    initialGreetingTranslation: 'Hi there! Mind if I sit here? I\'m Yoe. What\'s your name and where are you from?',
     objectives: [
-      { id: 'obj_intro_1', text: 'Share your name and country or city of origin', completed: false, hint: 'Say: Hi Maya, my name is... and I am from...' },
-      { id: 'obj_intro_2', text: 'Tell her what you like doing in your free time', completed: false, hint: 'Say: In my free time, I like...' },
-      { id: 'obj_intro_3', text: 'Ask Maya a polite question back', completed: false, hint: 'Say: What about you? Do you live nearby?' }
+      { id: 'obj_intro_1', text: 'Share your name and country or city of origin', completed: false, hint: 'Say: Hi Yoe, my name is... and I am from...' },
+      { id: 'obj_intro_2', text: 'Tell Yoe what you like doing in your free time', completed: false, hint: 'Say: In my free time, I like...' },
+      { id: 'obj_intro_3', text: 'Ask Yoe a polite question back', completed: false, hint: 'Say: What about you, Yoe? Do you live nearby?' }
     ]
   },
   {
@@ -62,15 +62,15 @@ export const STARTER_SCENARIOS: Scenario[] = [
     targetLanguage: 'fr',
     cefrLevel: 'A1',
     location: 'Le Petit Café, Saint-Germain-des-Prés',
-    characterName: 'Jean-Luc',
+    characterName: 'Yoe',
     characterRole: 'Bistro Server',
     avatar: '🥐',
     imageUrl: 'https://images.unsplash.com/photo-1550966871-3ed3cdb5ed0c?auto=format&fit=crop&w=600&q=80',
     vocabularyDomain: ['croissant', 'café au lait', 'l\'addition', 's\'il vous plaît', 'merci'],
-    initialGreeting: 'Bonjour ! Bienvenue au Petit Café. Vous désirez une table en terrasse ou à l\'intérieur ?',
-    initialGreetingTranslation: 'Hello! Welcome to Le Petit Café. Would you prefer a table on the terrace or inside?',
+    initialGreeting: 'Bonjour ! Je suis Yoe. Bienvenue au Petit Café. Vous désirez une table en terrasse ou à l\'intérieur ?',
+    initialGreetingTranslation: 'Hello! I am Yoe. Welcome to Le Petit Café. Would you prefer a table on the terrace or inside?',
     objectives: [
-      { id: 'obj_fr_1', text: 'Greet the waiter politely and state your seating preference', completed: false, hint: 'Say: Bonjour! Je voudrais une table en terrasse, s\'il vous plaît.' },
+      { id: 'obj_fr_1', text: 'Greet Yoe politely and state your seating preference', completed: false, hint: 'Say: Bonjour Yoe! Je voudrais une table en terrasse, s\'il vous plaît.' },
       { id: 'obj_fr_2', text: 'Order a croissant and a coffee', completed: false, hint: 'Say: Je voudrais un croissant et un café au lait, s\'il vous plaît.' },
       { id: 'obj_fr_3', text: 'Ask for the check at the end of breakfast', completed: false, hint: 'Say: L\'addition, s\'il vous plaît.' }
     ]
@@ -83,15 +83,15 @@ export const STARTER_SCENARIOS: Scenario[] = [
     targetLanguage: 'es',
     cefrLevel: 'A1',
     location: 'Hotel Gran Vía, Madrid',
-    characterName: 'Sofia',
+    characterName: 'Yoe',
     characterRole: 'Hotel Receptionist',
     avatar: '🏨',
     imageUrl: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=600&q=80',
     vocabularyDomain: ['reserva', 'habitación', 'desayuno', 'clave de wifi', 'piso'],
-    initialGreeting: '¡Buenas tardes! Bienvenido al Hotel Gran Vía. ¿Tiene una reserva con nosotros?',
-    initialGreetingTranslation: 'Good afternoon! Welcome to Hotel Gran Vía. Do you have a reservation with us?',
+    initialGreeting: '¡Buenas tardes! Soy Yoe. Bienvenido al Hotel Gran Vía. ¿Tiene una reserva con nosotros?',
+    initialGreetingTranslation: 'Good afternoon! I am Yoe. Welcome to Hotel Gran Vía. Do you have a reservation with us?',
     objectives: [
-      { id: 'obj_es_1', text: 'Confirm reservation under your name', completed: false, hint: 'Say: Tengo una reserva a nombre de...' },
+      { id: 'obj_es_1', text: 'Confirm reservation under your name', completed: false, hint: 'Say: Hola Yoe, tengo una reserva a nombre de...' },
       { id: 'obj_es_2', text: 'Ask for the WiFi password and breakfast time', completed: false, hint: 'Say: ¿Cuál es la contraseña del WiFi y a qué hora es el desayuno?' },
       { id: 'obj_es_3', text: 'Inquire about keycard or room floor', completed: false, hint: 'Say: ¿En qué piso está la habitación?' }
     ]

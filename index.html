@@ -28,15 +28,17 @@
         try {
           var saved = localStorage.getItem('yoe_theme');
           var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-          var theme = saved || (prefersDark ? 'dark' : 'dark');
+          var theme = saved || (prefersDark ? 'dark' : 'light');
           if (theme === 'light') {
             document.documentElement.classList.add('light-mode');
-            document.documentElement.classList.remove('dark');
+            document.documentElement.classList.remove('dark', 'dark-mode');
+            document.documentElement.style.colorScheme = 'light';
             var meta = document.querySelector('meta[name="theme-color"]');
             if (meta) meta.setAttribute('content', '#f8fafc');
           } else {
-            document.documentElement.classList.add('dark');
+            document.documentElement.classList.add('dark', 'dark-mode');
             document.documentElement.classList.remove('light-mode');
+            document.documentElement.style.colorScheme = 'dark';
             var meta = document.querySelector('meta[name="theme-color"]');
             if (meta) meta.setAttribute('content', '#070b12');
           }

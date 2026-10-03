@@ -35,10 +35,8 @@ export const AppBootLoader: React.FC = () => {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex flex-col items-center justify-center transition-opacity duration-500 select-none"
+      className="fixed inset-0 z-50 flex flex-col items-center justify-center transition-colors duration-300 select-none bg-[var(--app-background)] text-[var(--text-primary)]"
       style={{
-        backgroundColor: 'var(--app-background, #070b12)',
-        color: 'var(--text-primary, #f8fafc)',
         height: '100dvh',
         paddingTop: 'env(safe-area-inset-top, 0px)',
         paddingBottom: 'env(safe-area-inset-bottom, 0px)'
@@ -46,7 +44,7 @@ export const AppBootLoader: React.FC = () => {
     >
       <div className="relative flex flex-col items-center justify-center space-y-6">
         {/* Soft atmospheric ambient glow */}
-        <div className="absolute w-32 h-32 rounded-full bg-emerald-500/15 blur-3xl animate-pulse pointer-events-none" />
+        <div className="absolute w-32 h-32 rounded-full bg-emerald-500/20 dark:bg-emerald-500/15 light-mode:bg-emerald-600/15 blur-3xl animate-pulse pointer-events-none" />
 
         {/* Real Yoe Logo with gentle, calm floating and breathing motion */}
         <div className="relative z-10 animate-bounce-subtle">
@@ -59,10 +57,10 @@ export const AppBootLoader: React.FC = () => {
 
         {/* Official Slogan with character typing animation — Signature Font */}
         <div className="relative z-10 text-center h-8 flex items-center justify-center">
-          <p className="font-signature text-2xl sm:text-3xl font-bold tracking-wide text-emerald-400 dark:text-emerald-400 light-mode:text-emerald-600">
+          <p className="font-signature text-2xl sm:text-3xl font-bold tracking-wide text-emerald-500 dark:text-emerald-400 light-mode:text-emerald-600">
             {displayedText}
             {!isTypingComplete && (
-              <span className="inline-block w-1 h-5 ml-1 bg-emerald-400/80 rounded-sm animate-pulse align-middle" />
+              <span className="inline-block w-1 h-5 ml-1 bg-emerald-500 dark:bg-emerald-400 light-mode:bg-emerald-600 rounded-sm animate-pulse align-middle" />
             )}
           </p>
         </div>

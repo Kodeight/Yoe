@@ -56,8 +56,10 @@ export function buildConversationSystemInstruction(scenario: Scenario, journey: 
   return `
 [APPLICATION IDENTITY & TUTOR PERSONA]
 You are YOE, the intelligent, warm, highly adaptive bilingual language-learning tutor of ${journey.targetLanguage.toUpperCase()}.
-Your universal identity across the entire application is always Yoe, the language-learning tutor.
-In this active practice scenario, you roleplay as "${scenario.characterName}" (${scenario.characterRole}) at ${scenario.location} in the scenario "${scenario.title}" solely within the context of roleplay to provide authentic, immersive conversational practice.
+Your universal name and identity across ALL scenarios, roles, and interactions is ALWAYS YOE (male or female depending on role persona).
+Whether roleplaying as a ${scenario.characterRole} at ${scenario.location} or any other role, your name is ALWAYS YOE (e.g., 'Soy Yoe', 'Je suis Yoe', 'I am Yoe').
+When asked your name, you MUST answer that your name is YOE.
+NEVER use names like Sofia, Maya, Jean-Luc, Carmen, or any other name. Your name is ONLY YOE.
 
 [PEDAGOGICAL MISSION & MANDATORY LANGUAGE RULES]
 1. DESIRED LEARNING LANGUAGE: ${journey.targetLanguage.toUpperCase()} (This is the target language the learner wants to learn, practice, and master).
@@ -65,8 +67,8 @@ In this active practice scenario, you roleplay as "${scenario.characterName}" ($
 3. CEFR Level: ${journey.cefrLevel || 'A1'}
 
 [CONVERSATION RULES - STRICT ADHERENCE]
-- Directly and contextually respond to the learner's actual utterance.
-- If the learner asks your name, introduce yourself as ${scenario.characterName}.
+- Directly and contextually respond to the learner's actual utterance generated LIVE.
+- If the learner asks your name, answer that your name is YOE.
 - If the learner asks if you speak English or asks for clarification, respond helpfully in ${journey.targetLanguage.toUpperCase()} and provide the explanation.
 - If the learner states what they need (e.g., booking a room, ordering food, checking in), advance the scenario dialogue naturally.
 - Keep character dialogue natural, concise, and appropriate for ${journey.cefrLevel || 'A1'} level in ${journey.targetLanguage.toUpperCase()}.
@@ -78,6 +80,82 @@ ${scenario.objectives.map(o => `  * [ID: ${o.id}] ${o.text}`).join('\n')}
   List satisfied IDs in "completedObjectiveIds".
 ${mistakesContext}
 `.trim();
+}
+
+/**
+ * Generate a LIVE initial AI greeting for a scenario session dynamically using Gemini
+ */
+export async function generateLiveGreeting(scenario: Scenario, journey: LearningJourney): Promise<{ response: string; translation: string; audioBase64?: string }> {
+  const systemInstruction = buildConversationSystemInstruction(scenario, journey);
+  const prompt = `
+Generate a warm, natural, single-sentence initial greeting as Yoe (roleplaying as ${scenario.characterRole} at ${scenario.location}) in authentic ${journey.targetLanguage.toUpperCase()} for a ${journey.cefrLevel || 'A1'} level learner starting the scenario "${scenario.title}".
+Your name is YOE. Do NOT use any other name.
+Provide the greeting in ${journey.targetLanguage.toUpperCase()} and its translation in ${journey.supportLanguage.toUpperCase()}.
+Return strictly JSON.
+`.trim();
+
+  for (const modelCandidate of CANDIDATE_CHAT_MODELS) {
+    try {
+      const aiResult = await ai.models.generateContent({
+        model: modelCandidate,
+        contents: prompt,
+        config: {
+          systemInstruction,
+          temperature: 0.8,
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              response: { type: Type.STRING },
+              translation: { type: Type.STRING }
+            },
+            required: ['response', 'translation']
+          }
+        }
+      });
+
+      const parsed = JSON.parse(aiResult.text || '{}');
+      if (parsed.response) {
+        let audioBase64: string | undefined = undefined;
+        try {
+          const ttsResult = await ai.models.generateContent({
+            model: ttsModel,
+            contents: parsed.response,
+            config: {
+              responseMimeType: 'audio/wav',
+              speechConfig: {
+                voiceConfig: {
+                  prebuiltVoiceConfig: {
+                    voiceName: getCharacterVoice('Yoe', scenario.characterRole)
+                  }
+                }
+              }
+            }
+          });
+          const candidate = ttsResult.candidates?.[0];
+          const part = candidate?.content?.parts?.[0];
+          if (part && 'inlineData' in part && part.inlineData?.data) {
+            audioBase64 = part.inlineData.data;
+          }
+        } catch (ttsErr) {
+          console.warn('[YOE TTS] Greeting TTS note:', ttsErr);
+        }
+
+        return {
+          response: parsed.response,
+          translation: parsed.translation || parsed.response,
+          audioBase64
+        };
+      }
+    } catch (err) {
+      console.warn(`[YOE GREETING] ${modelCandidate} failed:`, err);
+    }
+  }
+
+  return {
+    response: scenario.initialGreeting,
+    translation: scenario.initialGreetingTranslation || scenario.initialGreeting
+  };
 }
 
 /**

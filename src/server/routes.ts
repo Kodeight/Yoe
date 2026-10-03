@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import rateLimit from 'express-rate-limit';
 import { db, SUPPORTED_LANGUAGES } from './db';
-import { processScenarioTurn, calibrateLearnerLevel, generateScenarioSpeech, getCharacterVoice, createEphemeralLiveToken, LIVE_MODEL } from './aiService';
+import { processScenarioTurn, generateLiveGreeting, calibrateLearnerLevel, generateScenarioSpeech, getCharacterVoice, createEphemeralLiveToken, LIVE_MODEL } from './aiService';
 import { registerHandler, loginHandler, meHandler, logoutHandler, requireAuth, AuthRequest, sanitizeUser } from './auth';
 import { User, LearningJourney } from '../types';
 
@@ -114,11 +114,10 @@ apiRouter.get('/scenarios/:id', (req: Request, res: Response) => {
   res.json({ scenario });
 });
 
-// AI Chat Interaction
-apiRouter.post('/ai/chat', async (req: Request, res: Response) => {
+// AI Live Initial Greeting Endpoint
+apiRouter.post('/ai/initial-greeting', async (req: Request, res: Response) => {
   try {
-    const { journeyId, scenarioId, userMessage, conversationHistory, targetLanguage, supportLanguage, cefrLevel } = req.body;
-
+    const { scenarioId, journeyId, targetLanguage, supportLanguage, cefrLevel } = req.body;
     const scenario = db.getScenarioById(scenarioId) || db.getScenarios()[0];
     const existingJourney = journeyId ? db.getJourney(journeyId) : null;
 
@@ -134,6 +133,45 @@ apiRouter.post('/ai/chat', async (req: Request, res: Response) => {
       createdAt: new Date().toISOString()
     };
 
+    const greeting = await generateLiveGreeting(scenario, journey);
+    res.json({ greeting });
+  } catch (err: any) {
+    console.error('[YOE GREETING ERROR]:', err);
+    res.status(500).json({ error: 'Failed to generate live greeting' });
+  }
+});
+
+// AI Chat Interaction
+apiRouter.post('/ai/chat', async (req: Request, res: Response) => {
+  console.log('[YOE CHAT] request received');
+  try {
+    const { journeyId, scenarioId, userMessage, conversationHistory, targetLanguage, supportLanguage, cefrLevel } = req.body;
+
+    console.log(`[YOE CHAT] user authenticated: ${!!((req as any).user || req.headers.authorization)}`);
+    console.log(`[YOE CHAT] message length: ${userMessage?.length || 0}`);
+
+    const scenario = db.getScenarioById(scenarioId) || db.getScenarios()[0];
+    const existingJourney = journeyId ? db.getJourney(journeyId) : null;
+
+    console.log(`[YOE CHAT] scenario loaded: ${!!scenario}`);
+
+    const journey: LearningJourney = existingJourney || {
+      id: journeyId || 'temp_jrn',
+      userId: 'temp_user',
+      targetLanguage: (targetLanguage || scenario?.targetLanguage || 'es') as any,
+      supportLanguage: (supportLanguage || 'en') as any,
+      cefrLevel: (cefrLevel || scenario?.cefrLevel || 'A1') as any,
+      streakDays: 0,
+      totalMinutesSpoken: 0,
+      points: 0,
+      createdAt: new Date().toISOString()
+    };
+
+    console.log(`[YOE CHAT] target language: ${journey.targetLanguage}`);
+    console.log(`[YOE CHAT] support language: ${journey.supportLanguage}`);
+    console.log(`[YOE CHAT] level: ${journey.cefrLevel}`);
+    console.log(`[YOE CHAT] history length: ${conversationHistory?.length || 0}`);
+
     const recentMistakes = existingJourney ? db.getMistakes(existingJourney.id) : [];
 
     // Save user message
@@ -145,6 +183,8 @@ apiRouter.post('/ai/chat', async (req: Request, res: Response) => {
       timestamp: new Date().toISOString()
     });
 
+    console.log('[YOE CHAT] Gemini request started');
+
     // Call Gemini Service
     const aiResult = await processScenarioTurn({
       scenario,
@@ -153,6 +193,8 @@ apiRouter.post('/ai/chat', async (req: Request, res: Response) => {
       userMessage,
       recentMistakes
     });
+
+    console.log(`[YOE CHAT] Gemini response received, length: ${aiResult.response?.length || 0}`);
 
     // Save tutor message
     const tutorMsg = db.saveChatMessage(scenarioId || scenario.id, {
@@ -215,7 +257,7 @@ apiRouter.post('/ai/chat', async (req: Request, res: Response) => {
       aiResponse: aiResult
     });
   } catch (err: any) {
-    console.error('Error handling AI chat route:', err);
+    console.error('[YOE CHAT ERROR] status 500:', err);
     res.status(500).json({
       error: "Yoe couldn't connect right now. Please try again.",
       details: err?.message || 'Gemini service error'
