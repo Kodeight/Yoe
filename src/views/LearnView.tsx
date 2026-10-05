@@ -28,7 +28,7 @@ import {
 
 export const LearnView: React.FC = () => {
   const { activeJourney, vocabulary, mistakes, setActiveView, setActiveScenarioId } = useApp();
-  const { speakText, replayMessage, playingMessageId, isSpeaking, replayErrorId, playFeedbackSound } = useAudio();
+  const { speakText, replayMessage, playingMessageId, loadingAudioId, isSpeaking, replayErrorId, playFeedbackSound } = useAudio();
 
   const [activeTab, setActiveTab] = useState<'course' | 'progress' | 'review'>('course');
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
@@ -163,26 +163,26 @@ export const LearnView: React.FC = () => {
 
             {/* Quick stats */}
             <div className="grid grid-cols-2 gap-2">
-              <div className="p-3 rounded-2xl glass-pill flex items-center justify-between">
+              <div className="p-3 rounded-2xl glass-pill flex items-center justify-between border border-white/10 dark:border-white/10 light-mode:border-slate-200 light-mode:bg-slate-50/80">
                 <div>
-                  <div className="text-[10px] text-slate-400">Weak Patterns</div>
-                  <div className="text-base font-black text-amber-400">{mistakes.length} Recorded</div>
+                  <div className="text-[10px] text-slate-400 dark:text-slate-400 light-mode:text-slate-600">Weak Patterns</div>
+                  <div className="text-base font-black text-amber-400 dark:text-amber-400 light-mode:text-amber-700">{mistakes.length} Recorded</div>
                 </div>
-                <Target className="w-4 h-4 text-amber-400/60" />
+                <Target className="w-4 h-4 text-amber-400/60 dark:text-amber-400/60 light-mode:text-amber-600" />
               </div>
-              <div className="p-3 rounded-2xl glass-pill flex items-center justify-between">
+              <div className="p-3 rounded-2xl glass-pill flex items-center justify-between border border-white/10 dark:border-white/10 light-mode:border-slate-200 light-mode:bg-slate-50/80">
                 <div>
-                  <div className="text-[10px] text-slate-400">Mastery Bank</div>
-                  <div className="text-base font-black text-emerald-400">{vocabulary.length} Words</div>
+                  <div className="text-[10px] text-slate-400 dark:text-slate-400 light-mode:text-slate-600">Mastery Bank</div>
+                  <div className="text-base font-black text-emerald-400 dark:text-emerald-400 light-mode:text-emerald-700">{vocabulary.length} Words</div>
                 </div>
-                <BookOpen className="w-4 h-4 text-emerald-400/60" />
+                <BookOpen className="w-4 h-4 text-emerald-400/60 dark:text-emerald-400/60 light-mode:text-emerald-600" />
               </div>
             </div>
 
             {/* Empty State with Clear CTAs if learner has no data */}
             {mistakes.length === 0 && vocabulary.length === 0 ? (
-              <div className="p-6 rounded-2xl glass-pill text-center space-y-3">
-                <div className="w-10 h-10 rounded-full bg-purple-500/15 border border-purple-500/25 flex items-center justify-center mx-auto text-purple-400">
+              <div className="p-6 rounded-2xl glass-pill text-center space-y-3 border border-white/10 dark:border-white/10 light-mode:border-slate-200 light-mode:bg-slate-50/80">
+                <div className="w-10 h-10 rounded-full bg-purple-500/15 border border-purple-500/25 flex items-center justify-center mx-auto text-purple-400 dark:text-purple-400 light-mode:text-purple-700">
                   <RotateCcw className="w-5 h-5" />
                 </div>
                 <div>
@@ -202,7 +202,7 @@ export const LearnView: React.FC = () => {
                   </button>
                   <button
                     onClick={() => setActiveView('explore')}
-                    className="px-3.5 py-2 rounded-xl glass-pill text-slate-200 text-xs font-bold hover:border-emerald-500/40 cursor-pointer"
+                    className="px-3.5 py-2 rounded-xl glass-pill text-slate-200 dark:text-slate-200 light-mode:text-slate-800 border border-white/10 dark:border-white/10 light-mode:border-slate-200 text-xs font-bold hover:border-emerald-500/40 cursor-pointer"
                   >
                     Practice Speaking
                   </button>
@@ -213,32 +213,42 @@ export const LearnView: React.FC = () => {
                 {/* Recent Mistakes List to Review */}
                 {mistakes.length > 0 && (
                   <div className="space-y-2 pt-1">
-                    <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-                      <Target className="w-3.5 h-3.5 text-amber-400" />
+                    <h4 className="text-xs font-bold text-slate-300 dark:text-slate-300 light-mode:text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                      <Target className="w-3.5 h-3.5 text-amber-400 dark:text-amber-400 light-mode:text-amber-600" />
                       <span>Grammar Patterns to Recast</span>
                     </h4>
                     <div className="space-y-2">
-                      {mistakes.slice(0, 4).map((m) => (
-                        <div key={m.id} className="p-3 rounded-2xl glass-pill space-y-1 text-xs">
-                          <div className="flex items-center justify-between">
-                            <span className="font-bold text-amber-400 uppercase text-[10px]">{m.pattern}</span>
-                            <button
-                              onClick={() => replayMessage(m.id, m.correctedForm)}
-                              className={`p-1 rounded-lg transition-colors cursor-pointer ${
-                                playingMessageId === m.id && isSpeaking ? 'text-emerald-400 animate-pulse bg-emerald-500/20' : 'text-slate-400 hover:text-emerald-400'
-                              }`}
-                              title="Listen"
-                            >
-                              <Volume2 className={`w-3.5 h-3.5 ${playingMessageId === m.id && isSpeaking ? 'stroke-[2.5]' : ''}`} />
-                            </button>
+                      {mistakes.slice(0, 4).map((m) => {
+                        const isMistakeLoading = loadingAudioId === m.id;
+                        const isMistakePlaying = playingMessageId === m.id && isSpeaking;
+
+                        return (
+                          <div key={m.id} className="p-3 rounded-2xl glass-pill space-y-1 text-xs border border-white/10 dark:border-white/10 light-mode:border-slate-200 light-mode:bg-slate-50/80">
+                            <div className="flex items-center justify-between">
+                              <span className="font-bold text-amber-400 dark:text-amber-400 light-mode:text-amber-700 uppercase text-[10px]">{m.pattern}</span>
+                              <button
+                                disabled={isMistakeLoading}
+                                onClick={() => replayMessage(m.id, m.correctedForm)}
+                                className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                                  isMistakePlaying ? 'text-emerald-400 dark:text-emerald-400 light-mode:text-emerald-700 animate-pulse bg-emerald-500/20' : 'text-slate-400 dark:text-slate-400 light-mode:text-slate-600 hover:text-emerald-400'
+                                }`}
+                                title="Listen"
+                              >
+                                {isMistakeLoading ? (
+                                  <div className="w-3.5 h-3.5 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+                                ) : (
+                                  <Volume2 className={`w-3.5 h-3.5 ${isMistakePlaying ? 'stroke-[2.5]' : ''}`} />
+                                )}
+                              </button>
+                            </div>
+                            <div className="text-slate-300 dark:text-slate-300 light-mode:text-slate-800">
+                              <span className="line-through text-red-300/70 dark:text-red-300/70 light-mode:text-red-600 mr-1.5">{m.exampleUserSaid}</span>
+                              <span className="text-emerald-400 dark:text-emerald-400 light-mode:text-emerald-700 font-bold">→ {m.correctedForm}</span>
+                            </div>
+                            <p className="text-[10px] text-slate-400 dark:text-slate-400 light-mode:text-slate-600">{m.explanation}</p>
                           </div>
-                          <div className="text-slate-300">
-                            <span className="line-through text-red-300/70 mr-1.5">{m.exampleUserSaid}</span>
-                            <span className="text-emerald-400 font-bold">→ {m.correctedForm}</span>
-                          </div>
-                          <p className="text-[10px] text-slate-400">{m.explanation}</p>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 )}
@@ -246,28 +256,37 @@ export const LearnView: React.FC = () => {
                 {/* Vocabulary Items to Hear */}
                 {vocabulary.length > 0 && (
                   <div className="space-y-2 pt-1">
-                    <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-                      <BookOpen className="w-3.5 h-3.5 text-emerald-400" />
+                    <h4 className="text-xs font-bold text-slate-300 dark:text-slate-300 light-mode:text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                      <BookOpen className="w-3.5 h-3.5 text-emerald-400 dark:text-emerald-400 light-mode:text-emerald-700" />
                       <span>Vocabulary Bank to Recall</span>
                     </h4>
                     <div className="grid grid-cols-2 gap-2">
-                      {vocabulary.slice(0, 6).map((v) => (
-                        <div
-                          key={v.id}
-                          onClick={() => replayMessage(v.id, v.word)}
-                          className={`p-2.5 rounded-xl glass-pill cursor-pointer transition-colors flex items-center justify-between group ${
-                            playingMessageId === v.id && isSpeaking ? 'border-emerald-500/60 bg-emerald-500/10' : 'hover:border-emerald-500/40'
-                          }`}
-                        >
-                          <div className="min-w-0 pr-1">
-                            <div className="font-bold text-xs text-slate-100 truncate">{v.word}</div>
-                            <div className="text-[10px] text-slate-400 truncate">{v.translation}</div>
+                      {vocabulary.slice(0, 6).map((v) => {
+                        const isVocabLoading = loadingAudioId === v.id;
+                        const isVocabPlaying = playingMessageId === v.id && isSpeaking;
+
+                        return (
+                          <div
+                            key={v.id}
+                            onClick={() => replayMessage(v.id, v.word)}
+                            className={`p-2.5 rounded-xl glass-pill cursor-pointer transition-colors flex items-center justify-between group border border-white/10 dark:border-white/10 light-mode:border-slate-200 light-mode:bg-slate-50/80 ${
+                              isVocabPlaying ? 'border-emerald-500/60 bg-emerald-500/10' : 'hover:border-emerald-500/40'
+                            }`}
+                          >
+                            <div className="min-w-0 pr-1">
+                              <div className="font-bold text-xs text-slate-100 dark:text-slate-100 light-mode:text-slate-900 truncate">{v.word}</div>
+                              <div className="text-[10px] text-slate-400 dark:text-slate-400 light-mode:text-slate-600 truncate">{v.translation}</div>
+                            </div>
+                            {isVocabLoading ? (
+                              <div className="w-3.5 h-3.5 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin shrink-0" />
+                            ) : (
+                              <Volume2 className={`w-3.5 h-3.5 shrink-0 ${
+                                isVocabPlaying ? 'text-emerald-400 dark:text-emerald-400 light-mode:text-emerald-700 animate-pulse stroke-[2.5]' : 'text-slate-400 dark:text-slate-400 light-mode:text-slate-600 group-hover:text-emerald-400'
+                              }`} />
+                            )}
                           </div>
-                          <Volume2 className={`w-3.5 h-3.5 shrink-0 ${
-                            playingMessageId === v.id && isSpeaking ? 'text-emerald-400 animate-pulse stroke-[2.5]' : 'text-slate-400 group-hover:text-emerald-400'
-                          }`} />
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 )}
@@ -387,23 +406,24 @@ export const LearnView: React.FC = () => {
 
       {/* INTERACTIVE LESSON RUNNER MODAL */}
       {selectedLesson && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/80 backdrop-blur-md p-4 flex flex-col justify-center animate-in fade-in duration-200">
-          <div className="max-w-md w-full mx-auto glass-card rounded-3xl p-6 shadow-2xl border border-white/15 space-y-4 my-auto relative">
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/80 dark:bg-slate-950/80 light-mode:bg-slate-900/40 backdrop-blur-md p-4 flex flex-col justify-center animate-in fade-in duration-200">
+          <div className="max-w-md w-full mx-auto glass-card rounded-3xl p-6 shadow-2xl border border-white/15 dark:border-white/15 light-mode:border-slate-200 light-mode:bg-white space-y-4 my-auto relative">
 
             {/* Header */}
-            <div className="flex items-center justify-between pb-2 border-b border-white/10">
+            <div className="flex items-center justify-between pb-2 border-b border-white/10 dark:border-white/10 light-mode:border-slate-200">
               <div className="flex items-center gap-2">
-                <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase">
+                <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 dark:text-emerald-400 light-mode:text-emerald-700 text-[10px] font-black uppercase">
                   {selectedLesson.type}
                 </span>
-                <span className="text-xs font-bold text-slate-300">
+                <span className="text-xs font-bold text-slate-300 dark:text-slate-300 light-mode:text-slate-800">
                   {selectedLesson.title}
                 </span>
               </div>
 
               <button
                 onClick={() => setSelectedLesson(null)}
-                className="p-1 rounded-full text-slate-400 hover:text-white cursor-pointer"
+                className="p-1 rounded-full text-slate-400 dark:text-slate-400 light-mode:text-slate-600 hover:text-white dark:hover:text-white light-mode:hover:text-slate-900 cursor-pointer"
+                title="Close modal"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -412,47 +432,63 @@ export const LearnView: React.FC = () => {
             {/* 1. THEORY LESSON */}
             {selectedLesson.type === 'theory' && selectedLesson.theoryContent && (
               <div className="space-y-4 text-xs">
-                <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/25">
-                  <h4 className="font-black text-sm text-emerald-400 mb-1">
+                <div className="p-3.5 rounded-2xl bg-emerald-500/10 dark:bg-emerald-500/10 light-mode:bg-emerald-50/90 border border-emerald-500/25 dark:border-emerald-500/25 light-mode:border-emerald-200">
+                  <h4 className="font-black text-sm text-emerald-400 dark:text-emerald-400 light-mode:text-emerald-800 mb-1">
                     {selectedLesson.theoryContent.concept}
                   </h4>
-                  <p className="text-slate-200 leading-relaxed">
+                  <p className="text-slate-200 dark:text-slate-200 light-mode:text-slate-700 leading-relaxed font-normal">
                     {selectedLesson.theoryContent.explanation}
                   </p>
                 </div>
 
                 <div className="space-y-2">
-                  <span className="font-bold text-[11px] text-slate-400 uppercase tracking-wider">
+                  <span className="font-bold text-[11px] text-slate-400 dark:text-slate-400 light-mode:text-slate-600 uppercase tracking-wider">
                     Interactive Examples
                   </span>
-                  {selectedLesson.theoryContent.examples.map((ex, i) => (
-                    <div
-                      key={i}
-                      className="p-3 rounded-2xl glass-pill flex items-center justify-between gap-2"
-                    >
-                      <div>
-                        <div className="font-bold text-slate-100 text-xs">{ex.original}</div>
-                        <div className="text-[11px] text-slate-400">{ex.translation}</div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => replayMessage(`theory_${selectedLesson.id}_${i}`, ex.original)}
-                        className={`p-2 rounded-xl transition-colors cursor-pointer ${
-                          playingMessageId === `theory_${selectedLesson.id}_${i}` && isSpeaking
-                            ? 'bg-emerald-500/25 text-emerald-400 animate-pulse'
-                            : 'bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25'
-                        }`}
-                        title={playingMessageId === `theory_${selectedLesson.id}_${i}` && isSpeaking ? 'Stop playback' : 'Listen'}
+                  {selectedLesson.theoryContent.examples.map((ex, i) => {
+                    const msgKey = `theory_${selectedLesson.id}_${i}`;
+                    const isMsgPlaying = playingMessageId === msgKey && isSpeaking;
+                    const isMsgLoading = loadingAudioId === msgKey;
+                    const isMsgError = replayErrorId === msgKey;
+
+                    return (
+                      <div
+                        key={i}
+                        className="p-3 rounded-2xl glass-pill flex items-center justify-between gap-2 border border-white/10 dark:border-white/10 light-mode:border-slate-200 light-mode:bg-slate-50/80"
                       >
-                        <Volume2 className={`w-4 h-4 ${playingMessageId === `theory_${selectedLesson.id}_${i}` && isSpeaking ? 'stroke-[2.5]' : ''}`} />
-                      </button>
-                    </div>
-                  ))}
+                        <div className="min-w-0 pr-2">
+                          <div className="font-bold text-slate-100 dark:text-slate-100 light-mode:text-slate-900 text-xs">{ex.original}</div>
+                          <div className="text-[11px] text-slate-400 dark:text-slate-400 light-mode:text-slate-600 mt-0.5">{ex.translation}</div>
+                        </div>
+                        <button
+                          type="button"
+                          disabled={isMsgLoading}
+                          onClick={() => replayMessage(msgKey, ex.original)}
+                          className={`p-2 rounded-xl transition-colors cursor-pointer shrink-0 ${
+                            isMsgPlaying
+                              ? 'bg-emerald-500/25 text-emerald-400 dark:text-emerald-400 light-mode:text-emerald-700 animate-pulse'
+                              : isMsgLoading
+                              ? 'bg-emerald-500/20 text-emerald-400 dark:text-emerald-400 light-mode:text-emerald-700'
+                              : isMsgError
+                              ? 'bg-red-500/20 text-red-400 dark:text-red-400 light-mode:text-red-600'
+                              : 'bg-emerald-500/15 dark:bg-emerald-500/15 light-mode:bg-emerald-100/90 text-emerald-400 dark:text-emerald-400 light-mode:text-emerald-700 hover:bg-emerald-500/25 light-mode:hover:bg-emerald-200'
+                          }`}
+                          title={isMsgPlaying ? 'Stop playback' : isMsgLoading ? 'Loading audio...' : 'Listen'}
+                        >
+                          {isMsgLoading ? (
+                            <div className="w-4 h-4 border-2 border-emerald-500 dark:border-emerald-400 light-mode:border-emerald-600 border-t-transparent rounded-full animate-spin" />
+                          ) : (
+                            <Volume2 className={`w-4 h-4 ${isMsgPlaying ? 'stroke-[2.5]' : ''}`} />
+                          )}
+                        </button>
+                      </div>
+                    );
+                  })}
                 </div>
 
-                <div className="p-3 rounded-2xl bg-slate-900/50 border border-white/10 text-slate-300">
-                  <span className="font-bold text-emerald-400">Takeaway: </span>
-                  {selectedLesson.theoryContent.keyTakeaway}
+                <div className="p-3 rounded-2xl bg-slate-900/50 dark:bg-slate-900/50 light-mode:bg-slate-100 border border-white/10 dark:border-white/10 light-mode:border-slate-200 text-slate-300 dark:text-slate-300 light-mode:text-slate-700">
+                  <span className="font-bold text-emerald-400 dark:text-emerald-400 light-mode:text-emerald-700">Takeaway: </span>
+                  <span className="font-normal">{selectedLesson.theoryContent.keyTakeaway}</span>
                 </div>
 
                 <button
@@ -471,34 +507,42 @@ export const LearnView: React.FC = () => {
                 {(() => {
                   const q = selectedLesson.quizQuestions[currentQuizIndex];
                   if (!q) return null;
+                  const quizMsgKey = `quiz_${selectedLesson.id}_${currentQuizIndex}`;
+                  const isQuizLoading = loadingAudioId === quizMsgKey;
+                  const isQuizPlaying = playingMessageId === quizMsgKey && isSpeaking;
 
                   return (
                     <div className="space-y-4">
-                      <div className="flex items-center justify-between text-[11px] text-slate-400">
+                      <div className="flex items-center justify-between text-[11px] text-slate-400 dark:text-slate-400 light-mode:text-slate-600">
                         <span>Question {currentQuizIndex + 1} of {selectedLesson.quizQuestions.length}</span>
-                        <span className="text-amber-400 font-bold">Score: {quizScore}</span>
+                        <span className="text-amber-400 dark:text-amber-400 light-mode:text-amber-700 font-bold">Score: {quizScore}</span>
                       </div>
 
                       {q.audioText && (
-                        <div className="p-4 rounded-2xl bg-cyan-500/10 border border-cyan-500/25 text-center space-y-2">
+                        <div className="p-4 rounded-2xl bg-cyan-500/10 dark:bg-cyan-500/10 light-mode:bg-cyan-50/90 border border-cyan-500/25 dark:border-cyan-500/25 light-mode:border-cyan-200 text-center space-y-2">
                           <button
                             type="button"
-                            onClick={() => replayMessage(`quiz_${selectedLesson.id}_${currentQuizIndex}`, q.audioText!)}
+                            disabled={isQuizLoading}
+                            onClick={() => replayMessage(quizMsgKey, q.audioText!)}
                             className={`py-2 px-4 rounded-xl text-white font-bold text-xs inline-flex items-center gap-2 shadow-md cursor-pointer hover:opacity-95 ${
-                              playingMessageId === `quiz_${selectedLesson.id}_${currentQuizIndex}` && isSpeaking
+                              isQuizPlaying
                                 ? 'bg-cyan-600 animate-pulse'
-                                : 'bg-cyan-500'
+                                : 'bg-cyan-500 dark:bg-cyan-500 light-mode:bg-cyan-600'
                             }`}
                           >
-                            <Volume2 className={`w-4 h-4 text-white ${playingMessageId === `quiz_${selectedLesson.id}_${currentQuizIndex}` && isSpeaking ? 'stroke-[2.5]' : ''}`} />
+                            {isQuizLoading ? (
+                              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                            ) : (
+                              <Volume2 className={`w-4 h-4 text-white ${isQuizPlaying ? 'stroke-[2.5]' : ''}`} />
+                            )}
                             <span className="text-white">
-                              {playingMessageId === `quiz_${selectedLesson.id}_${currentQuizIndex}` && isSpeaking ? 'Stop playback' : 'Listen to Phrase'}
+                              {isQuizPlaying ? 'Stop playback' : isQuizLoading ? 'Loading Audio...' : 'Listen to Phrase'}
                             </span>
                           </button>
                         </div>
                       )}
 
-                      <h4 className="text-sm font-bold text-slate-100">
+                      <h4 className="text-sm font-bold text-slate-100 dark:text-slate-100 light-mode:text-slate-900">
                         {q.question}
                       </h4>
 
@@ -507,12 +551,12 @@ export const LearnView: React.FC = () => {
                           const isSelected = selectedOption === optIdx;
                           const isCorrect = optIdx === q.correctOptionIndex;
 
-                          let btnClass = 'glass-pill text-slate-200 hover:border-emerald-500/40';
+                          let btnClass = 'glass-pill text-slate-200 dark:text-slate-200 light-mode:text-slate-800 hover:border-emerald-500/40 light-mode:border-slate-200 light-mode:bg-slate-50/80';
                           if (isAnswerSubmitted) {
-                            if (isCorrect) btnClass = 'bg-emerald-500/20 border-emerald-500 text-emerald-300 font-bold';
-                            else if (isSelected) btnClass = 'bg-red-500/20 border-red-500 text-red-300';
+                            if (isCorrect) btnClass = 'bg-emerald-500/20 border-emerald-500 text-emerald-300 dark:text-emerald-300 light-mode:text-emerald-800 font-bold';
+                            else if (isSelected) btnClass = 'bg-red-500/20 border-red-500 text-red-300 dark:text-red-300 light-mode:text-red-700';
                           } else if (isSelected) {
-                            btnClass = 'bg-emerald-500/20 border-emerald-500 text-emerald-300 font-bold';
+                            btnClass = 'bg-emerald-500/20 border-emerald-500 text-emerald-300 dark:text-emerald-300 light-mode:text-emerald-800 font-bold';
                           }
 
                           return (
@@ -523,15 +567,15 @@ export const LearnView: React.FC = () => {
                               className={`w-full p-3.5 rounded-2xl border text-left text-xs transition-all cursor-pointer flex items-center justify-between ${btnClass}`}
                             >
                               <span>{opt}</span>
-                              {isAnswerSubmitted && isCorrect && <Check className="w-4 h-4 text-emerald-400" />}
-                              {isAnswerSubmitted && isSelected && !isCorrect && <X className="w-4 h-4 text-red-400" />}
+                              {isAnswerSubmitted && isCorrect && <Check className="w-4 h-4 text-emerald-400 dark:text-emerald-400 light-mode:text-emerald-700" />}
+                              {isAnswerSubmitted && isSelected && !isCorrect && <X className="w-4 h-4 text-red-400 dark:text-red-400 light-mode:text-red-600" />}
                             </button>
                           );
                         })}
                       </div>
 
                       {isAnswerSubmitted && (
-                        <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 text-[11px] text-slate-200">
+                        <div className="p-3 rounded-2xl bg-emerald-500/10 dark:bg-emerald-500/10 light-mode:bg-emerald-50 border border-emerald-500/25 dark:border-emerald-500/25 light-mode:border-emerald-200 text-[11px] text-slate-200 dark:text-slate-200 light-mode:text-slate-700">
                           {q.explanation}
                         </div>
                       )}
@@ -579,8 +623,8 @@ export const LearnView: React.FC = () => {
             {selectedLesson.type === 'vocabulary' && selectedLesson.miniGameData && (
               <div className="space-y-4 text-xs">
                 <div className="text-center space-y-1">
-                  <h4 className="font-bold text-sm text-slate-100">Match Vocabulary Pairs</h4>
-                  <p className="text-[11px] text-slate-400">Tap a Spanish phrase then tap its English match</p>
+                  <h4 className="font-bold text-sm text-slate-100 dark:text-slate-100 light-mode:text-slate-900">Match Vocabulary Pairs</h4>
+                  <p className="text-[11px] text-slate-400 dark:text-slate-400 light-mode:text-slate-600">Tap a Spanish phrase then tap its English match</p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
@@ -595,10 +639,10 @@ export const LearnView: React.FC = () => {
                           onClick={() => setSelectedLeft(item.target)}
                           className={`p-3 rounded-2xl border text-center font-bold text-xs cursor-pointer transition-all ${
                             isMatched
-                              ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400 line-through opacity-60'
+                              ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400 dark:text-emerald-400 light-mode:text-emerald-700 line-through opacity-60'
                               : isSelected
                               ? 'bg-emerald-500 text-white font-black shadow-md'
-                              : 'glass-pill text-slate-200'
+                              : 'glass-pill text-slate-200 dark:text-slate-200 light-mode:text-slate-800 light-mode:border-slate-200 light-mode:bg-slate-50/80'
                           }`}
                         >
                           {item.target}
@@ -620,8 +664,8 @@ export const LearnView: React.FC = () => {
                           }}
                           className={`p-3 rounded-2xl border text-center font-bold text-xs cursor-pointer transition-all ${
                             isMatched
-                              ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400 line-through opacity-60'
-                              : 'glass-pill text-slate-200'
+                              ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400 dark:text-emerald-400 light-mode:text-emerald-700 line-through opacity-60'
+                              : 'glass-pill text-slate-200 dark:text-slate-200 light-mode:text-slate-800 light-mode:border-slate-200 light-mode:bg-slate-50/80'
                           }`}
                         >
                           {item.match}
@@ -647,12 +691,12 @@ export const LearnView: React.FC = () => {
             {selectedLesson.type === 'mini_game' && selectedLesson.miniGameData && (
               <div className="space-y-4 text-xs">
                 <div className="text-center space-y-1">
-                  <h4 className="font-bold text-sm text-slate-100">Construct the Sentence</h4>
-                  <p className="text-[11px] text-emerald-400 font-medium">"{selectedLesson.miniGameData.sentenceTranslation}"</p>
+                  <h4 className="font-bold text-sm text-slate-100 dark:text-slate-100 light-mode:text-slate-900">Construct the Sentence</h4>
+                  <p className="text-[11px] text-emerald-400 dark:text-emerald-400 light-mode:text-emerald-700 font-bold">"{selectedLesson.miniGameData.sentenceTranslation}"</p>
                 </div>
 
                 {/* Built Sentence Slot */}
-                <div className="min-h-[50px] p-3 rounded-2xl bg-slate-900/60 border border-white/10 flex flex-wrap gap-2 items-center">
+                <div className="min-h-[50px] p-3 rounded-2xl bg-slate-900/60 dark:bg-slate-900/60 light-mode:bg-slate-100 border border-white/10 dark:border-white/10 light-mode:border-slate-200 flex flex-wrap gap-2 items-center">
                   {builtSentence.map((w, i) => (
                     <button
                       key={i}
@@ -663,7 +707,7 @@ export const LearnView: React.FC = () => {
                     </button>
                   ))}
                   {builtSentence.length === 0 && (
-                    <span className="text-[11px] text-slate-500 italic">Tap words below to place them in order...</span>
+                    <span className="text-[11px] text-slate-500 dark:text-slate-500 light-mode:text-slate-600 italic">Tap words below to place them in order...</span>
                   )}
                 </div>
 
@@ -673,7 +717,7 @@ export const LearnView: React.FC = () => {
                     <button
                       key={idx}
                       onClick={() => setBuiltSentence(prev => [...prev, word])}
-                      className="px-3 py-2 rounded-xl glass-pill text-xs font-bold text-slate-200 hover:border-emerald-500/40 cursor-pointer"
+                      className="px-3 py-2 rounded-xl glass-pill text-xs font-bold text-slate-200 dark:text-slate-200 light-mode:text-slate-800 light-mode:border-slate-200 light-mode:bg-slate-50/80 hover:border-emerald-500/40 cursor-pointer"
                     >
                       {word}
                     </button>
@@ -699,10 +743,10 @@ export const LearnView: React.FC = () => {
             {/* 5. REVIEW LESSON */}
             {selectedLesson.type === 'review' && (
               <div className="space-y-4 text-xs">
-                <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 text-center space-y-2">
-                  <Award className="w-8 h-8 text-emerald-400 mx-auto" />
-                  <h4 className="font-black text-sm text-slate-100">Unit Review Completed</h4>
-                  <p className="text-slate-300 text-[11px]">
+                <div className="p-4 rounded-2xl bg-emerald-500/10 dark:bg-emerald-500/10 light-mode:bg-emerald-50 border border-emerald-500/25 dark:border-emerald-500/25 light-mode:border-emerald-200 text-center space-y-2">
+                  <Award className="w-8 h-8 text-emerald-400 dark:text-emerald-400 light-mode:text-emerald-700 mx-auto" />
+                  <h4 className="font-black text-sm text-slate-100 dark:text-slate-100 light-mode:text-slate-900">Unit Review Completed</h4>
+                  <p className="text-slate-300 dark:text-slate-300 light-mode:text-slate-700 text-[11px]">
                     You've practiced all core concepts, vocabulary, and grammar in this unit.
                   </p>
                 </div>

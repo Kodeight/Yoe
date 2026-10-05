@@ -15,6 +15,7 @@ export interface AudioContextType {
   notificationSoundsEnabled: boolean;
   speechFeedbackEnabled: boolean;
   playingMessageId: string | null;
+  loadingAudioId: string | null;
   replayErrorId: string | null;
   requestMicrophoneAccess: () => Promise<boolean>;
   startListening: (langCode?: string) => Promise<boolean>;
@@ -43,7 +44,9 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [isInterrupted, setIsInterrupted] = useState(false);
   const [audioEnergy, setAudioEnergy] = useState<number>(0);
   const [playingMessageId, setPlayingMessageId] = useState<string | null>(null);
+  const [loadingAudioId, setLoadingAudioId] = useState<string | null>(null);
   const [replayErrorId, setReplayErrorId] = useState<string | null>(null);
+  const ttsCacheRef = useRef<Map<string, string>>(new Map());
 
   const [micStatus, setMicStatus] = useState<MicStatus>('idle');
   const [micPermissionDenied, setMicPermissionDenied] = useState(false);
@@ -539,18 +542,37 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (!text || !text.trim()) return;
 
     stopSpeaking();
+    const t0 = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    const cacheKey = `${text.trim()}_${characterName || ''}_${role || ''}`;
+
+    // 1. Check in-memory TTS cache for immediate playback
+    const cachedAudio = ttsCacheRef.current.get(cacheKey);
+    if (cachedAudio) {
+      console.log(`[AUDIO DIAGNOSTICS] TTS Cache HIT for "${text.slice(0, 35)}..." - Starting instant playback (0ms network delay)`);
+      await playGeminiAudio(cachedAudio, onEnded);
+      return;
+    }
+
+    console.log(`[AUDIO DIAGNOSTICS] Starting TTS request for: "${text.slice(0, 35)}..."`);
 
     try {
+      const tFetchStart = typeof performance !== 'undefined' ? performance.now() : Date.now();
       const res = await fetch('/api/ai/tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text, characterName, role })
       });
+      const tFetchEnd = typeof performance !== 'undefined' ? performance.now() : Date.now();
+      const fetchMs = Math.round(tFetchEnd - tFetchStart);
 
       if (res.ok) {
         const data = await res.json();
         if (data.audioBase64) {
+          console.log(`[AUDIO DIAGNOSTICS] Network TTS response received in ${fetchMs}ms (Payload: ${Math.round(data.audioBase64.length / 1024)} KB)`);
+          ttsCacheRef.current.set(cacheKey, data.audioBase64);
           await playGeminiAudio(data.audioBase64, onEnded);
+          const totalMs = Math.round((typeof performance !== 'undefined' ? performance.now() : Date.now()) - t0);
+          console.log(`[AUDIO DIAGNOSTICS] Audio started playback in ${totalMs}ms total`);
           return;
         }
       }
@@ -592,6 +614,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     // 1. Tapping currently playing message stops playback immediately
     if (playingMessageId === messageId && isSpeaking) {
       stopSpeaking();
+      setLoadingAudioId(null);
       return;
     }
 
@@ -599,17 +622,20 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     stopSpeaking();
     setReplayErrorId(null);
     setPlayingMessageId(messageId);
+    setLoadingAudioId(messageId);
 
     // 3. User gesture unlocks AudioContext for mobile / iOS Safari
     await resumeAudioContext();
 
     const onComplete = () => {
+      setLoadingAudioId(null);
       setPlayingMessageId((curr) => (curr === messageId ? null : curr));
       if (onEnded) onEnded();
     };
 
     const onError = (err?: any) => {
       console.warn('[AUDIO REPLAY] Playback failed for message:', messageId, err);
+      setLoadingAudioId(null);
       setPlayingMessageId((curr) => (curr === messageId ? null : curr));
       setReplayErrorId(messageId);
       setTimeout(() => setReplayErrorId((curr) => (curr === messageId ? null : curr)), 3000);
@@ -618,11 +644,21 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     try {
       if (audioUrl && audioUrl.length > 50) {
+        setLoadingAudioId(null);
         await playGeminiAudio(audioUrl, onComplete);
         return;
       }
 
+      const cacheKey = `${text.trim()}_${characterName || ''}_${role || ''}`;
+      const cached = ttsCacheRef.current.get(cacheKey);
+      if (cached) {
+        setLoadingAudioId(null);
+        await playGeminiAudio(cached, onComplete);
+        return;
+      }
+
       await speakText(text, undefined, characterName, role, onComplete);
+      setLoadingAudioId(null);
     } catch (err) {
       onError(err);
     }
@@ -642,6 +678,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         notificationSoundsEnabled,
         speechFeedbackEnabled,
         playingMessageId,
+        loadingAudioId,
         replayErrorId,
         requestMicrophoneAccess,
         startListening,
