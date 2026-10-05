@@ -9,6 +9,8 @@ import { GoogleGenAI, Modality, LiveServerMessage } from '@google/genai';
 export interface LiveSessionConfig {
   journeyId: string;
   scenarioId: string;
+  lessonId?: string;
+  courseId?: string;
   onAudioEnergy?: (energy: number) => void;
   onStateChange?: (state: 'idle' | 'connecting' | 'listening' | 'thinking' | 'speaking' | 'interrupted' | 'error') => void;
   onTranscriptChunk?: (sender: 'user' | 'tutor', text: string, isFinal: boolean) => void;
@@ -69,7 +71,9 @@ export class GeminiLiveSession {
         credentials: 'include',
         body: JSON.stringify({
           journeyId: this.config.journeyId,
-          scenarioId: this.config.scenarioId
+          scenarioId: this.config.scenarioId,
+          lessonId: this.config.lessonId,
+          courseId: this.config.courseId
         })
       });
 

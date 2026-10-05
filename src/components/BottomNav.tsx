@@ -37,8 +37,8 @@ export const BottomNav: React.FC = () => {
                 }}
                 className={`flex flex-col items-center justify-center py-2 px-3.5 rounded-2xl transition-all duration-150 cursor-pointer ${
                   isActive
-                    ? 'text-emerald-400 font-bold bg-emerald-500/15 shadow-sm'
-                    : 'text-slate-400 dark:text-slate-400 light-mode:text-slate-500 hover:text-slate-200 dark:hover:text-slate-100 light-mode:hover:text-slate-900 hover:bg-white/5'
+                    ? 'text-emerald-700 dark:text-emerald-400 font-bold bg-emerald-500/15 shadow-sm'
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-white/5'
                 }`}
               >
                 <Icon

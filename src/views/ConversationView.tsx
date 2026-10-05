@@ -33,6 +33,8 @@ import { SessionSummaryModal } from '../components/SessionSummaryModal';
 export const ConversationView: React.FC = () => {
   const {
     activeScenario,
+    activeLesson,
+    activeCourse,
     activeJourney,
     scenarios,
     recommendations,
@@ -185,6 +187,8 @@ export const ConversationView: React.FC = () => {
         body: JSON.stringify({
           scenarioId: activeScenario.id,
           journeyId: activeJourney.id,
+          lessonId: activeLesson?.id || (activeScenario as any).relatedLessonId || (activeScenario as any).lessonId,
+          courseId: activeCourse?.id,
           targetLanguage: activeJourney.targetLanguage,
           supportLanguage: activeJourney.supportLanguage,
           cefrLevel: activeJourney.cefrLevel
@@ -267,6 +271,8 @@ export const ConversationView: React.FC = () => {
         body: JSON.stringify({
           journeyId: activeJourney.id,
           scenarioId: activeScenario.id,
+          lessonId: activeLesson?.id || (activeScenario as any).relatedLessonId || (activeScenario as any).lessonId,
+          courseId: activeCourse?.id,
           userMessage: text.trim(),
           conversationHistory: updatedHistory,
           targetLanguage: activeJourney.targetLanguage,
@@ -370,6 +376,8 @@ export const ConversationView: React.FC = () => {
     const live = new GeminiLiveSession({
       journeyId: activeJourney.id,
       scenarioId: activeScenario.id,
+      lessonId: activeLesson?.id || (activeScenario as any).relatedLessonId || (activeScenario as any).lessonId,
+      courseId: activeCourse?.id,
       onStateChange: (st) => {
         if (st === 'connecting' || st === 'listening' || st === 'speaking' || st === 'thinking' || st === 'interrupted' || st === 'idle' || st === 'error') {
           setLiveState(st as VoiceBubbleState);
@@ -560,6 +568,7 @@ export const ConversationView: React.FC = () => {
 
   const completedCount = Object.values(completedObjectives).filter(Boolean).length;
   const totalObjectives = activeScenario.objectives.length;
+  const isAllObjectivesCompleted = totalObjectives > 0 && completedCount >= totalObjectives;
   const bubbleState = getBubbleState();
   const currentEnergy = isLiveApiActive ? liveEnergy : audioEnergy;
 
@@ -592,8 +601,11 @@ export const ConversationView: React.FC = () => {
                 {activeJourney?.cefrLevel || activeScenario.cefrLevel || 'A1'}
               </span>
             </h2>
-            <p className="text-[10px] text-slate-400 dark:text-slate-400 light-mode:text-slate-500 truncate max-w-[180px] text-left">
-              {activeScenario.title}
+            <p className="text-[10px] text-slate-400 dark:text-slate-400 light-mode:text-slate-500 truncate max-w-[200px] text-left">
+              <span>{activeScenario.title}</span>
+              {activeLesson && (
+                <span className="text-emerald-400/80 font-medium"> • {activeLesson.title}</span>
+              )}
             </p>
           </div>
         </div>
@@ -609,19 +621,35 @@ export const ConversationView: React.FC = () => {
             <MessageSquare className="w-3.5 h-3.5" />
           </button>
 
-          {/* Green Finish Button with White Text & White Icon */}
-          <button
-            onClick={handleOpenSummary}
-            className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-[10px] font-bold text-white flex items-center gap-1.5 cursor-pointer shadow-md shadow-emerald-500/20 transition-all active:scale-95"
-            title={t.completeAndReview}
-          >
-            <Award className="w-3.5 h-3.5 text-white" />
-            <span className="text-white font-bold">{t.finish}</span>
-          </button>
+          {/* Header Action: "Goals" before completion (opens objectives drawer), or "Complete ✓" once all objectives are finished */}
+          {isAllObjectivesCompleted ? (
+            <button
+              onClick={handleOpenSummary}
+              className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-[10px] font-bold text-white flex items-center gap-1.5 cursor-pointer shadow-md shadow-emerald-500/20 transition-all active:scale-95 animate-pulse"
+              title={t.completeAndReview || 'Complete Scenario'}
+            >
+              <CheckCircle2 className="w-3.5 h-3.5 text-white" />
+              <span className="text-white font-bold">Complete ✓</span>
+            </button>
+          ) : (
+            <button
+              onClick={() => setShowMissions(!showMissions)}
+              className={`px-2.5 py-1.5 rounded-xl text-[10px] font-bold flex items-center gap-1.5 cursor-pointer transition-colors ${
+                showMissions
+                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                  : 'glass-pill text-slate-300 dark:text-slate-300 light-mode:text-slate-700 hover:border-emerald-500/40'
+              }`}
+              title="View Scenario Goals & Objectives"
+            >
+              <Target className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Goals</span>
+            </button>
+          )}
 
           <button
             onClick={() => setShowMissions(!showMissions)}
-            className="px-2 py-1.5 rounded-xl glass-pill text-[10px] font-bold text-emerald-400 flex items-center gap-1 cursor-pointer"
+            className="px-2 py-1.5 rounded-xl glass-pill text-[10px] font-bold text-emerald-400 flex items-center gap-1 cursor-pointer hover:border-emerald-500/40"
+            title="Toggle Goals Overview"
           >
             <Target className="w-3 h-3 text-emerald-400" />
             <span>{completedCount}/{totalObjectives}</span>
@@ -669,6 +697,36 @@ export const ConversationView: React.FC = () => {
               );
             })}
           </div>
+
+          {activeLesson && (
+            <div className="mt-3 pt-3 border-t border-white/10 dark:border-white/10 light-mode:border-slate-200">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[10px] font-black uppercase tracking-wider text-emerald-400">
+                  Curriculum Lesson
+                </span>
+                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-400 light-mode:text-slate-500">
+                  {activeCourse?.title || `${activeJourney?.targetLanguage.toUpperCase()} Curriculum`}
+                </span>
+              </div>
+              <div className="p-2.5 rounded-xl bg-slate-900/60 dark:bg-slate-900/60 light-mode:bg-slate-100 border border-white/5 dark:border-white/5 light-mode:border-slate-200">
+                <h4 className="text-xs font-bold text-slate-100 dark:text-slate-100 light-mode:text-slate-900">
+                  {activeLesson.title}
+                </h4>
+                <p className="text-[10px] text-slate-400 dark:text-slate-400 light-mode:text-slate-600 mt-0.5">
+                  {activeLesson.description}
+                </p>
+                {activeLesson.grammarFocus && activeLesson.grammarFocus.length > 0 && (
+                  <div className="mt-1.5 flex flex-wrap gap-1">
+                    {activeLesson.grammarFocus.map((g, idx) => (
+                      <span key={idx} className="px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 text-[9px] font-medium">
+                        {g}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       )}
 

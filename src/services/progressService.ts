@@ -8,6 +8,8 @@ export interface ScenarioCompletionPayload {
   durationMinutes?: number;
   errorCount?: number;
   xpEarned?: number;
+  lessonId?: string;
+  courseId?: string;
 }
 
 export interface ScenarioCompletionResult {
@@ -41,7 +43,9 @@ export async function persistScenarioCompletion(
     durationSeconds,
     durationMinutes,
     errorCount = 0,
-    xpEarned = 50
+    xpEarned = 50,
+    lessonId,
+    courseId
   } = payload;
 
   const token = typeof window !== 'undefined' ? localStorage.getItem('yoe_auth_token') : null;
@@ -69,7 +73,9 @@ export async function persistScenarioCompletion(
         durationSeconds: calculatedDurationSecs,
         durationMinutes: calculatedDurationMins,
         errorCount,
-        xpEarned
+        xpEarned,
+        lessonId,
+        courseId
       })
     });
 

@@ -448,6 +448,75 @@ class PersistentDatabase {
     return undefined;
   }
 
+  /**
+   * Resolves both the curriculum Lesson and Course for any active Scenario.
+   * Guarantees that the AI tutor always knows both what the learner is learning
+   * (curriculum context) and where/how they are practicing (scenario context).
+   */
+  getLessonAndCourseForScenario(
+    scenarioId: string,
+    preferredLessonId?: string,
+    targetLanguage?: string,
+    cefrLevel?: string
+  ): { lesson: Lesson; course: CourseUnit } | undefined {
+    const courses = this.localStore.courses && this.localStore.courses.length > 0
+      ? this.localStore.courses
+      : INITIAL_DATABASE_COURSES;
+    const scenario = this.getScenarioById(scenarioId);
+
+    // 1. Explicit preferredLessonId from learner's active flow
+    if (preferredLessonId) {
+      const match = this.getLessonById(preferredLessonId);
+      if (match) return match;
+    }
+
+    // 2. Direct scenario.lessonId metadata
+    if (scenario?.lessonId) {
+      const match = this.getLessonById(scenario.lessonId);
+      if (match) return match;
+    }
+
+    // 3. Search courses for a lesson with speakingScenarioId or practiceScenarioIds containing scenarioId
+    for (const course of courses) {
+      if (targetLanguage && course.targetLanguage !== targetLanguage) continue;
+      for (const lesson of course.lessons) {
+        if (lesson.speakingScenarioId === scenarioId || lesson.practiceScenarioIds?.includes(scenarioId)) {
+          return { lesson, course };
+        }
+      }
+    }
+
+    // 4. Match by domain/category and CEFR level within target language
+    const lang = targetLanguage || scenario?.targetLanguage || 'es';
+    const level = cefrLevel || scenario?.cefrLevel || 'A1';
+
+    const langCourses = courses.filter(c => c.targetLanguage === lang);
+    const levelCourses = langCourses.filter(c => c.cefrLevel === level);
+    const candidateCourses = levelCourses.length > 0 ? levelCourses : langCourses;
+
+    if (scenario?.category) {
+      for (const course of candidateCourses) {
+        for (const lesson of course.lessons) {
+          if (lesson.category === scenario.category) {
+            return { lesson, course };
+          }
+        }
+      }
+    }
+
+    // 5. Fallback to first available lesson of target language and level
+    if (candidateCourses.length > 0 && candidateCourses[0].lessons.length > 0) {
+      return { lesson: candidateCourses[0].lessons[0], course: candidateCourses[0] };
+    }
+
+    // 6. Global safe fallback
+    if (courses.length > 0 && courses[0].lessons.length > 0) {
+      return { lesson: courses[0].lessons[0], course: courses[0] };
+    }
+
+    return undefined;
+  }
+
   getCompletedScenarioIds(userId: string): string[] {
     return this.localStore.completedScenarios[userId] || [];
   }
@@ -456,9 +525,16 @@ class PersistentDatabase {
     userId: string,
     journeyId: string,
     scenarioId: string,
-    stats: { xpEarned: number; durationMinutes: number; durationSeconds?: number; errorCount?: number }
+    stats: {
+      xpEarned: number;
+      durationMinutes: number;
+      durationSeconds?: number;
+      errorCount?: number;
+      lessonId?: string;
+      courseId?: string;
+    }
   ): Promise<{ journey: LearningJourney | undefined; nextRecommended: Scenario[]; sessionRecord?: any }> {
-    // 1. Mark scenario as completed in user's completed history
+    // 1. Mark scenario as completed in user's completed history (Scenario progress)
     let completed = this.localStore.completedScenarios[userId];
     if (!completed) {
       completed = [];
@@ -472,6 +548,11 @@ class PersistentDatabase {
     const errors = typeof stats.errorCount === 'number' ? stats.errorCount : 0;
     const earnedXp = Math.max(stats.xpEarned || 50, 10);
 
+    // Resolve lesson context for traceability
+    const resolvedContext = this.getLessonAndCourseForScenario(scenarioId, stats.lessonId);
+    const lessonId = stats.lessonId || resolvedContext?.lesson.id;
+    const courseId = stats.courseId || resolvedContext?.course.id;
+
     // 2. Update user journey points and minutes
     const journey = this.getJourney(journeyId);
     if (journey) {
@@ -481,12 +562,14 @@ class PersistentDatabase {
       await this.saveJourney(journey);
     }
 
-    // 3. Create Session Record in history
+    // 3. Create Session Record with full educational metadata
     const sessionRecord = {
       id: `sess_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
       userId,
       journeyId,
       scenarioId,
+      lessonId: lessonId || undefined,
+      courseId: courseId || undefined,
       completedAt: new Date().toISOString(),
       durationSeconds: stats.durationSeconds || durationMins * 60,
       durationMinutes: durationMins,

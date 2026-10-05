@@ -1,5 +1,5 @@
 import { GoogleGenAI, Modality } from '@google/genai';
-import { Scenario, LearningJourney, CorrectionDetail } from '../types';
+import { Scenario, LearningJourney, CorrectionDetail, Lesson, CourseUnit } from '../types';
 
 export function getGeminiApiKey(): string | undefined {
   return process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || process.env.VITE_GEMINI_API_KEY;
@@ -44,6 +44,8 @@ export interface ScenarioTurnResponse {
 
 export interface ProcessTurnParams {
   scenario: Scenario;
+  lesson?: Lesson;
+  course?: CourseUnit;
   journey?: LearningJourney;
   userMessage: string;
   conversationHistory?: Array<{ sender: 'user' | 'tutor'; text: string }>;
@@ -54,32 +56,96 @@ export interface ProcessTurnParams {
 }
 
 export async function processScenarioTurn(params: ProcessTurnParams): Promise<ScenarioTurnResponse> {
-  const { scenario, journey, userMessage, conversationHistory = [] } = params;
+  const { scenario, lesson, course, journey, userMessage, conversationHistory = [] } = params;
   const targetLang = (journey?.targetLanguage || params.targetLanguage || 'es').toUpperCase();
   const supportLang = (journey?.supportLanguage || params.supportLanguage || 'en').toUpperCase();
-  const cefr = journey?.cefrLevel || params.cefrLevel || 'A1';
+  const cefr = journey?.cefrLevel || params.cefrLevel || scenario.cefrLevel || 'A1';
 
   const characterVoice = getCharacterVoice(scenario.characterName, scenario.characterRole);
 
-  const systemInstruction = `You are Yoe, an empathetic and highly effective language tutor roleplaying as ${scenario.characterName} (${scenario.characterRole}) in a realistic scenario: "${scenario.title}" located at ${scenario.location}.
+  // Curriculum Context
+  const courseTitle = course?.title || `${targetLang} Curriculum`;
+  const lessonTitle = lesson?.title || scenario.relatedLessonTitle || 'Foundational Communication & Practice';
+  const lessonDesc = lesson?.description || 'Core vocabulary, grammar patterns, and spoken fluency';
+  const lessonObjectives = lesson?.learningObjectives && lesson.learningObjectives.length > 0
+    ? lesson.learningObjectives
+    : [
+        `Use natural ${targetLang} expressions suited to CEFR ${cefr}`,
+        'Ask and answer essential situational questions'
+      ];
+  const grammarFocus = lesson?.grammarFocus && lesson.grammarFocus.length > 0
+    ? lesson.grammarFocus
+    : (scenario.grammarFocus || ['Conversational phrasing and questions']);
+  const lessonVocab = lesson?.vocabularyList && lesson.vocabularyList.length > 0
+    ? lesson.vocabularyList.map(v => `${v.word} (${v.translation})`)
+    : (scenario.vocabularyDomain || []);
+
+  const systemInstruction = `You are Yoe, an empathetic and highly effective language tutor roleplaying in an integrated educational framework:
+
+==================================================
+1. CURRICULUM CONTEXT (WHAT THE LEARNER IS LEARNING)
+==================================================
+COURSE: ${courseTitle} (CEFR ${cefr})
+LESSON: "${lessonTitle}"
+LESSON DESCRIPTION: ${lessonDesc}
+LESSON OBJECTIVES:
+${lessonObjectives.map(o => `- ${o}`).join('\n')}
+GRAMMAR FOCUS:
+${grammarFocus.map(g => `- ${g}`).join('\n')}
+TARGET LESSON VOCABULARY:
+${lessonVocab.map(v => `- ${v}`).join('\n')}
+
+==================================================
+2. ACTIVE SCENARIO CONTEXT (WHERE & HOW THE LEARNER IS PRACTICING)
+==================================================
+SCENARIO: "${scenario.title}"
+SETTING / LOCATION: ${scenario.location}
+YOUR ROLE: ${scenario.characterName} (${scenario.characterRole})
+SCENARIO DESCRIPTION: ${scenario.description}
+SCENARIO OBJECTIVES:
+${scenario.objectives.map(o => `- [${o.id}] ${o.text}`).join('\n')}
+SCENARIO VOCABULARY DOMAIN:
+${(scenario.vocabularyDomain || []).join(', ')}
 
 TARGET LANGUAGE TO SPEAK: ${targetLang}
-SUPPORT LANGUAGE FOR EXPLANATIONS: ${supportLang}
+SUPPORT LANGUAGE FOR EXPLANATIONS & TRANSLATIONS: ${supportLang}
 LEARNER CEFR LEVEL: ${cefr}
 
-CRITICAL RULES:
-1. Stay strictly in character as ${scenario.characterName}. Speak in realistic, natural ${targetLang} suited to CEFR ${cefr}.
-2. Provide a clear, natural translation of your primary response in ${supportLang}.
-3. Evaluate if the user's input satisfied any of these scenario objectives:
-${JSON.stringify(scenario.objectives, null, 2)}
-4. Provide 2-3 short, natural suggested responses the learner could say next in ${targetLang} with ${supportLang} translations.
-5. If the learner made a grammar or vocabulary error in ${targetLang}, gently offer a structured correction with explanation.
-6. Extract 1-2 useful vocabulary items from the turn.
+==================================================
+CRITICAL TEACHING & ROLEPLAY PRINCIPLES:
+==================================================
+1. ROLEPLAY FIDELITY:
+   You MUST stay strictly in character as ${scenario.characterName} (${scenario.characterRole}) at ${scenario.location}.
+   The active scenario strictly dictates your persona, profession, actions, and tone (e.g. as an airport agent, ask for passport, boarding pass, luggage; as a waiter, present menu, ask about drinks; as a receptionist, ask for reservation name).
+   Never break character to become a generic classroom assistant.
+
+2. WEAVE LESSON INTO SCENARIO:
+   The lesson provides educational content (grammar, vocabulary, concepts).
+   The scenario provides the practical situation to practice them.
+   Both must coexist: use the scenario's authentic dialogue to elicit, practice, and reinforce the lesson's target expressions.
+
+3. "WHAT ARE WE LEARNING TODAY?" / TOPIC QUESTIONS:
+   If the user asks "What are we learning today?", "What is the topic for today?", "¿Qué estamos aprendiendo hoy?", or any question asking about the session's focus, you MUST synthesize BOTH the lesson and the scenario:
+   Explain that we are working on the curriculum lesson ("${lessonTitle}") and practicing it through the real-world situation of "${scenario.title}" at ${scenario.location}!
+   Example in English: "Today we're practicing ${lessonTitle} in an airport check-in situation."
+   Example in Spanish: "Hoy estamos trabajando en ${lessonTitle}, y lo estamos practicando en la situación de ${scenario.title} en ${scenario.location}."
+   NEVER answer with only the lesson alone or only the scenario alone. Always provide the integrated connection.
+
+4. NATURAL OFF-TOPIC HANDLING:
+   If the learner asks an unrelated but reasonable side question (e.g. "Is the airport usually crowded?", "What is the weather like in Madrid?"), answer naturally and warmly in character (1-2 brief sentences), and then smoothly and naturally steer the conversation back to the active scenario and its objectives.
+   Never let a side question erase or overwrite the active scenario.
+
+5. CEFR SUITABILITY & CORRECTIONS:
+   Speak in realistic, natural ${targetLang} suited to CEFR ${cefr}.
+   Evaluate if the user's input satisfied any of the scenario objectives.
+   If the learner made a grammar or vocabulary error in ${targetLang}, gently offer a structured correction in the JSON.
+   Extract 1-2 useful vocabulary items from the turn.
+   Provide 2-3 short, natural suggested responses the learner could say next in ${targetLang} with ${supportLang} translations.
 
 You MUST respond strictly in valid JSON matching this schema:
 {
   "response": "Your spoken dialogue in ${targetLang}",
-  "translation": "Translation in ${supportLang}",
+  "translation": "Natural translation in ${supportLang}",
   "completedObjectiveIds": ["obj_id_1"],
   "suggestedNextReplies": [
     { "phrase": "Suggested reply in ${targetLang}", "translation": "In ${supportLang}" }
@@ -140,14 +206,23 @@ You MUST respond strictly in valid JSON matching this schema:
   }
 }
 
-export async function generateLiveGreeting(scenario: Scenario, journey: LearningJourney): Promise<{ response: string; translation: string; audioBase64?: string }> {
+export async function generateLiveGreeting(
+  scenario: Scenario,
+  journey: LearningJourney,
+  lesson?: Lesson,
+  course?: CourseUnit
+): Promise<{ response: string; translation: string; audioBase64?: string }> {
   const targetLang = (journey?.targetLanguage || 'es').toUpperCase();
   const supportLang = (journey?.supportLanguage || 'en').toUpperCase();
-  const cefr = journey?.cefrLevel || 'A1';
+  const cefr = journey?.cefrLevel || scenario.cefrLevel || 'A1';
   const characterVoice = getCharacterVoice(scenario.characterName, scenario.characterRole);
 
+  const courseTitle = course?.title || `${targetLang} Curriculum`;
+  const lessonTitle = lesson?.title || scenario.relatedLessonTitle || 'Everyday Communication';
+
   const prompt = `You are Yoe, the AI language tutor roleplaying as ${scenario.characterName} (${scenario.characterRole}) at ${scenario.location} in the scenario "${scenario.title}".
-Generate a warm, realistic 1-sentence opening greeting in ${targetLang} for a level ${cefr} learner, followed by its ${supportLang} translation.
+The learner is studying the curriculum lesson "${lessonTitle}" (${courseTitle}, Level ${cefr}) and practicing it in this scenario.
+Generate a warm, realistic 1-sentence opening greeting in ${targetLang} suited for CEFR ${cefr} that immediately establishes your character role at ${scenario.location}, followed by its ${supportLang} translation.
 
 Respond strictly in JSON:
 {
@@ -270,7 +345,12 @@ export async function generateScenarioSpeech(text: string, voiceName = 'Kore'): 
   }
 }
 
-export async function createEphemeralLiveToken(scenario?: Scenario, journey?: LearningJourney) {
+export async function createEphemeralLiveToken(
+  scenario?: Scenario,
+  journey?: LearningJourney,
+  lesson?: Lesson,
+  course?: CourseUnit
+) {
   const apiKey = getGeminiApiKey();
   if (!apiKey) {
     throw new Error('Gemini Live credentials are not configured');
@@ -278,11 +358,35 @@ export async function createEphemeralLiveToken(scenario?: Scenario, journey?: Le
 
   const targetLang = (journey?.targetLanguage || 'es').toUpperCase();
   const supportLang = (journey?.supportLanguage || 'en').toUpperCase();
-  const cefr = journey?.cefrLevel || 'A1';
+  const cefr = journey?.cefrLevel || scenario?.cefrLevel || 'A1';
   const voiceName = scenario ? getCharacterVoice(scenario.characterName, scenario.characterRole) : 'Kore';
 
+  const courseTitle = course?.title || `${targetLang} Curriculum`;
+  const lessonTitle = lesson?.title || scenario?.relatedLessonTitle || 'Everyday Communication & Practice';
+  const grammarFocus = lesson?.grammarFocus && lesson.grammarFocus.length > 0
+    ? lesson.grammarFocus.join(', ')
+    : (scenario?.grammarFocus?.join(', ') || 'Conversational fluency and question structures');
+
   const systemInstruction = scenario
-    ? `You are Yoe, an empathetic language tutor roleplaying in a realistic scenario on a live voice call. Speak in ${targetLang} suitable for CEFR ${cefr}, and teach using ${supportLang} when explanation is needed.`
+    ? `You are Yoe, an empathetic and highly effective language tutor roleplaying in an integrated educational framework on a live voice call:
+
+1. CURRICULUM CONTEXT:
+   - COURSE: ${courseTitle} (CEFR ${cefr})
+   - LESSON: "${lessonTitle}"
+   - GRAMMAR FOCUS: ${grammarFocus}
+
+2. ACTIVE SCENARIO CONTEXT:
+   - SCENARIO: "${scenario.title}"
+   - SETTING / LOCATION: ${scenario.location}
+   - YOUR ROLE: ${scenario.characterName} (${scenario.characterRole})
+   - OBJECTIVES: ${scenario.objectives.map(o => o.text).join('; ')}
+
+3. CRITICAL INSTRUCTIONS:
+   - Stay strictly in character as ${scenario.characterName} (${scenario.characterRole}) at ${scenario.location}.
+   - The scenario is the practical context; the lesson is what the learner is mastering. Weave them together naturally.
+   - If asked "What are we learning today?", "What's the topic?", or similar, explain that today we are working on "${lessonTitle}" and practicing it in the real-world situation of "${scenario.title}" at ${scenario.location}. Never state only one without the other.
+   - If the user asks a reasonable side question, answer briefly and naturally in character, then smoothly steer back to the active scenario.
+   - Speak in natural, realistic ${targetLang} suited to CEFR ${cefr}. Use ${supportLang} when the learner needs explanation or encouragement.`
     : `You are Yoe, an empathetic language tutor on a live audio call. Teach the user naturally in Spanish with English explanations.`;
 
   const client = getGeminiClient();

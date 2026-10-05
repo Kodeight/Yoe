@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { User, LearningJourney, Scenario, VocabularyItem, MistakeRecord, LanguageCode, Language, CourseUnit } from '../types';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { User, LearningJourney, Scenario, VocabularyItem, MistakeRecord, LanguageCode, Language, CourseUnit, Lesson } from '../types';
 import { applyDocumentDirection } from '../utils/i18n';
 import { persistScenarioCompletion } from '../services/progressService';
 
@@ -10,6 +10,8 @@ interface AppContextType {
   journeys: LearningJourney[];
   activeJourney: LearningJourney | null;
   activeScenario: Scenario | null;
+  activeLesson: Lesson | null;
+  activeCourse: CourseUnit | null;
   scenarios: Scenario[];
   courses: CourseUnit[];
   completedScenarioIds: string[];
@@ -29,10 +31,18 @@ interface AppContextType {
   setActiveView: (view: AppView) => void;
   navigateBack: () => void;
   setActiveJourney: (journey: LearningJourney) => void;
-  setActiveScenarioId: (scenarioId: string) => void;
+  setActiveScenarioId: (scenarioId: string, preferredLessonId?: string) => void;
+  setActiveLesson: (lesson: Lesson, course?: CourseUnit) => void;
   completeScenario: (
     scenarioId: string,
-    stats?: { xpEarned?: number; durationMinutes?: number; durationSeconds?: number; errorCount?: number }
+    stats?: {
+      xpEarned?: number;
+      durationMinutes?: number;
+      durationSeconds?: number;
+      errorCount?: number;
+      lessonId?: string;
+      courseId?: string;
+    }
   ) => Promise<Scenario[]>;
   toggleTheme: () => void;
   setThemeMode: (mode: 'dark' | 'light') => void;
@@ -66,6 +76,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
   const [recommendations, setRecommendations] = useState<Scenario[]>([]);
   const [activeScenario, setActiveScenario] = useState<Scenario | null>(null);
+  const [activeLesson, setActiveLessonState] = useState<Lesson | null>(null);
+  const [activeCourse, setActiveCourseState] = useState<CourseUnit | null>(null);
   const [vocabulary, setVocabulary] = useState<VocabularyItem[]>([]);
   const [mistakes, setMistakes] = useState<MistakeRecord[]>([]);
   const [activeView, setActiveViewState] = useState<AppView>('auth');
@@ -489,8 +501,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  const setActiveScenarioId = (scenarioId: string) => {
-    const found = scenarios.find(s => s.id === scenarioId);
+  const setActiveLesson = (lesson: Lesson, course?: CourseUnit) => {
+    setActiveLessonState(lesson);
+    if (course) {
+      setActiveCourseState(course);
+    } else {
+      const parentCourse = courses.find((c) => c.lessons.some((l) => l.id === lesson.id));
+      if (parentCourse) setActiveCourseState(parentCourse);
+    }
+  };
+
+  const setActiveScenarioId = (scenarioId: string, preferredLessonId?: string) => {
+    const found = scenarios.find((s) => s.id === scenarioId);
     if (found) {
       setActiveScenario(found);
       if (activeJourney) {
@@ -501,6 +523,38 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ activeScenarioId: scenarioId })
         }).catch(() => {});
+      }
+
+      // Automatically sync active lesson & active course
+      if (preferredLessonId) {
+        for (const c of courses) {
+          const matchedL = c.lessons.find((l) => l.id === preferredLessonId);
+          if (matchedL) {
+            setActiveLessonState(matchedL);
+            setActiveCourseState(c);
+            return;
+          }
+        }
+      }
+      if (found.lessonId) {
+        for (const c of courses) {
+          const matchedL = c.lessons.find((l) => l.id === found.lessonId);
+          if (matchedL) {
+            setActiveLessonState(matchedL);
+            setActiveCourseState(c);
+            return;
+          }
+        }
+      }
+      for (const c of courses) {
+        const matchedL = c.lessons.find(
+          (l) => l.speakingScenarioId === scenarioId || l.practiceScenarioIds?.includes(scenarioId)
+        );
+        if (matchedL) {
+          setActiveLessonState(matchedL);
+          setActiveCourseState(c);
+          return;
+        }
       }
     }
   };
@@ -716,6 +770,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         journeys,
         activeJourney,
         activeScenario,
+        activeLesson,
+        activeCourse,
         scenarios,
         courses,
         completedScenarioIds,
@@ -736,6 +792,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         navigateBack,
         setActiveJourney,
         setActiveScenarioId,
+        setActiveLesson,
         completeScenario,
         toggleTheme,
         setThemeMode,

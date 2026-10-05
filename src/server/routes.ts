@@ -208,7 +208,7 @@ apiRouter.get('/recommendations', (req: Request, res: Response) => {
 // Scenario Completion & Progress Tracking (Database Persistence)
 apiRouter.post('/progress/complete-scenario', async (req: Request, res: Response) => {
   try {
-    const { userId, journeyId, scenarioId, xpEarned, durationMinutes, durationSeconds, errorCount } = req.body;
+    const { userId, journeyId, scenarioId, lessonId, courseId, xpEarned, durationMinutes, durationSeconds, errorCount } = req.body;
     const result = await db.recordCompletedScenario(
       userId || 'guest_user',
       journeyId,
@@ -217,7 +217,9 @@ apiRouter.post('/progress/complete-scenario', async (req: Request, res: Response
         xpEarned: Number(xpEarned) || 50,
         durationMinutes: Number(durationMinutes) || (durationSeconds ? Math.max(1, Math.round(Number(durationSeconds) / 60)) : 3),
         durationSeconds: Number(durationSeconds) || undefined,
-        errorCount: typeof errorCount === 'number' ? errorCount : 0
+        errorCount: typeof errorCount === 'number' ? errorCount : 0,
+        lessonId: lessonId || undefined,
+        courseId: courseId || undefined
       }
     );
     res.json({
@@ -232,10 +234,10 @@ apiRouter.post('/progress/complete-scenario', async (req: Request, res: Response
   }
 });
 
-// AI Live Initial Greeting Endpoint
+// AI Live Initial Greeting Endpoint (Dual Lesson + Scenario Awareness)
 apiRouter.post('/ai/initial-greeting', async (req: Request, res: Response) => {
   try {
-    const { scenarioId, journeyId, targetLanguage, supportLanguage, cefrLevel } = req.body;
+    const { scenarioId, journeyId, lessonId, courseId, targetLanguage, supportLanguage, cefrLevel } = req.body;
     const scenario = db.getScenarioById(scenarioId) || db.getScenarios()[0];
     const existingJourney = journeyId ? db.getJourney(journeyId) : null;
 
@@ -251,19 +253,46 @@ apiRouter.post('/ai/initial-greeting', async (req: Request, res: Response) => {
       createdAt: new Date().toISOString()
     };
 
-    const greeting = await generateLiveGreeting(scenario, journey);
-    res.json({ greeting });
+    // Resolve curriculum context (lesson + course)
+    const curriculum = db.getLessonAndCourseForScenario(
+      scenario.id,
+      lessonId,
+      journey.targetLanguage,
+      journey.cefrLevel
+    );
+
+    const greeting = await generateLiveGreeting(
+      scenario,
+      journey,
+      curriculum?.lesson,
+      curriculum?.course
+    );
+    res.json({
+      greeting,
+      lesson: curriculum?.lesson ? { id: curriculum.lesson.id, title: curriculum.lesson.title } : undefined,
+      course: curriculum?.course ? { id: curriculum.course.id, title: curriculum.course.title } : undefined
+    });
   } catch (err: any) {
     console.error('[YOE GREETING ERROR]:', err);
     res.status(500).json({ error: 'Failed to generate live greeting' });
   }
 });
 
-// AI Chat Interaction
+// AI Chat Interaction (Dual Lesson + Scenario Context)
 apiRouter.post('/ai/chat', async (req: Request, res: Response) => {
   console.log('[YOE CHAT] request received');
   try {
-    const { journeyId, scenarioId, userMessage, conversationHistory, targetLanguage, supportLanguage, cefrLevel } = req.body;
+    const {
+      journeyId,
+      scenarioId,
+      lessonId,
+      courseId,
+      userMessage,
+      conversationHistory,
+      targetLanguage,
+      supportLanguage,
+      cefrLevel
+    } = req.body;
 
     console.log(`[YOE CHAT] user authenticated: ${!!((req as any).user || req.headers.authorization)}`);
     console.log(`[YOE CHAT] message length: ${userMessage?.length || 0}`);
@@ -271,7 +300,7 @@ apiRouter.post('/ai/chat', async (req: Request, res: Response) => {
     const scenario = db.getScenarioById(scenarioId) || db.getScenarios()[0];
     const existingJourney = journeyId ? db.getJourney(journeyId) : null;
 
-    console.log(`[YOE CHAT] scenario loaded: ${!!scenario}`);
+    console.log(`[YOE CHAT] scenario loaded: ${!!scenario} (${scenario.title})`);
 
     const journey: LearningJourney = existingJourney || {
       id: journeyId || 'temp_jrn',
@@ -285,10 +314,16 @@ apiRouter.post('/ai/chat', async (req: Request, res: Response) => {
       createdAt: new Date().toISOString()
     };
 
-    console.log(`[YOE CHAT] target language: ${journey.targetLanguage}`);
-    console.log(`[YOE CHAT] support language: ${journey.supportLanguage}`);
-    console.log(`[YOE CHAT] level: ${journey.cefrLevel}`);
-    console.log(`[YOE CHAT] history length: ${conversationHistory?.length || 0}`);
+    // Resolve curriculum context (lesson + course)
+    const curriculum = db.getLessonAndCourseForScenario(
+      scenario.id,
+      lessonId,
+      journey.targetLanguage,
+      journey.cefrLevel
+    );
+
+    console.log(`[YOE CHAT] target language: ${journey.targetLanguage}, level: ${journey.cefrLevel}`);
+    console.log(`[YOE CHAT] curriculum lesson: ${curriculum?.lesson?.title || 'None'}, course: ${curriculum?.course?.title || 'None'}`);
 
     const recentMistakes = existingJourney ? db.getMistakes(existingJourney.id) : [];
 
@@ -301,11 +336,13 @@ apiRouter.post('/ai/chat', async (req: Request, res: Response) => {
       timestamp: new Date().toISOString()
     });
 
-    console.log('[YOE CHAT] Gemini request started');
+    console.log('[YOE CHAT] Gemini request started with dual curriculum + scenario context');
 
-    // Call Gemini Service
+    // Call Gemini Service with dual lesson + scenario context
     const aiResult = await processScenarioTurn({
       scenario,
+      lesson: curriculum?.lesson,
+      course: curriculum?.course,
       journey,
       conversationHistory: conversationHistory || [],
       userMessage,
@@ -373,7 +410,15 @@ apiRouter.post('/ai/chat', async (req: Request, res: Response) => {
 
     res.json({
       message: tutorMsg,
-      aiResponse: aiResult
+      aiResponse: aiResult,
+      activeContext: {
+        scenarioId: scenario.id,
+        scenarioTitle: scenario.title,
+        lessonId: curriculum?.lesson?.id,
+        lessonTitle: curriculum?.lesson?.title,
+        courseId: curriculum?.course?.id,
+        courseTitle: curriculum?.course?.title
+      }
     });
   } catch (err: any) {
     console.error('[YOE CHAT ERROR] status 500:', err);
@@ -418,6 +463,7 @@ const handleLiveToken = async (req: Request, res: Response) => {
   try {
     const scenarioId = req.body?.scenarioId || (req.query?.scenarioId as string);
     const journeyId = req.body?.journeyId || (req.query?.journeyId as string);
+    const lessonId = req.body?.lessonId || (req.query?.lessonId as string);
 
     const journey = db.getJourney(journeyId) || {
       id: journeyId || 'temp_jrn',
@@ -432,7 +478,20 @@ const handleLiveToken = async (req: Request, res: Response) => {
     };
     const scenario = db.getScenarioById(scenarioId) || db.getScenarios()[0];
 
-    const tokenConfig = await createEphemeralLiveToken(scenario, journey);
+    // Resolve curriculum context (lesson + course)
+    const curriculum = db.getLessonAndCourseForScenario(
+      scenario.id,
+      lessonId,
+      journey.targetLanguage,
+      journey.cefrLevel
+    );
+
+    const tokenConfig = await createEphemeralLiveToken(
+      scenario,
+      journey,
+      curriculum?.lesson,
+      curriculum?.course
+    );
     if (!tokenConfig || !tokenConfig.token) {
       throw new Error('Gemini Live ephemeral token was not created');
     }
@@ -441,7 +500,15 @@ const handleLiveToken = async (req: Request, res: Response) => {
       success: true,
       token: tokenConfig.token,
       model: LIVE_MODEL,
-      voiceName: tokenConfig.voiceName
+      voiceName: tokenConfig.voiceName,
+      activeContext: {
+        scenarioId: scenario.id,
+        scenarioTitle: scenario.title,
+        lessonId: curriculum?.lesson?.id,
+        lessonTitle: curriculum?.lesson?.title,
+        courseId: curriculum?.course?.id,
+        courseTitle: curriculum?.course?.title
+      }
     });
   } catch (err: any) {
     console.error('[YOE LIVE] Token creation failure:', err?.message || err);
