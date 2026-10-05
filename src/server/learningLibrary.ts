@@ -1,4 +1,5 @@
 import { Scenario, CourseUnit, LanguageCode, CEFRLevel } from '../types';
+import { COMPREHENSIVE_COURSES, C1_C2_SCENARIOS } from './curriculumLibrary';
 
 /**
  * COMPREHENSIVE MULTI-DOMAIN SCENARIO & CURRICULUM DATABASE
@@ -29,7 +30,11 @@ export const INITIAL_DATABASE_SCENARIOS: Scenario[] = [
       { id: 'obj_ac_1', text: 'Present your passport and destination', completed: false, hint: 'Say: Hola, aquí tiene mi pasaporte. Viajo a Barcelona.' },
       { id: 'obj_ac_2', text: 'Request a window or aisle seat', completed: false, hint: 'Say: ¿Podría tener un asiento de ventana / pasillo, por favor?' },
       { id: 'obj_ac_3', text: 'Confirm number of checked bags', completed: false, hint: 'Say: Solo tengo una maleta para facturar.' }
-    ]
+    ],
+    lessonId: 'les_es_a1_travel_airport',
+    relatedLessonTitle: 'Airport Check-In & Luggage Handling',
+    grammarFocus: ['Quisiera / Me gustaría + infinitivo', 'Hay / Dónde está'],
+    recommendedNextScenarioId: 'scen_travel_airport_security'
   },
   {
     id: 'scen_travel_airport_security',
@@ -50,7 +55,11 @@ export const INITIAL_DATABASE_SCENARIOS: Scenario[] = [
       { id: 'obj_as_1', text: 'Acknowledge instructions and ask about shoes/belt', completed: false, hint: 'Say: De acuerdo. ¿Tengo que quitarme los zapatos y el cinturón?' },
       { id: 'obj_as_2', text: 'Confirm placement of tablet or laptop', completed: false, hint: 'Say: Ya he puesto mi ordenador portátil en la bandeja.' },
       { id: 'obj_as_3', text: 'Ask where to collect your luggage after screening', completed: false, hint: 'Say: Gracias, ¿puedo pasar por el detector ahora?' }
-    ]
+    ],
+    lessonId: 'les_es_a1_travel_airport',
+    relatedLessonTitle: 'Airport Check-In & Luggage Handling',
+    grammarFocus: ['Tener que + infinitivo', 'Por favor + imperativo formal'],
+    recommendedNextScenarioId: 'scen_travel_boarding_flight'
   },
   {
     id: 'scen_travel_boarding_flight',
@@ -1209,158 +1218,16 @@ export const INITIAL_DATABASE_SCENARIOS: Scenario[] = [
       { id: 'obj_fm_2', text: 'Ask if the vendor can give a small discount for buying two items', completed: false, hint: 'Say: Si me llevo el jarrón y este libro antiguo, ¿me podría hacer un pequeño descuento?' },
       { id: 'obj_fm_3', text: 'Agree on a fair price and pay in cash', completed: false, hint: 'Say: Me parece un trato justo. Aquí tiene treinta euros en efectivo.' }
     ]
-  }
+  },
+
+  // Advanced CEFR C1 & C2 Practice Scenarios from Curriculum
+  ...C1_C2_SCENARIOS
 ];
 
 /**
  * INITIAL DATABASE CURRICULUM COURSES & LESSONS
+ * Backed by comprehensive CEFR A1, A2, B1, B2, C1, and C2 curriculum units
  */
 export const INITIAL_DATABASE_COURSES: CourseUnit[] = [
-  {
-    id: 'unit_es_1',
-    unitNumber: 1,
-    title: 'First Connections & Everyday Introductions',
-    subtitle: 'Master basic greetings, sharing personal details, and forming your first sentences with Yoe.',
-    cefrLevel: 'A1',
-    targetLanguage: 'es',
-    icon: '🤝',
-    isLocked: false,
-    lessons: [
-      {
-        id: 'les_es_1_1',
-        unitId: 'unit_es_1',
-        title: 'Theory: Greetings & Polite Formality',
-        description: 'Understand formal vs informal greetings and common conversation openers.',
-        type: 'theory',
-        durationMin: 3,
-        xpReward: 20,
-        isLocked: false,
-        theoryContent: {
-          concept: 'Presenting Yourself in Spanish',
-          explanation: 'In Spanish, "Me llamo..." literally means "I call myself...". To ask someone else\'s name politely, you say "¿Cómo te llamas?" (informal) or "¿Cómo se llama usted?" (formal).',
-          examples: [
-            { original: '¡Hola! Me llamo Halim. ¿Cómo te llamas?', translation: 'Hello! My name is Halim. What is your name?' },
-            { original: 'Mucho gusto en conocerte.', translation: 'Nice to meet you.' },
-            { original: 'Soy de Madrid, pero vivo en Barcelona.', translation: 'I am from Madrid, but I live in Barcelona.' }
-          ],
-          keyTakeaway: 'Use "Me llamo [name]" or "Soy [name]" to introduce yourself with confidence.'
-        }
-      },
-      {
-        id: 'les_es_1_2',
-        unitId: 'unit_es_1',
-        title: 'Vocabulary: Essential Everyday Words',
-        description: 'Learn words for countries, occupations, hobbies, and origin.',
-        type: 'vocabulary',
-        durationMin: 4,
-        xpReward: 25,
-        isLocked: false,
-        miniGameData: {
-          type: 'word_match',
-          items: [
-            { target: 'el nombre', match: 'name' },
-            { target: 'el país', match: 'country' },
-            { target: 'mucho gusto', match: 'nice to meet you' },
-            { target: '¿de dónde eres?', match: 'where are you from?' },
-            { target: 'hasta luego', match: 'see you later' }
-          ]
-        }
-      },
-      {
-        id: 'les_es_1_3',
-        unitId: 'unit_es_1',
-        title: 'Live Voice: Hotel Check-In Madrid',
-        description: 'Practice checking into your hotel with Yoe in a real voice dialogue.',
-        type: 'speaking',
-        durationMin: 5,
-        xpReward: 50,
-        isLocked: false,
-        speakingScenarioId: 'scen_hotel_madrid'
-      }
-    ]
-  },
-  {
-    id: 'unit_es_2',
-    unitNumber: 2,
-    title: 'Travel, Directions & City Exploration',
-    subtitle: 'Confidently navigate airports, train stations, and bustling neighborhoods.',
-    cefrLevel: 'A1',
-    targetLanguage: 'es',
-    icon: '✈️',
-    isLocked: false,
-    lessons: [
-      {
-        id: 'les_es_2_1',
-        unitId: 'unit_es_2',
-        title: 'Theory: Asking Directions & Prepositions',
-        description: 'Master spatial prepositions and polite street navigation phrases.',
-        type: 'theory',
-        durationMin: 3,
-        xpReward: 25,
-        isLocked: false,
-        theoryContent: {
-          concept: 'Spatial Directions & Navigation',
-          explanation: 'To ask for directions, start with "Disculpe, ¿dónde está...?" or "¿Cómo se va a...?". Remember: "a la derecha" (to the right), "a la izquierda" (to the left), and "todo recto" (straight ahead).',
-          examples: [
-            { original: 'Disculpe, ¿dónde está la parada de metro?', translation: 'Excuse me, where is the metro stop?' },
-            { original: 'Siga todo recto y gire a la derecha.', translation: 'Go straight ahead and turn right.' }
-          ],
-          keyTakeaway: 'Always open with "Disculpe" or "Perdón" for maximum politeness with locals.'
-        }
-      },
-      {
-        id: 'les_es_2_2',
-        unitId: 'unit_es_2',
-        title: 'Live Voice: Airport Check-In & Bag Drop',
-        description: 'Check in for your flight and request preferred seating with Yoe.',
-        type: 'speaking',
-        durationMin: 5,
-        xpReward: 50,
-        isLocked: false,
-        speakingScenarioId: 'scen_travel_airport_checkin'
-      }
-    ]
-  },
-  {
-    id: 'unit_fr_1',
-    unitNumber: 1,
-    title: 'Café Culture & Parisian Life',
-    subtitle: 'Order delicious pastries, coffee, and meals with authentic French phrasing.',
-    cefrLevel: 'A1',
-    targetLanguage: 'fr',
-    icon: '🥐',
-    isLocked: false,
-    lessons: [
-      {
-        id: 'les_fr_1_1',
-        unitId: 'unit_fr_1',
-        title: 'Theory: Ordering at French Cafés',
-        description: 'Master the polite conditional "Je voudrais..." and table etiquette.',
-        type: 'theory',
-        durationMin: 3,
-        xpReward: 20,
-        isLocked: false,
-        theoryContent: {
-          concept: 'Polite Requests in French',
-          explanation: 'In French, always use "Je voudrais..." (I would like...) instead of "Je veux" (I want). End every request with "s\'il vous plaît" (please).',
-          examples: [
-            { original: 'Bonjour, je voudrais un café au lait, s\'il vous plaît.', translation: 'Hello, I would like a coffee with milk, please.' },
-            { original: 'L\'addition, s\'il vous plaît.', translation: 'The bill, please.' }
-          ],
-          keyTakeaway: 'Say "Bonjour" before any request when entering a shop or café in France.'
-        }
-      },
-      {
-        id: 'les_fr_1_2',
-        unitId: 'unit_fr_1',
-        title: 'Live Voice: Bistro in Paris',
-        description: 'Order breakfast at Le Petit Café on Boulevard Saint-Germain with Yoe.',
-        type: 'speaking',
-        durationMin: 5,
-        xpReward: 50,
-        isLocked: false,
-        speakingScenarioId: 'scen_cafe_paris'
-      }
-    ]
-  }
+  ...COMPREHENSIVE_COURSES
 ];

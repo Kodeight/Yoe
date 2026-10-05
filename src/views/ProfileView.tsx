@@ -218,14 +218,14 @@ export const ProfileView: React.FC = () => {
         </p>
       </div>
 
-      {/* SECTION 4: CHILD NAVIGATION LINK TO SETTINGS */}
+      {/* SECTION 4: CHILD NAVIGATION LINK TO SETTINGS - SINGLE VISIBLE BORDER CONTAINER */}
       <button
         type="button"
         onClick={() => setActiveView('profile-settings')}
-        className="w-full glass-card p-3.5 rounded-3xl hover:border-emerald-500/40 transition-all flex items-center justify-between cursor-pointer group shadow-md"
+        className="w-full glass-card p-3.5 rounded-3xl hover:border-emerald-500/40 transition-colors flex items-center justify-between cursor-pointer group shadow-md border border-white/10 dark:border-white/10 light-mode:border-slate-200"
       >
         <div className="flex items-center gap-3 text-start">
-          <div className="p-2 rounded-xl bg-emerald-500/15 text-emerald-400 group-hover:scale-105 transition-transform">
+          <div className="p-2 rounded-xl bg-emerald-500/15 text-emerald-400 transition-colors">
             <Settings className="w-4 h-4" />
           </div>
           <div>

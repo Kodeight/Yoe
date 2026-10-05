@@ -17,6 +17,7 @@ interface AppContextType {
   vocabulary: VocabularyItem[];
   mistakes: MistakeRecord[];
   activeView: AppView;
+  previousView: AppView;
   theme: 'dark' | 'light';
   uiLanguage: LanguageCode;
   isRtl: boolean;
@@ -26,6 +27,7 @@ interface AppContextType {
   showAuthModal: boolean;
   pwaInstallPrompt: any;
   setActiveView: (view: AppView) => void;
+  navigateBack: () => void;
   setActiveJourney: (journey: LearningJourney) => void;
   setActiveScenarioId: (scenarioId: string) => void;
   completeScenario: (
@@ -66,7 +68,44 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [activeScenario, setActiveScenario] = useState<Scenario | null>(null);
   const [vocabulary, setVocabulary] = useState<VocabularyItem[]>([]);
   const [mistakes, setMistakes] = useState<MistakeRecord[]>([]);
-  const [activeView, setActiveView] = useState<AppView>('auth');
+  const [activeView, setActiveViewState] = useState<AppView>('auth');
+  const [previousView, setPreviousView] = useState<AppView>('home');
+
+  const setActiveView = (newView: AppView) => {
+    setActiveViewState((current) => {
+      if (current !== newView && current !== 'auth') {
+        setPreviousView(current);
+        if (typeof window !== 'undefined' && window.history) {
+          window.history.pushState({ view: newView, prevView: current }, '', `#${newView}`);
+        }
+      }
+      return newView;
+    });
+  };
+
+  const navigateBack = () => {
+    if (typeof window !== 'undefined' && window.history.state?.view) {
+      window.history.back();
+    } else {
+      setActiveViewState((current) => {
+        const target = previousView && previousView !== current ? previousView : 'home';
+        return target;
+      });
+    }
+  };
+
+  // Sync with browser back/forward buttons
+  useEffect(() => {
+    const handlePopState = (e: PopStateEvent) => {
+      if (e.state && e.state.view) {
+        setActiveViewState(e.state.view);
+      } else {
+        setActiveViewState('home');
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('yoe_theme');
@@ -684,6 +723,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         vocabulary,
         mistakes,
         activeView,
+        previousView,
         theme,
         uiLanguage,
         isRtl,
@@ -693,6 +733,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         showAuthModal,
         pwaInstallPrompt,
         setActiveView,
+        navigateBack,
         setActiveJourney,
         setActiveScenarioId,
         completeScenario,

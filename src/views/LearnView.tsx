@@ -87,7 +87,7 @@ export const LearnView: React.FC = () => {
   };
 
   return (
-    <div className="pb-24 pt-3 px-5 sm:px-6 max-w-md mx-auto space-y-4 animate-in fade-in duration-300">
+    <div className="pb-24 pt-3 px-5 sm:px-6 max-w-md mx-auto space-y-4">
 
       {/* Top Neutral Tab Navigation with Animated Left-to-Right Green Underline Bar */}
       <div className="relative border-b border-white/10 dark:border-white/10 light-mode:border-slate-200 pb-2 flex items-center justify-between gap-1">
@@ -96,7 +96,7 @@ export const LearnView: React.FC = () => {
           onClick={() => setActiveTab('course')}
           className={`relative flex-1 py-2 px-2 text-xs font-bold transition-colors cursor-pointer flex items-center justify-center gap-1.5 ${
             activeTab === 'course'
-              ? 'text-emerald-400 dark:text-emerald-400 light-mode:text-emerald-600 font-extrabold'
+              ? 'text-emerald-400 dark:text-emerald-400 light-mode:text-emerald-600'
               : 'text-slate-400 dark:text-slate-400 light-mode:text-slate-600 hover:text-slate-200'
           }`}
         >
@@ -112,7 +112,7 @@ export const LearnView: React.FC = () => {
           onClick={() => setActiveTab('review')}
           className={`relative flex-1 py-2 px-2 text-xs font-bold transition-colors cursor-pointer flex items-center justify-center gap-1.5 ${
             activeTab === 'review'
-              ? 'text-emerald-400 dark:text-emerald-400 light-mode:text-emerald-600 font-extrabold'
+              ? 'text-emerald-400 dark:text-emerald-400 light-mode:text-emerald-600'
               : 'text-slate-400 dark:text-slate-400 light-mode:text-slate-600 hover:text-slate-200'
           }`}
         >
@@ -128,7 +128,7 @@ export const LearnView: React.FC = () => {
           onClick={() => setActiveTab('progress')}
           className={`relative flex-1 py-2 px-2 text-xs font-bold transition-colors cursor-pointer flex items-center justify-center gap-1.5 ${
             activeTab === 'progress'
-              ? 'text-emerald-400 dark:text-emerald-400 light-mode:text-emerald-600 font-extrabold'
+              ? 'text-emerald-400 dark:text-emerald-400 light-mode:text-emerald-600'
               : 'text-slate-400 dark:text-slate-400 light-mode:text-slate-600 hover:text-slate-200'
           }`}
         >
@@ -338,7 +338,7 @@ export const LearnView: React.FC = () => {
                           isDone
                             ? 'bg-emerald-500/10 border-emerald-500/30 hover:border-emerald-500/50'
                             : isSpeakingType
-                            ? 'bg-gradient-to-r from-emerald-500/15 via-teal-500/10 to-transparent border-emerald-500/30 hover:scale-[1.01]'
+                            ? 'bg-gradient-to-r from-emerald-500/15 via-teal-500/10 to-transparent border-emerald-500/30 hover:border-emerald-500/50'
                             : 'glass-pill hover:border-emerald-500/40 hover:bg-white/5'
                         }`}
                       >

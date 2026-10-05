@@ -66,6 +66,11 @@ export interface Scenario {
   initialGreeting: string;
   initialGreetingTranslation?: string;
   vocabularyDomain: string[];
+  lessonId?: string;
+  relatedLessonTitle?: string;
+  grammarFocus?: string[];
+  culturalNotes?: string;
+  recommendedNextScenarioId?: string;
 }
 
 export interface CorrectionDetail {
@@ -168,20 +173,43 @@ export interface LessonMiniGame {
   sentenceTranslation?: string;
 }
 
+export interface LessonSection {
+  id: string;
+  title: string;
+  type: 'explanation' | 'grammar' | 'vocabulary' | 'pronunciation' | 'cultural_note' | 'exercise';
+  content: string;
+  examples?: Array<{ original: string; translation: string; phonetic?: string }>;
+  tips?: string[];
+}
+
 export interface Lesson {
   id: string;
   unitId: string;
+  courseId?: string;
   title: string;
   description: string;
+  level?: CEFRLevel;
+  category?: string;
+  order?: number;
+  isPremium?: boolean;
+  estimatedMinutes?: number;
+  learningObjectives?: string[];
+  prerequisiteLessonId?: string;
   type: LessonType;
   durationMin: number;
   xpReward: number;
   theoryContent?: LessonTheory;
+  sections?: LessonSection[];
   quizQuestions?: QuizQuestion[];
   miniGameData?: LessonMiniGame;
   speakingScenarioId?: string;
+  practiceScenarioIds?: string[];
+  grammarFocus?: string[];
+  vocabularyList?: Array<{ word: string; translation: string; phonetic?: string }>;
   isCompleted?: boolean;
   isLocked?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface CourseUnit {
@@ -192,7 +220,32 @@ export interface CourseUnit {
   cefrLevel: CEFRLevel;
   targetLanguage: LanguageCode;
   icon: string;
+  category?: string;
+  description?: string;
   lessons: Lesson[];
   isCompleted?: boolean;
   isLocked?: boolean;
+}
+
+export interface SessionLearningContext {
+  courseId?: string;
+  courseTitle: string;
+  courseLevel: CEFRLevel;
+  lessonId?: string;
+  lessonTitle: string;
+  lessonDescription: string;
+  lessonObjectives: string[];
+  lessonGrammarFocus: string[];
+  lessonVocabulary: string[];
+  scenarioId: string;
+  scenarioTitle: string;
+  scenarioDescription: string;
+  scenarioLocation: string;
+  scenarioCharacter: string;
+  scenarioRole: string;
+  scenarioObjectives: ScenarioObjective[];
+  targetLanguage: LanguageCode;
+  supportLanguage: LanguageCode;
+  cefrLevel: CEFRLevel;
+  weakPatterns?: string[];
 }

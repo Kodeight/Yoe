@@ -39,6 +39,8 @@ export const ConversationView: React.FC = () => {
     completeScenario,
     setActiveScenarioId,
     setActiveView,
+    previousView,
+    navigateBack,
     refreshProgress,
     uiLanguage
   } = useApp();
@@ -94,7 +96,25 @@ export const ConversationView: React.FC = () => {
   const touchStartXRef = useRef<number | null>(null);
   const touchStartYRef = useRef<number | null>(null);
 
-  // Swipe right gesture to close chat and go back to previous page
+  // Close conversation and navigate back using browser history or previous view
+  const handleCloseConversation = useCallback(() => {
+    if (liveSessionRef.current) {
+      liveSessionRef.current.stop();
+      liveSessionRef.current = null;
+    }
+    stopSpeaking();
+    stopListening();
+    if (typeof window !== 'undefined' && window.history.length > 1 && window.history.state?.view) {
+      window.history.back();
+    } else if (navigateBack) {
+      navigateBack();
+    } else {
+      setActiveView(previousView || 'home');
+    }
+  }, [navigateBack, setActiveView, previousView, stopSpeaking, stopListening]);
+
+  // Swipe-to-close gesture handler:
+  // Detects horizontal swipe right (> 70px) OR vertical swipe down from top (> 80px)
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartXRef.current = e.touches[0].clientX;
     touchStartYRef.current = e.touches[0].clientY;
@@ -104,18 +124,17 @@ export const ConversationView: React.FC = () => {
     if (touchStartXRef.current === null || touchStartYRef.current === null) return;
     const deltaX = e.changedTouches[0].clientX - touchStartXRef.current;
     const deltaY = e.changedTouches[0].clientY - touchStartYRef.current;
+    const startY = touchStartYRef.current;
     touchStartXRef.current = null;
     touchStartYRef.current = null;
 
-    // Detect intentional swipe right gesture (> 75px horizontal and primarily horizontal)
-    if (deltaX > 75 && Math.abs(deltaX) > Math.abs(deltaY) * 1.3) {
-      if (liveSessionRef.current) {
-        liveSessionRef.current.stop();
-        liveSessionRef.current = null;
-      }
-      stopSpeaking();
-      stopListening();
-      setActiveView('home');
+    // Detect intentional swipe right gesture (> 70px horizontal and primarily horizontal)
+    const isSwipeRight = deltaX > 70 && Math.abs(deltaX) > Math.abs(deltaY) * 1.2;
+    // Detect intentional swipe down gesture from top header/bubble area (> 80px vertical)
+    const isSwipeDownFromTop = deltaY > 80 && Math.abs(deltaY) > Math.abs(deltaX) * 1.2 && startY < 250;
+
+    if (isSwipeRight || isSwipeDownFromTop) {
+      handleCloseConversation();
     }
   };
 
@@ -551,21 +570,14 @@ export const ConversationView: React.FC = () => {
     <div
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
-      className="flex flex-col h-[100dvh] w-full max-w-lg mx-auto bg-[var(--app-background)] text-[var(--text-primary)] relative overflow-hidden"
+      className="flex flex-col h-[100dvh] w-full max-w-lg mx-auto bg-[var(--app-background)] dark:bg-[#070b12] text-[var(--text-primary)] relative overflow-hidden chat-container"
     >
 
       {/* Top Compact Scenario Glass Header Bar */}
       <div className="shrink-0 z-30 glass-header px-4 py-3 flex items-center justify-between safe-top-padding border-b border-white/10 dark:border-white/10 light-mode:border-slate-200">
           <button
-            onClick={() => {
-              if (liveSessionRef.current) {
-                liveSessionRef.current.stop();
-                liveSessionRef.current = null;
-              }
-              stopSpeaking();
-              stopListening();
-              setActiveView('home');
-            }}
+            type="button"
+            onClick={handleCloseConversation}
             className="p-2 rounded-full glass-pill hover:border-emerald-500/40 text-slate-300 dark:text-slate-300 light-mode:text-slate-700 transition-colors cursor-pointer"
             title={t.backToHome}
           >
@@ -1000,7 +1012,7 @@ export const ConversationView: React.FC = () => {
                   ? t.tapToInterrupt
                   : t.replyToYoe
               }
-              className="flex-1 bg-slate-900 light-mode:bg-slate-100 border border-white/10 light-mode:border-slate-200 rounded-2xl px-4 py-2.5 text-xs text-[var(--text-primary)] placeholder-slate-400 focus:outline-none focus:border-emerald-400 transition-colors"
+              className="flex-1 chat-input-field bg-[#0d1422] dark:bg-[#0d1422] light-mode:bg-slate-100 border border-white/10 dark:border-white/10 light-mode:border-slate-200 rounded-2xl px-4 py-2.5 text-xs text-[var(--text-primary)] placeholder-slate-400 focus:outline-none focus:border-emerald-400 transition-colors"
             />
 
             {/* Send Button */}
