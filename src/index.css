@@ -1,5 +1,6 @@
 @import "tailwindcss";
 
+@variant dark (&:where(.dark, .dark *));
 @custom-variant light-mode (&:where(.light-mode, .light-mode *));
 
 @theme {
@@ -30,6 +31,7 @@
   color-scheme: dark;
   --app-background: #070b12;
   --topbar-background: rgba(8, 14, 25, 0.88);
+  --header-bg: rgba(8, 14, 25, 0.88);
   --surface: #0d1422;
   --surface-elevated: #131c31;
   --bg-primary: #070b12;
@@ -59,6 +61,7 @@
   color-scheme: light;
   --app-background: #f8fafc;
   --topbar-background: rgba(255, 255, 255, 0.95);
+  --header-bg: rgba(255, 255, 255, 0.95);
   --surface: #ffffff;
   --surface-elevated: #f1f5f9;
   --bg-primary: #f8fafc;
@@ -172,7 +175,7 @@ input:-webkit-autofill:active {
   }
 
   .glass-header {
-    background-color: var(--bg-glass-heavy);
+    background-color: var(--topbar-background, var(--header-bg));
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
     border-bottom: 1px solid var(--border-glass);

@@ -47,6 +47,15 @@ export interface ProcessTurnParams {
   lesson?: Lesson;
   course?: CourseUnit;
   journey?: LearningJourney;
+  learnerProfile?: {
+    name?: string;
+    learningGoal?: string;
+    motivation?: string;
+    focusAreas?: string[];
+    knownLanguages?: string[];
+    supportLanguage?: string;
+    previousExperience?: string;
+  };
   userMessage: string;
   conversationHistory?: Array<{ sender: 'user' | 'tutor'; text: string }>;
   recentMistakes?: any[];
@@ -56,12 +65,22 @@ export interface ProcessTurnParams {
 }
 
 export async function processScenarioTurn(params: ProcessTurnParams): Promise<ScenarioTurnResponse> {
-  const { scenario, lesson, course, journey, userMessage, conversationHistory = [] } = params;
+  const { scenario, lesson, course, journey, learnerProfile, userMessage, conversationHistory = [] } = params;
   const targetLang = (journey?.targetLanguage || params.targetLanguage || 'es').toUpperCase();
   const supportLang = (journey?.supportLanguage || params.supportLanguage || 'en').toUpperCase();
   const cefr = journey?.cefrLevel || params.cefrLevel || scenario.cefrLevel || 'A1';
 
   const characterVoice = getCharacterVoice(scenario.characterName, scenario.characterRole);
+
+  const learnerName = learnerProfile?.name || journey?.learnerName || '';
+  const learnerMotivation = learnerProfile?.motivation || journey?.motivation || journey?.goals || 'Everyday practical conversation';
+  const learnerFocus = learnerProfile?.focusAreas && learnerProfile.focusAreas.length > 0
+    ? learnerProfile.focusAreas.join(', ')
+    : (learnerProfile?.learningGoal || 'Speaking confidence and natural vocabulary');
+  const previousExperience = learnerProfile?.previousExperience || journey?.previousExperience || 'beginner';
+  const knownLangs = (learnerProfile?.knownLanguages && learnerProfile.knownLanguages.length > 0)
+    ? learnerProfile.knownLanguages.join(', ')
+    : (journey?.knownLanguages ? journey.knownLanguages.join(', ') : supportLang);
 
   // Curriculum Context
   const courseTitle = course?.title || `${targetLang} Curriculum`;
@@ -107,9 +126,27 @@ ${scenario.objectives.map(o => `- [${o.id}] ${o.text}`).join('\n')}
 SCENARIO VOCABULARY DOMAIN:
 ${(scenario.vocabularyDomain || []).join(', ')}
 
+==================================================
+3. LEARNER CONTEXT & PERSONALIZATION
+==================================================
+LEARNER NAME: ${learnerName || 'Learner'}
+LEARNING PURPOSE / MOTIVATION: ${learnerMotivation} (e.g. Travel, Work, School, Conversation, Just for fun)
+PRIMARY IMPROVEMENT FOCUS: ${learnerFocus} (e.g. Speaking, Listening, Vocabulary, Grammar, Everything)
 TARGET LANGUAGE TO SPEAK: ${targetLang}
 SUPPORT LANGUAGE FOR EXPLANATIONS & TRANSLATIONS: ${supportLang}
+KNOWN LANGUAGES: ${knownLangs}
+PREVIOUS EXPERIENCE: ${previousExperience}
 LEARNER CEFR LEVEL: ${cefr}
+
+* PERSONALIZATION DIRECTIVES:
+- Warmly address the learner by name (${learnerName || 'friend'}) when greeting or encouraging them.
+- Tailor examples, comments, and roleplay nuances to their purpose (${learnerMotivation}). For Travel, highlight helpful journey phrases; for Work, keep it crisp and professional; for Conversation or Fun, keep it friendly and relaxed.
+- Actively emphasize their chosen improvement focus (${learnerFocus}):
+  * Speaking: Ask questions that invite longer conversational turns from the learner.
+  * Listening: Speak in natural, clear sentences with authentic pacing.
+  * Vocabulary: Highlight useful scenario words and phrases.
+  * Grammar: Gently model clean sentence structure and agreements.
+  * Everything: Provide a well-rounded immersion.
 
 ==================================================
 CRITICAL TEACHING & ROLEPLAY PRINCIPLES:
@@ -210,19 +247,29 @@ export async function generateLiveGreeting(
   scenario: Scenario,
   journey: LearningJourney,
   lesson?: Lesson,
-  course?: CourseUnit
+  course?: CourseUnit,
+  learnerProfile?: {
+    name?: string;
+    learningGoal?: string;
+    motivation?: string;
+    focusAreas?: string[];
+  }
 ): Promise<{ response: string; translation: string; audioBase64?: string }> {
   const targetLang = (journey?.targetLanguage || 'es').toUpperCase();
   const supportLang = (journey?.supportLanguage || 'en').toUpperCase();
   const cefr = journey?.cefrLevel || scenario.cefrLevel || 'A1';
   const characterVoice = getCharacterVoice(scenario.characterName, scenario.characterRole);
 
+  const learnerName = learnerProfile?.name || journey?.learnerName || '';
+  const learnerMotivation = learnerProfile?.motivation || journey?.motivation || journey?.goals || '';
+
   const courseTitle = course?.title || `${targetLang} Curriculum`;
   const lessonTitle = lesson?.title || scenario.relatedLessonTitle || 'Everyday Communication';
 
   const prompt = `You are Yoe, the AI language tutor roleplaying as ${scenario.characterName} (${scenario.characterRole}) at ${scenario.location} in the scenario "${scenario.title}".
-The learner is studying the curriculum lesson "${lessonTitle}" (${courseTitle}, Level ${cefr}) and practicing it in this scenario.
-Generate a warm, realistic 1-sentence opening greeting in ${targetLang} suited for CEFR ${cefr} that immediately establishes your character role at ${scenario.location}, followed by its ${supportLang} translation.
+The learner ${learnerName ? `is named ${learnerName}` : ''}${learnerMotivation ? ` and is practicing for "${learnerMotivation}"` : ''}.
+They are studying the curriculum lesson "${lessonTitle}" (${courseTitle}, Level ${cefr}) and practicing it in this scenario.
+Generate a warm, realistic 1-sentence opening greeting in ${targetLang} suited for CEFR ${cefr} that immediately establishes your character role at ${scenario.location}${learnerName ? ` and warmly greets ${learnerName}` : ''}, followed by its ${supportLang} translation.
 
 Respond strictly in JSON:
 {
@@ -294,6 +341,7 @@ export async function generateScenarioSpeech(text: string, voiceName = 'Kore'): 
       onDoneCallback = resolve;
     });
 
+    const tServer0 = Date.now();
     const session = await client.live.connect({
       model: LIVE_MODEL,
       config: {
@@ -316,12 +364,13 @@ export async function generateScenarioSpeech(text: string, voiceName = 'Kore'): 
             }
           }
           if (msg.serverContent?.turnComplete && onDoneCallback) {
-            setTimeout(onDoneCallback, 200);
+            onDoneCallback();
           }
         }
       }
     });
 
+    const tConnected = Date.now();
     session.sendClientContent({
       turns: [
         {
@@ -334,6 +383,9 @@ export async function generateScenarioSpeech(text: string, voiceName = 'Kore'): 
 
     await Promise.race([donePromise, new Promise((r) => setTimeout(r, 4500))]);
     try { session.close(); } catch (e) {}
+
+    const tGenerationDone = Date.now();
+    console.log(`[SERVER TTS DIAGNOSTICS] Text: "${text.slice(0, 30)}..." | Connect: ${tConnected - tServer0}ms | Gen: ${tGenerationDone - tConnected}ms | Total: ${tGenerationDone - tServer0}ms | Chunks: ${pcmChunks.length}`);
 
     if (pcmChunks.length === 0) return null;
     const fullPcm = Buffer.concat(pcmChunks);
@@ -349,7 +401,13 @@ export async function createEphemeralLiveToken(
   scenario?: Scenario,
   journey?: LearningJourney,
   lesson?: Lesson,
-  course?: CourseUnit
+  course?: CourseUnit,
+  learnerProfile?: {
+    name?: string;
+    learningGoal?: string;
+    motivation?: string;
+    focusAreas?: string[];
+  }
 ) {
   const apiKey = getGeminiApiKey();
   if (!apiKey) {
@@ -360,6 +418,12 @@ export async function createEphemeralLiveToken(
   const supportLang = (journey?.supportLanguage || 'en').toUpperCase();
   const cefr = journey?.cefrLevel || scenario?.cefrLevel || 'A1';
   const voiceName = scenario ? getCharacterVoice(scenario.characterName, scenario.characterRole) : 'Kore';
+
+  const learnerName = learnerProfile?.name || journey?.learnerName || '';
+  const learnerMotivation = learnerProfile?.motivation || journey?.motivation || journey?.goals || 'Practical real-world conversation';
+  const learnerFocus = learnerProfile?.focusAreas && learnerProfile.focusAreas.length > 0
+    ? learnerProfile.focusAreas.join(', ')
+    : (learnerProfile?.learningGoal || 'Speaking confidence and natural vocabulary');
 
   const courseTitle = course?.title || `${targetLang} Curriculum`;
   const lessonTitle = lesson?.title || scenario?.relatedLessonTitle || 'Everyday Communication & Practice';
@@ -381,7 +445,13 @@ export async function createEphemeralLiveToken(
    - YOUR ROLE: ${scenario.characterName} (${scenario.characterRole})
    - OBJECTIVES: ${scenario.objectives.map(o => o.text).join('; ')}
 
-3. CRITICAL INSTRUCTIONS:
+3. LEARNER CONTEXT & PERSONALIZATION:
+   - LEARNER NAME: ${learnerName || 'Learner'}
+   - LEARNING PURPOSE: ${learnerMotivation}
+   - IMPROVEMENT FOCUS: ${learnerFocus}
+   - Warmly address the learner by name (${learnerName || 'friend'}), and actively adapt roleplay dialogue and encouragement to support their purpose (${learnerMotivation}) and focus (${learnerFocus}).
+
+4. CRITICAL INSTRUCTIONS:
    - Stay strictly in character as ${scenario.characterName} (${scenario.characterRole}) at ${scenario.location}.
    - The scenario is the practical context; the lesson is what the learner is mastering. Weave them together naturally.
    - If asked "What are we learning today?", "What's the topic?", or similar, explain that today we are working on "${lessonTitle}" and practicing it in the real-world situation of "${scenario.title}" at ${scenario.location}. Never state only one without the other.

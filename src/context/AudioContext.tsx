@@ -20,8 +20,8 @@ export interface AudioContextType {
   requestMicrophoneAccess: () => Promise<boolean>;
   startListening: (langCode?: string) => Promise<boolean>;
   stopListening: () => void;
-  playGeminiAudio: (base64Audio: string, onEnded?: () => void) => Promise<void>;
-  speakText: (text: string, langCode?: string, characterName?: string, role?: string, onEnded?: () => void) => Promise<void>;
+  playGeminiAudio: (base64Audio: string, onEnded?: () => void, messageId?: string) => Promise<void>;
+  speakText: (text: string, langCode?: string, characterName?: string, role?: string, onEnded?: () => void, messageId?: string) => Promise<void>;
   replayMessage: (messageId: string, text: string, audioUrl?: string, characterName?: string, role?: string, onEnded?: () => void) => Promise<void>;
   stopSpeaking: () => void;
   stopReplay: () => void;
@@ -292,9 +292,19 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [stopSpeaking]);
 
   // Play native Gemini Audio (WAV or raw PCM base64) with AnalyserNode connection
-  const playGeminiAudio = useCallback(async (base64Audio: string, onEnded?: () => void): Promise<void> => {
+  const playGeminiAudio = useCallback(async (base64Audio: string, onEnded?: () => void, messageId?: string): Promise<void> => {
     try {
-      stopSpeaking();
+      if (currentSourceRef.current) {
+        try {
+          currentSourceRef.current.stop();
+          currentSourceRef.current.disconnect();
+        } catch (e) {}
+        currentSourceRef.current = null;
+      }
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+
       const ctx = getOrCreateAudioContext();
       if (!ctx || !speakerAnalyserRef.current) return;
 
@@ -303,7 +313,11 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         await ctx.resume();
       }
 
+      const tDecode0 = typeof performance !== 'undefined' ? performance.now() : Date.now();
       const audioBuffer = await decodeAudioPayload(ctx, base64Audio, 24000);
+      const decodeMs = Math.round((typeof performance !== 'undefined' ? performance.now() : Date.now()) - tDecode0);
+      console.log(`[AUDIO DIAGNOSTICS] Stage D (Audio decoding: ${decodeMs}ms, duration: ${audioBuffer.duration.toFixed(2)}s)`);
+
       const source = ctx.createBufferSource();
       source.buffer = audioBuffer;
 
@@ -314,22 +328,29 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       currentSourceRef.current = source;
       setIsSpeaking(true);
       setIsInterrupted(false);
+      if (messageId) {
+        setPlayingMessageId(messageId);
+        setLoadingAudioId(null);
+      }
 
       source.onended = () => {
         setIsSpeaking(false);
         setPlayingMessageId(null);
+        setLoadingAudioId(null);
         currentSourceRef.current = null;
         if (onEnded) onEnded();
       };
 
       source.start(0);
+      console.log(`[AUDIO DIAGNOSTICS] Stage E (Playback initiated: source started)`);
     } catch (err) {
       console.warn('Native audio playback error:', err);
       setIsSpeaking(false);
       setPlayingMessageId(null);
+      setLoadingAudioId(null);
       if (onEnded) onEnded();
     }
-  }, [getOrCreateAudioContext, stopSpeaking]);
+  }, [getOrCreateAudioContext]);
 
   const mapLangToLocale = (code?: string): string => {
     switch (code) {
@@ -537,23 +558,23 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     langCode?: string,
     characterName?: string,
     role?: string,
-    onEnded?: () => void
+    onEnded?: () => void,
+    messageId?: string
   ): Promise<void> => {
     if (!text || !text.trim()) return;
 
-    stopSpeaking();
     const t0 = typeof performance !== 'undefined' ? performance.now() : Date.now();
     const cacheKey = `${text.trim()}_${characterName || ''}_${role || ''}`;
 
     // 1. Check in-memory TTS cache for immediate playback
     const cachedAudio = ttsCacheRef.current.get(cacheKey);
     if (cachedAudio) {
-      console.log(`[AUDIO DIAGNOSTICS] TTS Cache HIT for "${text.slice(0, 35)}..." - Starting instant playback (0ms network delay)`);
-      await playGeminiAudio(cachedAudio, onEnded);
+      console.log(`[AUDIO DIAGNOSTICS] Stage C (TTS Cache HIT for "${text.slice(0, 30)}..." - starting instant playback, 0ms network latency)`);
+      await playGeminiAudio(cachedAudio, onEnded, messageId);
       return;
     }
 
-    console.log(`[AUDIO DIAGNOSTICS] Starting TTS request for: "${text.slice(0, 35)}..."`);
+    console.log(`[AUDIO DIAGNOSTICS] Stage C (TTS Cache MISS for "${text.slice(0, 30)}..." - sending POST /api/ai/tts)`);
 
     try {
       const tFetchStart = typeof performance !== 'undefined' ? performance.now() : Date.now();
@@ -568,11 +589,12 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (res.ok) {
         const data = await res.json();
         if (data.audioBase64) {
-          console.log(`[AUDIO DIAGNOSTICS] Network TTS response received in ${fetchMs}ms (Payload: ${Math.round(data.audioBase64.length / 1024)} KB)`);
+          const payloadKb = Math.round((data.audioBase64.length * 0.75) / 1024);
+          console.log(`[AUDIO DIAGNOSTICS] Stage C & D (Network TTS response received in ${fetchMs}ms, payload: ~${payloadKb} KB)`);
           ttsCacheRef.current.set(cacheKey, data.audioBase64);
-          await playGeminiAudio(data.audioBase64, onEnded);
+          await playGeminiAudio(data.audioBase64, onEnded, messageId);
           const totalMs = Math.round((typeof performance !== 'undefined' ? performance.now() : Date.now()) - t0);
-          console.log(`[AUDIO DIAGNOSTICS] Audio started playback in ${totalMs}ms total`);
+          console.log(`[AUDIO DIAGNOSTICS] Complete flow finished: Total time from click to playback = ${totalMs}ms`);
           return;
         }
       }
@@ -582,25 +604,36 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     // Web Speech API fallback
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      if (messageId) {
+        setPlayingMessageId(messageId);
+        setLoadingAudioId(null);
+      }
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = mapLangToLocale(langCode);
       utterance.rate = 0.95;
-      utterance.onstart = () => setIsSpeaking(true);
+      utterance.onstart = () => {
+        setIsSpeaking(true);
+        if (messageId) setPlayingMessageId(messageId);
+        setLoadingAudioId(null);
+      };
       utterance.onend = () => {
         setIsSpeaking(false);
         setPlayingMessageId(null);
+        setLoadingAudioId(null);
         if (onEnded) onEnded();
       };
       utterance.onerror = () => {
         setIsSpeaking(false);
         setPlayingMessageId(null);
+        setLoadingAudioId(null);
         if (onEnded) onEnded();
       };
       window.speechSynthesis.speak(utterance);
     } else {
+      setLoadingAudioId(null);
       if (onEnded) onEnded();
     }
-  }, [playGeminiAudio, stopSpeaking]);
+  }, [playGeminiAudio]);
 
   // Centralized Replay System for all Yoe messages across the app
   const replayMessage = useCallback(async (
@@ -613,19 +646,41 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   ): Promise<void> => {
     // 1. Tapping currently playing message stops playback immediately
     if (playingMessageId === messageId && isSpeaking) {
+      console.log(`[AUDIO DIAGNOSTICS] User tapped currently playing message "${messageId}". Stopping playback.`);
       stopSpeaking();
       setLoadingAudioId(null);
       return;
     }
 
-    // 2. Halt any active audio source before starting newly selected one
-    stopSpeaking();
+    // 2. Prevent accidental duplicate tap while already loading this exact audio
+    if (loadingAudioId === messageId) {
+      console.log(`[AUDIO DIAGNOSTICS] Audio "${messageId}" already loading, ignoring duplicate tap.`);
+      return;
+    }
+
+    const tClick = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    console.log(`[AUDIO DIAGNOSTICS] Stage A (Button tapped): messageId="${messageId}", text="${text.slice(0, 30)}..."`);
+
+    // 3. Halt any previous audio playback
+    if (currentSourceRef.current) {
+      try {
+        currentSourceRef.current.stop();
+        currentSourceRef.current.disconnect();
+      } catch (e) {}
+      currentSourceRef.current = null;
+    }
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
     setReplayErrorId(null);
     setPlayingMessageId(messageId);
     setLoadingAudioId(messageId);
 
-    // 3. User gesture unlocks AudioContext for mobile / iOS Safari
+    // 4. User gesture unlocks AudioContext for mobile / iOS Safari
+    const tCtx0 = typeof performance !== 'undefined' ? performance.now() : Date.now();
     await resumeAudioContext();
+    const ctxMs = Math.round((typeof performance !== 'undefined' ? performance.now() : Date.now()) - tCtx0);
+    console.log(`[AUDIO DIAGNOSTICS] Stage B (AudioContext initialization/resume: ${ctxMs}ms)`);
 
     const onComplete = () => {
       setLoadingAudioId(null);
@@ -644,25 +699,24 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     try {
       if (audioUrl && audioUrl.length > 50) {
-        setLoadingAudioId(null);
-        await playGeminiAudio(audioUrl, onComplete);
+        console.log(`[AUDIO DIAGNOSTICS] Stage C (Direct audioUrl provided)`);
+        await playGeminiAudio(audioUrl, onComplete, messageId);
         return;
       }
 
       const cacheKey = `${text.trim()}_${characterName || ''}_${role || ''}`;
       const cached = ttsCacheRef.current.get(cacheKey);
       if (cached) {
-        setLoadingAudioId(null);
-        await playGeminiAudio(cached, onComplete);
+        console.log(`[AUDIO DIAGNOSTICS] Stage C (TTS Cache HIT from memory)`);
+        await playGeminiAudio(cached, onComplete, messageId);
         return;
       }
 
-      await speakText(text, undefined, characterName, role, onComplete);
-      setLoadingAudioId(null);
+      await speakText(text, undefined, characterName, role, onComplete, messageId);
     } catch (err) {
       onError(err);
     }
-  }, [playingMessageId, isSpeaking, stopSpeaking, resumeAudioContext, playGeminiAudio, speakText]);
+  }, [playingMessageId, loadingAudioId, isSpeaking, stopSpeaking, resumeAudioContext, playGeminiAudio, speakText]);
 
   return (
     <AudioContextState.Provider

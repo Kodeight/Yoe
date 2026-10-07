@@ -15,6 +15,7 @@ import {
   BookOpen
 } from 'lucide-react';
 import { SUPPORTED_LANGUAGES } from '../constants/languages';
+import { LanguageFlag } from '../components/LanguageFlag';
 
 export const ProfileView: React.FC = () => {
   const {
@@ -83,6 +84,22 @@ export const ProfileView: React.FC = () => {
           </div>
         </div>
 
+        {/* Personalized Learning Goals Tag */}
+        {(user?.motivation || user?.focusAreas?.length || activeJourney?.motivation) && (
+          <div className="pt-1 flex flex-wrap items-center gap-1.5">
+            {(user?.motivation || activeJourney?.motivation) && (
+              <span className="px-2.5 py-1 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-[10px] font-bold">
+                🎯 Goal: {user?.motivation || activeJourney?.motivation}
+              </span>
+            )}
+            {(user?.focusAreas?.[0] || activeJourney?.focusAreas?.[0]) && (
+              <span className="px-2.5 py-1 rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 border border-teal-500/20 text-[10px] font-bold">
+                ⚡ Focus: {user?.focusAreas?.[0] || activeJourney?.focusAreas?.[0]}
+              </span>
+            )}
+          </div>
+        )}
+
         {/* Real Journey Metrics Banner */}
         {activeJourney && (
           <div className="pt-3 border-t border-white/10 dark:border-white/10 light-mode:border-slate-200 grid grid-cols-3 gap-2 text-center">
@@ -135,7 +152,7 @@ export const ProfileView: React.FC = () => {
           <div className="p-3.5 rounded-2xl bg-white/5 dark:bg-white/5 light-mode:bg-white border border-white/10 dark:border-white/10 light-mode:border-slate-200 space-y-2.5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
-                <span className="text-2xl">{targetLangMeta?.flag || '🌐'}</span>
+                <LanguageFlag code={targetLangMeta?.code || 'es'} size="lg" className="shadow-xs" />
                 <div>
                   <h4 className="text-xs font-bold text-[var(--text-primary)]">
                     {targetLangMeta?.name || 'Spanish'} ({targetLangMeta?.nativeName || 'Español'})
@@ -182,7 +199,7 @@ export const ProfileView: React.FC = () => {
                         : 'glass-pill text-[var(--text-secondary)] hover:border-emerald-500/40'
                     }`}
                   >
-                    <span>{lang?.flag || '🌐'}</span>
+                    <LanguageFlag code={lang?.code || j.targetLanguage} size="xs" className="shadow-xs" />
                     <span>{lang?.name}</span>
                     <span className="text-[10px] opacity-80 uppercase">({j.cefrLevel})</span>
                   </button>

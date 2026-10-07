@@ -261,11 +261,24 @@ apiRouter.post('/ai/initial-greeting', async (req: Request, res: Response) => {
       journey.cefrLevel
     );
 
+    // Resolve learner profile for personalization
+    const user = existingJourney ? db.getUser(existingJourney.userId) : null;
+    const learnerProfile = req.body?.learnerProfile || {
+      name: user?.name || existingJourney?.learnerName,
+      motivation: user?.motivation || existingJourney?.motivation || existingJourney?.goals,
+      learningGoal: user?.learningGoal,
+      focusAreas: user?.focusAreas || existingJourney?.focusAreas,
+      knownLanguages: user?.knownLanguages || existingJourney?.knownLanguages,
+      supportLanguage: user?.supportLanguage || existingJourney?.supportLanguage,
+      previousExperience: user?.previousExperience || existingJourney?.previousExperience
+    };
+
     const greeting = await generateLiveGreeting(
       scenario,
       journey,
       curriculum?.lesson,
-      curriculum?.course
+      curriculum?.course,
+      learnerProfile
     );
     res.json({
       greeting,
@@ -336,14 +349,27 @@ apiRouter.post('/ai/chat', async (req: Request, res: Response) => {
       timestamp: new Date().toISOString()
     });
 
-    console.log('[YOE CHAT] Gemini request started with dual curriculum + scenario context');
+    // Resolve learner profile for personalization
+    const user = existingJourney ? db.getUser(existingJourney.userId) : null;
+    const learnerProfile = req.body?.learnerProfile || {
+      name: user?.name || existingJourney?.learnerName,
+      motivation: user?.motivation || existingJourney?.motivation || existingJourney?.goals,
+      learningGoal: user?.learningGoal,
+      focusAreas: user?.focusAreas || existingJourney?.focusAreas,
+      knownLanguages: user?.knownLanguages || existingJourney?.knownLanguages,
+      supportLanguage: user?.supportLanguage || existingJourney?.supportLanguage,
+      previousExperience: user?.previousExperience || existingJourney?.previousExperience
+    };
 
-    // Call Gemini Service with dual lesson + scenario context
+    console.log('[YOE CHAT] Gemini request started with dual curriculum + scenario context + learner personalization');
+
+    // Call Gemini Service with dual lesson + scenario context + learner personalization
     const aiResult = await processScenarioTurn({
       scenario,
       lesson: curriculum?.lesson,
       course: curriculum?.course,
       journey,
+      learnerProfile,
       conversationHistory: conversationHistory || [],
       userMessage,
       recentMistakes
@@ -465,7 +491,7 @@ const handleLiveToken = async (req: Request, res: Response) => {
     const journeyId = req.body?.journeyId || (req.query?.journeyId as string);
     const lessonId = req.body?.lessonId || (req.query?.lessonId as string);
 
-    const journey = db.getJourney(journeyId) || {
+    const journey: LearningJourney = db.getJourney(journeyId) || {
       id: journeyId || 'temp_jrn',
       userId: 'temp_user',
       targetLanguage: 'es',
@@ -486,11 +512,24 @@ const handleLiveToken = async (req: Request, res: Response) => {
       journey.cefrLevel
     );
 
+    // Resolve learner profile for personalization
+    const user = journey ? db.getUser(journey.userId) : null;
+    const learnerProfile = req.body?.learnerProfile || {
+      name: user?.name || journey?.learnerName,
+      motivation: user?.motivation || journey?.motivation || journey?.goals,
+      learningGoal: user?.learningGoal,
+      focusAreas: user?.focusAreas || journey?.focusAreas,
+      knownLanguages: user?.knownLanguages || journey?.knownLanguages,
+      supportLanguage: user?.supportLanguage || journey?.supportLanguage,
+      previousExperience: user?.previousExperience || journey?.previousExperience
+    };
+
     const tokenConfig = await createEphemeralLiveToken(
       scenario,
       journey,
       curriculum?.lesson,
-      curriculum?.course
+      curriculum?.course,
+      learnerProfile
     );
     if (!tokenConfig || !tokenConfig.token) {
       throw new Error('Gemini Live ephemeral token was not created');

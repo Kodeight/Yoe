@@ -21,13 +21,26 @@ export interface User {
   activeJourneyId?: string;
   onboardingCompleted?: boolean;
   trialEndsAt?: string;
+  learningGoal?: string;
+  motivation?: string;
+  focusAreas?: string[];
+  knownLanguages?: LanguageCode[];
+  supportLanguage?: LanguageCode;
+  previousExperience?: string;
 }
 
 export interface LearnerProfile {
+  name?: string;
   experienceLevel: CEFRLevel;
   goals: string[];
   interests: string[];
   dailyGoalMinutes: number;
+  motivation?: string;
+  focusAreas?: string[];
+  learningGoal?: string;
+  knownLanguages?: LanguageCode[];
+  supportLanguage?: LanguageCode;
+  previousExperience?: string;
 }
 
 export interface LearningJourney {
@@ -41,6 +54,29 @@ export interface LearningJourney {
   points: number;
   activeScenarioId?: string;
   createdAt: string;
+  goals?: string;
+  motivation?: string;
+  focusAreas?: string[];
+  learnerName?: string;
+  knownLanguages?: LanguageCode[];
+  previousExperience?: string;
+}
+
+export interface OnboardingRegistrationPayload {
+  name: string;
+  username: string;
+  email: string;
+  password: string;
+  targetLanguage?: LanguageCode;
+  supportLanguage?: LanguageCode;
+  knownLanguages?: LanguageCode[];
+  previousExperience?: string;
+  cefrLevel?: CEFRLevel;
+  motivation?: string;
+  focusAreas?: string[];
+  learningGoal?: string;
+  uiLanguage?: LanguageCode;
+  theme?: 'dark' | 'light';
 }
 
 export interface ScenarioObjective {
@@ -248,4 +284,10 @@ export interface SessionLearningContext {
   supportLanguage: LanguageCode;
   cefrLevel: CEFRLevel;
   weakPatterns?: string[];
+  learnerProfile?: {
+    name?: string;
+    learningGoal?: string;
+    motivation?: string;
+    focusAreas?: string[];
+  };
 }

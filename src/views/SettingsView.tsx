@@ -20,6 +20,8 @@ import {
   HardDrive
 } from 'lucide-react';
 import { LanguageCode } from '../types';
+import { SUPPORTED_LANGUAGES } from '../constants/languages';
+import { LanguageFlag } from '../components/LanguageFlag';
 
 export const SettingsView: React.FC = () => {
   const {
@@ -49,17 +51,6 @@ export const SettingsView: React.FC = () => {
     setCacheStatus(t.cachedSuccess);
     setTimeout(() => setCacheStatus(''), 4000);
   };
-
-  const interfaceLanguages: Array<{ code: LanguageCode; name: string; nativeName: string; flag: string }> = [
-    { code: 'en', name: 'English', nativeName: 'English', flag: '🇺🇸' },
-    { code: 'fr', name: 'French', nativeName: 'Français', flag: '🇫🇷' },
-    { code: 'ar', name: 'Arabic', nativeName: 'العربية', flag: '🇸🇦' },
-    { code: 'es', name: 'Spanish', nativeName: 'Español', flag: '🇪🇸' },
-    { code: 'it', name: 'Italian', nativeName: 'Italiano', flag: '🇮🇹' },
-    { code: 'ru', name: 'Russian', nativeName: 'Русский', flag: '🇷🇺' },
-    { code: 'tr', name: 'Turkish', nativeName: 'Türkçe', flag: '🇹🇷' },
-    { code: 'pt', name: 'Portuguese', nativeName: 'Português', flag: '🇧🇷' }
-  ];
 
   return (
     <div className="pb-28 pt-4 px-4 max-w-md mx-auto space-y-4 animate-in slide-in-from-right duration-250">
@@ -135,7 +126,7 @@ export const SettingsView: React.FC = () => {
             </span>
           </label>
           <div className="grid grid-cols-2 gap-2">
-            {interfaceLanguages.map((lang) => {
+            {SUPPORTED_LANGUAGES.map((lang) => {
               const isCurrent = uiLanguage === lang.code;
               return (
                 <button
@@ -149,7 +140,7 @@ export const SettingsView: React.FC = () => {
                   }`}
                 >
                   <div className="flex items-center gap-2 min-w-0">
-                    <span className="text-base">{lang.flag}</span>
+                    <LanguageFlag code={lang.code} size="xs" className="shadow-xs" />
                     <span className="truncate">{lang.nativeName}</span>
                   </div>
                   {isCurrent && <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />}

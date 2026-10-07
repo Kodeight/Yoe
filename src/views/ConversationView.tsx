@@ -29,9 +29,11 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { SessionSummaryModal } from '../components/SessionSummaryModal';
+import { PersonalizedSessionSetup, SessionSetupAnswers } from '../components/PersonalizedSessionSetup';
 
 export const ConversationView: React.FC = () => {
   const {
+    user,
     activeScenario,
     activeLesson,
     activeCourse,
@@ -95,6 +97,7 @@ export const ConversationView: React.FC = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const liveSessionRef = useRef<GeminiLiveSession | null>(null);
   const tutorPcmChunksRef = useRef<Uint8Array[]>([]);
+  const currentLearnerProfileRef = useRef<{ name?: string; learningGoal?: string; motivation?: string; focusAreas?: string[] } | null>(null);
   const touchStartXRef = useRef<number | null>(null);
   const touchStartYRef = useRef<number | null>(null);
 
@@ -191,7 +194,13 @@ export const ConversationView: React.FC = () => {
           courseId: activeCourse?.id,
           targetLanguage: activeJourney.targetLanguage,
           supportLanguage: activeJourney.supportLanguage,
-          cefrLevel: activeJourney.cefrLevel
+          cefrLevel: activeJourney.cefrLevel,
+          learnerProfile: currentLearnerProfileRef.current || {
+            name: user?.name || activeJourney.learnerName,
+            motivation: user?.motivation || activeJourney.motivation || activeJourney.goals,
+            learningGoal: user?.learningGoal,
+            focusAreas: user?.focusAreas || activeJourney.focusAreas
+          }
         })
       })
         .then((res) => res.json())
@@ -277,7 +286,13 @@ export const ConversationView: React.FC = () => {
           conversationHistory: updatedHistory,
           targetLanguage: activeJourney.targetLanguage,
           supportLanguage: activeJourney.supportLanguage,
-          cefrLevel: activeJourney.cefrLevel
+          cefrLevel: activeJourney.cefrLevel,
+          learnerProfile: currentLearnerProfileRef.current || {
+            name: user?.name || activeJourney.learnerName,
+            motivation: user?.motivation || activeJourney.motivation || activeJourney.goals,
+            learningGoal: user?.learningGoal,
+            focusAreas: user?.focusAreas || activeJourney.focusAreas
+          }
         })
       });
 
@@ -356,8 +371,24 @@ export const ConversationView: React.FC = () => {
   ]);
 
   // Handle explicit user gesture to START the conversation
-  const handleStartConversation = async () => {
+  const handleStartConversation = async (answers?: SessionSetupAnswers) => {
     if (!activeScenario || !activeJourney) return;
+
+    if (answers) {
+      currentLearnerProfileRef.current = {
+        name: answers.name,
+        motivation: answers.motivation,
+        learningGoal: answers.learningGoal,
+        focusAreas: answers.focusAreas
+      };
+    } else if (!currentLearnerProfileRef.current) {
+      currentLearnerProfileRef.current = {
+        name: user?.name || activeJourney.learnerName,
+        motivation: user?.motivation || activeJourney.motivation || activeJourney.goals,
+        learningGoal: user?.learningGoal,
+        focusAreas: user?.focusAreas || activeJourney.focusAreas
+      };
+    }
 
     // Clean up any stale session completely before starting fresh
     if (liveSessionRef.current) {
@@ -378,6 +409,7 @@ export const ConversationView: React.FC = () => {
       scenarioId: activeScenario.id,
       lessonId: activeLesson?.id || (activeScenario as any).relatedLessonId || (activeScenario as any).lessonId,
       courseId: activeCourse?.id,
+      learnerProfile: currentLearnerProfileRef.current || undefined,
       onStateChange: (st) => {
         if (st === 'connecting' || st === 'listening' || st === 'speaking' || st === 'thinking' || st === 'interrupted' || st === 'idle' || st === 'error') {
           setLiveState(st as VoiceBubbleState);
@@ -572,8 +604,8 @@ export const ConversationView: React.FC = () => {
   const bubbleState = getBubbleState();
   const currentEnergy = isLiveApiActive ? liveEnergy : audioEnergy;
 
-  // Scale requirement: 'xl' before starting, '2xl' during live call
-  const bubbleSize = !hasStartedConversation ? 'xl' : '2xl';
+  // Scale: 'md' during setup for comfortable breathing room, '2xl' during live call
+  const bubbleSize = !hasStartedConversation ? 'md' : '2xl';
 
   return (
     <div
@@ -637,7 +669,7 @@ export const ConversationView: React.FC = () => {
               className={`px-2.5 py-1.5 rounded-xl text-[10px] font-bold flex items-center gap-1.5 cursor-pointer transition-colors ${
                 showMissions
                   ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                  : 'glass-pill text-slate-300 dark:text-slate-300 light-mode:text-slate-700 hover:border-emerald-500/40'
+                  : 'glass-pill text-slate-700 dark:text-slate-300 hover:border-emerald-500/40'
               }`}
               title="View Scenario Goals & Objectives"
             >
@@ -648,10 +680,10 @@ export const ConversationView: React.FC = () => {
 
           <button
             onClick={() => setShowMissions(!showMissions)}
-            className="px-2 py-1.5 rounded-xl glass-pill text-[10px] font-bold text-emerald-400 flex items-center gap-1 cursor-pointer hover:border-emerald-500/40"
+            className="px-2 py-1.5 rounded-xl glass-pill text-[10px] font-bold text-emerald-500 dark:text-emerald-400 flex items-center gap-1 cursor-pointer hover:border-emerald-500/40"
             title="Toggle Goals Overview"
           >
-            <Target className="w-3 h-3 text-emerald-400" />
+            <Target className="w-3 h-3 text-emerald-500 dark:text-emerald-400" />
             <span>{completedCount}/{totalObjectives}</span>
             {showMissions ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
           </button>
@@ -660,10 +692,10 @@ export const ConversationView: React.FC = () => {
 
       {/* Collapsible Mission Objectives Drawer */}
       {showMissions && (
-        <div className="glass-nav border-b border-white/10 dark:border-white/10 light-mode:border-slate-200 p-4 animate-in slide-in-from-top duration-200 shadow-xl z-20">
-          <h3 className="text-xs font-bold text-slate-200 dark:text-slate-200 light-mode:text-slate-800 uppercase tracking-wider mb-2 flex items-center justify-between">
+        <div className="glass-nav border-b border-slate-200 dark:border-white/10 p-4 animate-in slide-in-from-top duration-200 shadow-xl z-20">
+          <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider mb-2 flex items-center justify-between">
             <span>{t.scenarioMissions}</span>
-            <span className="text-emerald-400 text-[11px] font-extrabold">
+            <span className="text-emerald-600 dark:text-emerald-400 text-[11px] font-extrabold">
               {completedCount} {t.completedOf} {totalObjectives}
             </span>
           </h3>
@@ -675,20 +707,20 @@ export const ConversationView: React.FC = () => {
                   key={obj.id}
                   className={`p-2.5 rounded-xl border text-xs flex items-start gap-2.5 transition-colors ${
                     isDone
-                      ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300 dark:text-emerald-300 light-mode:text-emerald-800'
-                      : 'bg-slate-950/40 dark:bg-slate-950/40 light-mode:bg-white border-white/5 dark:border-white/5 light-mode:border-slate-200 text-slate-300 dark:text-slate-300 light-mode:text-slate-700'
+                      ? 'bg-emerald-50 border-emerald-200 text-emerald-800 dark:bg-emerald-500/10 dark:border-emerald-500/30 dark:text-emerald-300'
+                      : 'bg-white border-slate-200 text-slate-800 dark:bg-slate-950/40 dark:border-white/5 dark:text-slate-300'
                   }`}
                 >
                   {isDone ? (
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
                   ) : (
-                    <Circle className="w-4 h-4 text-slate-500 shrink-0 mt-0.5" />
+                    <Circle className="w-4 h-4 text-slate-400 dark:text-slate-500 shrink-0 mt-0.5" />
                   )}
                   <div className="flex-1">
                     <p className={`font-medium ${isDone ? 'line-through opacity-80' : ''}`}>{obj.text}</p>
                     {obj.hint && !isDone && (
-                      <p className="text-[10px] text-slate-400 dark:text-slate-400 light-mode:text-slate-500 mt-1 flex items-center gap-1">
-                        <Lightbulb className="w-3 h-3 text-amber-400" />
+                      <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-1">
+                        <Lightbulb className="w-3 h-3 text-amber-500 dark:text-amber-400" />
                         <span>{t.hint}: {obj.hint}</span>
                       </p>
                     )}
@@ -699,20 +731,20 @@ export const ConversationView: React.FC = () => {
           </div>
 
           {activeLesson && (
-            <div className="mt-3 pt-3 border-t border-white/10 dark:border-white/10 light-mode:border-slate-200">
+            <div className="mt-3 pt-3 border-t border-slate-200 dark:border-white/10">
               <div className="flex items-center justify-between mb-1.5">
-                <span className="text-[10px] font-black uppercase tracking-wider text-emerald-400">
+                <span className="text-[10px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
                   Curriculum Lesson
                 </span>
-                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-400 light-mode:text-slate-500">
+                <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400">
                   {activeCourse?.title || `${activeJourney?.targetLanguage.toUpperCase()} Curriculum`}
                 </span>
               </div>
-              <div className="p-2.5 rounded-xl bg-slate-900/60 dark:bg-slate-900/60 light-mode:bg-slate-100 border border-white/5 dark:border-white/5 light-mode:border-slate-200">
-                <h4 className="text-xs font-bold text-slate-100 dark:text-slate-100 light-mode:text-slate-900">
+              <div className="p-2.5 rounded-xl bg-slate-100 border-slate-200 text-slate-800 dark:bg-slate-900/60 dark:border-white/5 dark:text-slate-100 border">
+                <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100">
                   {activeLesson.title}
                 </h4>
-                <p className="text-[10px] text-slate-400 dark:text-slate-400 light-mode:text-slate-600 mt-0.5">
+                <p className="text-[10px] text-slate-600 dark:text-slate-400 mt-0.5">
                   {activeLesson.description}
                 </p>
                 {activeLesson.grammarFocus && activeLesson.grammarFocus.length > 0 && (
@@ -838,26 +870,17 @@ export const ConversationView: React.FC = () => {
         </div>
       </div>
 
-      {/* Prominent Primary START Button before conversation begins */}
+      {/* Personalized Conversational Session Setup before conversation begins */}
       {!hasStartedConversation ? (
-        <div className="flex-1 flex flex-col items-center justify-center p-6 text-center space-y-4 my-auto">
-          <div className="max-w-xs space-y-2">
-            <h3 className="text-lg font-black text-slate-100 dark:text-slate-100 light-mode:text-slate-900 tracking-tight">
-              {activeScenario.title}
-            </h3>
-            <p className="text-xs text-slate-400 dark:text-slate-400 light-mode:text-slate-600 leading-relaxed">
-              {t.practiceDialogueAt}
-            </p>
-          </div>
-
-          <button
-            onClick={handleStartConversation}
-            className="w-full max-w-xs py-4 px-6 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 text-white font-black text-sm flex items-center justify-center gap-2.5 shadow-xl shadow-emerald-500/25 hover:shadow-emerald-500/40 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer"
-          >
-            <Play className="w-5 h-5 fill-current text-white" />
-            <span className="text-white font-extrabold">{t.startConversation}</span>
-          </button>
-        </div>
+        <PersonalizedSessionSetup
+          scenario={activeScenario}
+          lesson={activeLesson}
+          course={activeCourse}
+          journey={activeJourney}
+          onStartSession={(answers) => {
+            handleStartConversation(answers);
+          }}
+        />
       ) : (
         /* Main Conversation Messages Scroll Area after Start with Smooth Gradient Mask at Top */
         showTranscript ? (
@@ -1049,7 +1072,7 @@ export const ConversationView: React.FC = () => {
             ) : (
               <button
                 type="button"
-                onClick={handleStartConversation}
+                onClick={() => handleStartConversation()}
                 className="w-11 h-11 p-2.5 rounded-2xl bg-emerald-500/15 border border-emerald-500/35 text-emerald-500 hover:bg-emerald-500/25 shadow-sm transition-all cursor-pointer shrink-0 flex items-center justify-center"
                 title="Resume Voice Call"
                 aria-label="Resume Voice Call"

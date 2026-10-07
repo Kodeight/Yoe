@@ -3,6 +3,7 @@ import { useApp } from '../context/AppContext';
 import { SUPPORTED_LANGUAGES } from '../constants/languages';
 import { LanguageCode } from '../types';
 import { YoeLogo } from './YoeLogo';
+import { LanguageFlag } from './LanguageFlag';
 import { ArrowRight, Check, CheckCircle2 } from 'lucide-react';
 
 export const OnboardingModal: React.FC = () => {
@@ -110,7 +111,7 @@ export const OnboardingModal: React.FC = () => {
                       }`}
                     >
                       <div className="flex items-center gap-3.5">
-                        <span className="text-2xl">{lang.flag}</span>
+                        <LanguageFlag code={lang.code} size="lg" className="shadow-xs" />
                         <div>
                           <div className="text-sm font-bold text-slate-100 dark:text-slate-100 light-mode:text-slate-900">
                             {lang.name}
@@ -163,7 +164,7 @@ export const OnboardingModal: React.FC = () => {
                       }`}
                     >
                       <div className="flex items-center gap-3.5">
-                        <span className="text-2xl">{lang.flag}</span>
+                        <LanguageFlag code={lang.code} size="lg" className="shadow-xs" />
                         <div>
                           <div className="text-sm font-bold text-slate-100 dark:text-slate-100 light-mode:text-slate-900">
                             {lang.name}

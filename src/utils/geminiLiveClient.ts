@@ -11,6 +11,12 @@ export interface LiveSessionConfig {
   scenarioId: string;
   lessonId?: string;
   courseId?: string;
+  learnerProfile?: {
+    name?: string;
+    learningGoal?: string;
+    motivation?: string;
+    focusAreas?: string[];
+  };
   onAudioEnergy?: (energy: number) => void;
   onStateChange?: (state: 'idle' | 'connecting' | 'listening' | 'thinking' | 'speaking' | 'interrupted' | 'error') => void;
   onTranscriptChunk?: (sender: 'user' | 'tutor', text: string, isFinal: boolean) => void;
@@ -73,7 +79,8 @@ export class GeminiLiveSession {
           journeyId: this.config.journeyId,
           scenarioId: this.config.scenarioId,
           lessonId: this.config.lessonId,
-          courseId: this.config.courseId
+          courseId: this.config.courseId,
+          learnerProfile: this.config.learnerProfile
         })
       });
 

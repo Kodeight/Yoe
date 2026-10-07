@@ -4,6 +4,7 @@ import { useAudio } from '../context/AudioContext';
 import { VoiceBubble } from './VoiceBubble';
 import { Mic, ChevronRight, Radio } from 'lucide-react';
 import { SUPPORTED_LANGUAGES } from '../constants/languages';
+import { LanguageFlag } from './LanguageFlag';
 
 let hasAnimatedGreetingThisSession = false;
 
@@ -71,7 +72,10 @@ export const HeroBanner: React.FC = () => {
             </span>
           </div>
           <h2 className="font-brand text-xs font-bold text-slate-400 dark:text-slate-400 light-mode:text-slate-500 flex items-center gap-1.5 mt-0.5">
-            <span>{currentLang.flag} Learning {currentLang.name}</span>
+            <span className="flex items-center gap-1">
+              <LanguageFlag code={currentLang.code} size="xs" className="shadow-xs" />
+              <span>Learning {currentLang.name}</span>
+            </span>
             <span className="px-1.5 py-0.2 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 text-[9px] font-extrabold">
               {activeJourney?.cefrLevel || 'A1'}
             </span>

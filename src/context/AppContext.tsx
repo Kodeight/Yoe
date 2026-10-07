@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { User, LearningJourney, Scenario, VocabularyItem, MistakeRecord, LanguageCode, Language, CourseUnit, Lesson } from '../types';
+import { User, LearningJourney, Scenario, VocabularyItem, MistakeRecord, LanguageCode, Language, CourseUnit, Lesson, OnboardingRegistrationPayload } from '../types';
 import { applyDocumentDirection } from '../utils/i18n';
 import { persistScenarioCompletion } from '../services/progressService';
 
@@ -47,14 +47,15 @@ interface AppContextType {
   toggleTheme: () => void;
   setThemeMode: (mode: 'dark' | 'light') => void;
   setUiLanguage: (lang: LanguageCode) => void;
-  createNewJourney: (targetLang: LanguageCode, supportLang: LanguageCode, level?: string) => Promise<void>;
+  createNewJourney: (targetLang: LanguageCode, supportLang: LanguageCode, level?: string, extra?: { motivation?: string; focusAreas?: string[]; knownLanguages?: LanguageCode[]; previousExperience?: string }) => Promise<void>;
   updateActiveJourney: (updates: Partial<LearningJourney>) => Promise<void>;
+  updateUserProfile: (updates: Partial<User>) => Promise<User | null>;
   refreshProgress: () => Promise<void>;
   cacheLearnedLessonsForOffline: () => void;
   dismissOnboarding: () => void;
   setShowAuthModal: (show: boolean) => void;
   login: (identifier: string, password: string) => Promise<boolean>;
-  register: (name: string, username: string, email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  register: (payloadOrName: OnboardingRegistrationPayload | string, username?: string, email?: string, password?: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   installPWA: () => void;
 }
@@ -501,6 +502,48 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  const updateUserProfile = async (updates: Partial<User>): Promise<User | null> => {
+    if (!user) return null;
+    try {
+      const updated = { ...user, ...updates };
+      setUser(updated);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('yoe_user_profile', JSON.stringify(updated));
+      }
+
+      // Also sync active journey if name, motivation, or focus areas are modified
+      if (activeJourney && (updates.name || updates.motivation || updates.focusAreas || updates.learningGoal)) {
+        const journeyUpdates: Partial<LearningJourney> = {};
+        if (updates.name) journeyUpdates.learnerName = updates.name;
+        if (updates.motivation) journeyUpdates.motivation = updates.motivation;
+        if (updates.focusAreas) journeyUpdates.focusAreas = updates.focusAreas;
+        if (updates.learningGoal || updates.motivation) journeyUpdates.goals = updates.learningGoal || updates.motivation;
+        updateActiveJourney(journeyUpdates);
+      }
+
+      const res = await fetch('/api/settings', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeader()
+        },
+        body: JSON.stringify(updates)
+      });
+      const data = await res.json();
+      if (data.user) {
+        setUser(data.user);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('yoe_user_profile', JSON.stringify(data.user));
+        }
+        return data.user;
+      }
+      return updated;
+    } catch (err) {
+      console.error('Failed to update user profile:', err);
+      return user;
+    }
+  };
+
   const setActiveLesson = (lesson: Lesson, course?: CourseUnit) => {
     setActiveLessonState(lesson);
     if (course) {
@@ -604,7 +647,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  const createNewJourney = async (targetLang: LanguageCode, supportLang: LanguageCode, level: string = 'A1') => {
+  const createNewJourney = async (
+    targetLang: LanguageCode,
+    supportLang: LanguageCode,
+    level: string = 'A1',
+    extra?: { motivation?: string; focusAreas?: string[]; knownLanguages?: LanguageCode[]; previousExperience?: string }
+  ) => {
     if (!user) return;
     try {
       const res = await fetch('/api/journeys', {
@@ -617,13 +665,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           userId: user.id,
           targetLanguage: targetLang,
           supportLanguage: supportLang,
-          cefrLevel: level
+          cefrLevel: level,
+          learnerName: user.name,
+          motivation: extra?.motivation || user.motivation || 'Conversation',
+          focusAreas: extra?.focusAreas || user.focusAreas || ['Speaking'],
+          knownLanguages: extra?.knownLanguages || user.knownLanguages || [supportLang],
+          previousExperience: extra?.previousExperience || user.previousExperience || 'never'
         })
       });
       const data = await res.json();
       if (data.journey) {
         setJourneys(prev => [data.journey, ...prev]);
         setActiveJourney(data.journey);
+        localStorage.setItem('yoe_active_journey', JSON.stringify(data.journey));
       }
     } catch (err) {
       console.error('Failed to create new journey:', err);
@@ -693,22 +747,32 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const register = async (
-    name: string,
-    username: string,
-    email: string,
-    password: string
+    payloadOrName: OnboardingRegistrationPayload | string,
+    usernameArg?: string,
+    emailArg?: string,
+    passwordArg?: string
   ): Promise<{ success: boolean; error?: string }> => {
+    const payload = typeof payloadOrName === 'string'
+      ? {
+          name: payloadOrName,
+          username: usernameArg || '',
+          email: emailArg || '',
+          password: passwordArg || '',
+          uiLanguage,
+          theme
+        }
+      : {
+          ...payloadOrName,
+          uiLanguage: payloadOrName.uiLanguage || uiLanguage,
+          theme: payloadOrName.theme || theme
+        };
+
     try {
       const res = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({
-          name,
-          username,
-          email,
-          password
-        })
+        body: JSON.stringify(payload)
       });
       const data = await res.json();
       if (!res.ok || !data.user) {
@@ -728,10 +792,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         await loadScenariosAndData(data.journeys[0]);
         setShowOnboarding(false);
       } else {
-        setShowOnboarding(true);
+        setShowOnboarding(false);
       }
       setShowAuthModal(false);
-      setActiveView('home');
+      // Requirement 9: Immediately continue into personalized conversational learning experience
+      setActiveView('chat');
       return { success: true };
     } catch (err: any) {
       console.error('Registration error:', err);
@@ -799,6 +864,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setUiLanguage,
         createNewJourney,
         updateActiveJourney,
+        updateUserProfile,
         refreshProgress,
         cacheLearnedLessonsForOffline,
         dismissOnboarding,

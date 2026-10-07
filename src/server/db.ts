@@ -32,6 +32,12 @@ export interface DatabaseUser {
   lastLoginAt?: string;
   createdAt: string;
   updatedAt: string;
+  learningGoal?: string;
+  motivation?: string;
+  focusAreas?: string[];
+  knownLanguages?: string[];
+  supportLanguage?: string;
+  previousExperience?: string;
 }
 
 import { SUPPORTED_LANGUAGES } from '../constants/languages';
@@ -186,6 +192,18 @@ class PersistentDatabase {
           occurrence_count INT DEFAULT 1,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
+
+        -- Safe column migrations for learner personalization
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS learning_goal TEXT;
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS motivation TEXT;
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS focus_areas TEXT[];
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS known_languages TEXT[];
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS support_language VARCHAR(16);
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS previous_experience TEXT;
+        ALTER TABLE learning_journeys ADD COLUMN IF NOT EXISTS motivation TEXT;
+        ALTER TABLE learning_journeys ADD COLUMN IF NOT EXISTS focus_areas TEXT[];
+        ALTER TABLE learning_journeys ADD COLUMN IF NOT EXISTS known_languages TEXT[];
+        ALTER TABLE learning_journeys ADD COLUMN IF NOT EXISTS previous_experience TEXT;
       `);
     } catch (err) {
       console.warn('[DB] PostgreSQL connection note (falling back to file storage):', err);
@@ -267,6 +285,9 @@ class PersistentDatabase {
                   ui_language as "uiLanguage", theme, subscription_status as "subscriptionStatus",
                   email_verified as "emailVerified", status, active_journey_id as "activeJourneyId",
                   onboarding_completed as "onboardingCompleted", last_login_at as "lastLoginAt",
+                  learning_goal as "learningGoal", motivation, focus_areas as "focusAreas",
+                  known_languages as "knownLanguages", support_language as "supportLanguage",
+                  previous_experience as "previousExperience",
                   created_at as "createdAt", updated_at as "updatedAt"
            FROM users
            WHERE LOWER(username) = $1 OR LOWER(email) = $1 LIMIT 1`,
@@ -294,6 +315,9 @@ class PersistentDatabase {
                   ui_language as "uiLanguage", theme, subscription_status as "subscriptionStatus",
                   email_verified as "emailVerified", status, active_journey_id as "activeJourneyId",
                   onboarding_completed as "onboardingCompleted", last_login_at as "lastLoginAt",
+                  learning_goal as "learningGoal", motivation, focus_areas as "focusAreas",
+                  known_languages as "knownLanguages", support_language as "supportLanguage",
+                  previous_experience as "previousExperience",
                   created_at as "createdAt", updated_at as "updatedAt"
            FROM users WHERE id = $1 LIMIT 1`,
           [id]
@@ -331,7 +355,10 @@ class PersistentDatabase {
           `SELECT id, user_id as "userId", target_language_code as "targetLanguage",
                   support_language_code as "supportLanguage", cefr_level as "cefrLevel",
                   streak_days as "streakDays", total_minutes_spoken as "totalMinutesSpoken",
-                  points, active_scenario_id as "activeScenarioId", created_at as "createdAt"
+                  points, active_scenario_id as "activeScenarioId",
+                  motivation, focus_areas as "focusAreas",
+                  known_languages as "knownLanguages", previous_experience as "previousExperience",
+                  created_at as "createdAt"
            FROM learning_journeys WHERE user_id = $1 ORDER BY updated_at DESC`,
           [userId]
         );
@@ -353,8 +380,8 @@ class PersistentDatabase {
     if (this.isPostgresConnected && this.pool) {
       try {
         await this.pool.query(
-          `INSERT INTO learning_journeys (id, user_id, target_language_code, support_language_code, cefr_level, streak_days, total_minutes_spoken, points, active_scenario_id, updated_at)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
+          `INSERT INTO learning_journeys (id, user_id, target_language_code, support_language_code, cefr_level, streak_days, total_minutes_spoken, points, active_scenario_id, motivation, focus_areas, known_languages, previous_experience, updated_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW())
            ON CONFLICT (id) DO UPDATE SET
              target_language_code = EXCLUDED.target_language_code,
              support_language_code = EXCLUDED.support_language_code,
@@ -363,6 +390,10 @@ class PersistentDatabase {
              total_minutes_spoken = EXCLUDED.total_minutes_spoken,
              points = EXCLUDED.points,
              active_scenario_id = EXCLUDED.active_scenario_id,
+             motivation = EXCLUDED.motivation,
+             focus_areas = EXCLUDED.focus_areas,
+             known_languages = EXCLUDED.known_languages,
+             previous_experience = EXCLUDED.previous_experience,
              updated_at = NOW()`,
           [
             journey.id,
@@ -373,7 +404,11 @@ class PersistentDatabase {
             journey.streakDays,
             journey.totalMinutesSpoken,
             journey.points,
-            journey.activeScenarioId || null
+            journey.activeScenarioId || null,
+            journey.motivation || null,
+            journey.focusAreas || null,
+            journey.knownLanguages || null,
+            journey.previousExperience || null
           ]
         );
       } catch (err) {
@@ -617,6 +652,33 @@ class PersistentDatabase {
     if (user) {
       Object.assign(user, updates, { updatedAt: new Date().toISOString() });
       this.saveFileStore();
+
+      if (this.isPostgresConnected && this.pool) {
+        const fields: string[] = [];
+        const values: any[] = [];
+        let i = 1;
+
+        if (updates.name !== undefined) { fields.push(`name = $${i++}`); values.push(updates.name); }
+        if (updates.theme !== undefined) { fields.push(`theme = $${i++}`); values.push(updates.theme); }
+        if (updates.uiLanguage !== undefined) { fields.push(`ui_language = $${i++}`); values.push(updates.uiLanguage); }
+        if (updates.learningGoal !== undefined) { fields.push(`learning_goal = $${i++}`); values.push(updates.learningGoal); }
+        if (updates.motivation !== undefined) { fields.push(`motivation = $${i++}`); values.push(updates.motivation); }
+        if (updates.focusAreas !== undefined) { fields.push(`focus_areas = $${i++}`); values.push(updates.focusAreas); }
+        if (updates.knownLanguages !== undefined) { fields.push(`known_languages = $${i++}`); values.push(updates.knownLanguages); }
+        if (updates.supportLanguage !== undefined) { fields.push(`support_language = $${i++}`); values.push(updates.supportLanguage); }
+        if (updates.previousExperience !== undefined) { fields.push(`previous_experience = $${i++}`); values.push(updates.previousExperience); }
+        if (updates.activeJourneyId !== undefined) { fields.push(`active_journey_id = $${i++}`); values.push(updates.activeJourneyId); }
+        if (updates.onboardingCompleted !== undefined) { fields.push(`onboarding_completed = $${i++}`); values.push(updates.onboardingCompleted); }
+
+        if (fields.length > 0) {
+          values.push(id);
+          this.pool.query(
+            `UPDATE users SET ${fields.join(', ')}, updated_at = NOW() WHERE id = $${i}`,
+            values
+          ).catch((e) => console.warn('PostgreSQL updateUser sync note:', e));
+        }
+      }
+
       return user;
     }
     return undefined;

@@ -58,6 +58,12 @@ export function sanitizeUser(user: DatabaseUser) {
     status: user.status,
     activeJourneyId: user.activeJourneyId,
     onboardingCompleted: user.onboardingCompleted,
+    learningGoal: user.learningGoal,
+    motivation: user.motivation,
+    focusAreas: user.focusAreas,
+    knownLanguages: user.knownLanguages,
+    supportLanguage: user.supportLanguage,
+    previousExperience: user.previousExperience,
     createdAt: user.createdAt,
     lastLoginAt: user.lastLoginAt
   };
@@ -179,6 +185,26 @@ export async function registerHandler(req: Request, res: Response) {
     const passwordHash = await hashPassword(password);
     const userId = `usr_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
 
+    const targetLanguage = (req.body.targetLanguage || 'es') as any;
+    const supportLanguage = (req.body.supportLanguage || 'en') as any;
+    const knownLanguages = Array.isArray(req.body.knownLanguages) && req.body.knownLanguages.length > 0
+      ? req.body.knownLanguages
+      : [supportLanguage];
+    const previousExperience = req.body.previousExperience || 'never';
+    const motivation = req.body.motivation || 'Conversation';
+    const focusAreas = Array.isArray(req.body.focusAreas) && req.body.focusAreas.length > 0
+      ? req.body.focusAreas
+      : ['Speaking'];
+    const learningGoal = req.body.learningGoal || `Improve ${focusAreas[0]} for ${motivation}`;
+
+    // Map previous experience to CEFR level
+    let resolvedCefr = req.body.cefrLevel || 'A1';
+    if (!req.body.cefrLevel) {
+      if (previousExperience === 'comfortable') resolvedCefr = 'B1';
+      else if (previousExperience === 'basics') resolvedCefr = 'A2';
+      else resolvedCefr = 'A1';
+    }
+
     const newUser: DatabaseUser = {
       id: userId,
       username: normUsername,
@@ -186,30 +212,47 @@ export async function registerHandler(req: Request, res: Response) {
       passwordHash,
       name: name.trim(),
       avatarUrl: undefined,
-      uiLanguage: 'en',
-      theme: 'dark',
+      uiLanguage: req.body.uiLanguage || 'en',
+      theme: req.body.theme || 'dark',
       subscriptionStatus: 'TRIAL',
       emailVerified: true,
       status: 'active',
+      onboardingCompleted: true,
+      learningGoal,
+      motivation,
+      focusAreas,
+      knownLanguages,
+      supportLanguage,
+      previousExperience,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
 
     const savedUser = await db.createUser(newUser);
 
-    // Initialize default Spanish learning journey in database
+    // Initialize personalized learning journey in database
     const initialJourney: LearningJourney = {
-      id: `jrn_${Date.now()}_es`,
+      id: `jrn_${Date.now()}_${targetLanguage}`,
       userId: savedUser.id,
-      targetLanguage: 'es',
-      supportLanguage: 'en',
-      cefrLevel: 'A1',
+      targetLanguage,
+      supportLanguage,
+      cefrLevel: resolvedCefr,
       streakDays: 1,
       totalMinutesSpoken: 0,
       points: 50,
+      learnerName: savedUser.name,
+      motivation,
+      focusAreas,
+      goals: learningGoal,
+      knownLanguages,
+      previousExperience,
       createdAt: new Date().toISOString()
     };
     await db.saveJourney(initialJourney);
+
+    // Update user's active journey
+    savedUser.activeJourneyId = initialJourney.id;
+    db.updateUser(savedUser.id, { activeJourneyId: initialJourney.id });
 
     const token = generateToken(savedUser);
 
