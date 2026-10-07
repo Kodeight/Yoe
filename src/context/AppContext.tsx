@@ -206,7 +206,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               setActiveJourneyState(cachedJourney);
               setJourneys([cachedJourney]);
             }
-            setShowOnboarding(false);
+            if (cachedUser.onboardingCompleted || cachedJourneyRaw) {
+              setShowOnboarding(false);
+            } else {
+              setShowOnboarding(true);
+            }
             setActiveView('home');
           } catch (e) {}
         }
@@ -233,15 +237,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           const journeysData = await journeysRes.json();
           const loadedJourneys: LearningJourney[] = journeysData.journeys || [];
 
-          if (loadedJourneys.length > 0) {
+          if (userData.user.onboardingCompleted || loadedJourneys.length > 0) {
             setJourneys(loadedJourneys);
-            const activeMatch = (userData.user.activeJourneyId && loadedJourneys.find((j: LearningJourney) => j.id === userData.user.activeJourneyId)) || loadedJourneys[0];
-            setActiveJourneyState(activeMatch);
-            localStorage.setItem('yoe_active_journey', JSON.stringify(activeMatch));
-            await loadScenariosAndData(activeMatch);
-            setShowOnboarding(false);
-            setActiveView('home');
-          } else if (userData.user.onboardingCompleted) {
+            if (loadedJourneys.length > 0) {
+              const activeMatch = (userData.user.activeJourneyId && loadedJourneys.find((j: LearningJourney) => j.id === userData.user.activeJourneyId)) || loadedJourneys[0];
+              setActiveJourneyState(activeMatch);
+              localStorage.setItem('yoe_active_journey', JSON.stringify(activeMatch));
+              await loadScenariosAndData(activeMatch);
+            }
             setShowOnboarding(false);
             setActiveView('home');
           } else {
