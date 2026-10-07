@@ -276,7 +276,7 @@ export const translations: Record<LanguageCode, Translations> = {
     retry: 'Retry',
     offline: 'Offline',
 
-    welcomeTitle: "Hi, I'm Yoe 👋",
+    welcomeTitle: "Hi, I'm Yoe",
     welcomeSubtitle: "Welcome. Let's get you started on your personal language journey.",
     welcomeGetStarted: "Get Started",
     alreadyRegistered: "Already registered?",
@@ -451,7 +451,7 @@ export const translations: Record<LanguageCode, Translations> = {
     retry: 'Réessayer',
     offline: 'Hors ligne',
 
-    welcomeTitle: "Bonjour, je suis Yoe 👋",
+    welcomeTitle: "Bonjour, je suis Yoe",
     welcomeSubtitle: "Bienvenue. Commençons votre apprentissage personnalisé.",
     welcomeGetStarted: "Commencer",
     alreadyRegistered: "Déjà inscrit ?",
@@ -626,7 +626,7 @@ export const translations: Record<LanguageCode, Translations> = {
     retry: 'إعادة المحاولة',
     offline: 'بدون إنترنت',
 
-    welcomeTitle: "مرحباً، أنا Yoe 👋",
+    welcomeTitle: "مرحباً، أنا Yoe",
     welcomeSubtitle: "أهلاً بك! دعنا نبدأ رحلتك التعليمية المخصصة.",
     welcomeGetStarted: "ابدأ الآن",
     alreadyRegistered: "لديك حساب بالفعل؟",
@@ -801,7 +801,7 @@ export const translations: Record<LanguageCode, Translations> = {
     retry: 'Reintentar',
     offline: 'Sin conexión',
 
-    welcomeTitle: "Hola, soy Yoe 👋",
+    welcomeTitle: "Hola, soy Yoe",
     welcomeSubtitle: "Bienvenido. Comencemos tu viaje personalizado de aprendizaje.",
     welcomeGetStarted: "Comenzar",
     alreadyRegistered: "¿Ya tienes cuenta?",
@@ -976,7 +976,7 @@ export const translations: Record<LanguageCode, Translations> = {
     retry: 'Повторить',
     offline: 'Офлайн',
 
-    welcomeTitle: "Привет, я Yoe 👋",
+    welcomeTitle: "Привет, я Yoe",
     welcomeSubtitle: "Добро пожаловать! Давайте начнём ваше персональное обучение языку.",
     welcomeGetStarted: "Начать",
     alreadyRegistered: "Уже зарегистрированы?",
@@ -1151,7 +1151,7 @@ export const translations: Record<LanguageCode, Translations> = {
     retry: 'Riprova',
     offline: 'Offline',
 
-    welcomeTitle: "Ciao, sono Yoe 👋",
+    welcomeTitle: "Ciao, sono Yoe",
     welcomeSubtitle: "Benvenuto. Iniziamo il tuo percorso linguistico su misura.",
     welcomeGetStarted: "Inizia",
     alreadyRegistered: "Hai già un account?",
@@ -1326,7 +1326,7 @@ export const translations: Record<LanguageCode, Translations> = {
     retry: 'Yeniden Dene',
     offline: 'Çevrimdışı',
 
-    welcomeTitle: "Merhaba, ben Yoe 👋",
+    welcomeTitle: "Merhaba, ben Yoe",
     welcomeSubtitle: "Hoş geldin! Sana özel dil öğrenme yolculuğuna başlayalım.",
     welcomeGetStarted: "Başla",
     alreadyRegistered: "Zaten üye misin?",
@@ -1501,7 +1501,7 @@ export const translations: Record<LanguageCode, Translations> = {
     retry: 'Tentar Novamente',
     offline: 'Offline',
 
-    welcomeTitle: "Olá, eu sou o Yoe 👋",
+    welcomeTitle: "Olá, eu sou o Yoe",
     welcomeSubtitle: "Boas-vindas! Vamos começar sua jornada personalizada de idiomas.",
     welcomeGetStarted: "Começar",
     alreadyRegistered: "Já tem uma conta?",

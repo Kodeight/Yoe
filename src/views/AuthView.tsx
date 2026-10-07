@@ -250,20 +250,15 @@ export const AuthView: React.FC<{ onComplete?: () => void }> = ({ onComplete }) 
       {/* 1. FIRST WELCOME SCREEN (SCREEN 0) */}
       {/* ========================================================================= */}
       {viewMode === 'welcome' && (
-        <div className="flex-1 flex flex-col justify-between max-w-md w-full my-auto animate-in fade-in duration-300 py-4">
+        <div className="flex-1 flex flex-col justify-between max-w-md w-full my-auto animate-in fade-in duration-300 pt-1 pb-4">
           
-          {/* Header Brand */}
-          <div className="text-center pt-2">
-            <YoeLogo size="md" className="justify-center mx-auto" />
-          </div>
-
           {/* Living Presence Orb */}
-          <div className="flex flex-col items-center justify-center my-auto space-y-6 text-center">
+          <div className="flex flex-col items-center justify-center my-auto space-y-5 text-center">
             <div className="transition-transform hover:scale-105 active:scale-95 cursor-pointer">
               <VoiceBubble size="xl" state="idle" interactive />
             </div>
 
-            <div className="space-y-3 px-2">
+            <div className="space-y-2.5 px-2">
               <h1 className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-slate-100 tracking-tight leading-tight">
                 {t.welcomeTitle}
               </h1>
