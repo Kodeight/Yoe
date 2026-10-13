@@ -1,5 +1,6 @@
 import { Scenario, CourseUnit, LanguageCode, CEFRLevel } from '../types';
 import { COMPREHENSIVE_COURSES, C1_C2_SCENARIOS } from './curriculumLibrary';
+import { MULTILINGUAL_SCENARIOS, MULTILINGUAL_COURSES } from './multilingualContent';
 
 /**
  * COMPREHENSIVE MULTI-DOMAIN SCENARIO & CURRICULUM DATABASE
@@ -8,6 +9,9 @@ import { COMPREHENSIVE_COURSES, C1_C2_SCENARIOS } from './curriculumLibrary';
  */
 
 export const INITIAL_DATABASE_SCENARIOS: Scenario[] = [
+  // Foundational Multilingual Scenarios for all supported languages
+  ...MULTILINGUAL_SCENARIOS,
+
   // ==========================================
   // 1. TRAVEL & TRANSPORTATION (18 Situations)
   // ==========================================
@@ -1229,5 +1233,6 @@ export const INITIAL_DATABASE_SCENARIOS: Scenario[] = [
  * Backed by comprehensive CEFR A1, A2, B1, B2, C1, and C2 curriculum units
  */
 export const INITIAL_DATABASE_COURSES: CourseUnit[] = [
+  ...MULTILINGUAL_COURSES,
   ...COMPREHENSIVE_COURSES
 ];

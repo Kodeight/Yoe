@@ -50,10 +50,15 @@ export interface LearningJourney {
   supportLanguage: LanguageCode;
   cefrLevel: CEFRLevel;
   streakDays: number;
+  longestStreak?: number;
   totalMinutesSpoken: number;
   points: number;
   activeScenarioId?: string;
+  activeLessonId?: string;
+  isArchived?: boolean;
+  lastActivityDate?: string;
   createdAt: string;
+  updatedAt?: string;
   goals?: string;
   motivation?: string;
   focusAreas?: string[];

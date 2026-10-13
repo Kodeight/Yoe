@@ -22,6 +22,7 @@ import {
 import { LanguageCode } from '../types';
 import { SUPPORTED_LANGUAGES } from '../constants/languages';
 import { LanguageFlag } from '../components/LanguageFlag';
+import { MyLearningLanguages } from '../components/MyLearningLanguages';
 
 export const SettingsView: React.FC = () => {
   const {
@@ -75,7 +76,12 @@ export const SettingsView: React.FC = () => {
         </div>
       </div>
 
-      {/* SECTION 1: APPEARANCE & INTERFACE LANGUAGE */}
+      {/* SECTION 1: MY LEARNING LANGUAGES (Multi-Language Management) */}
+      <div className="rounded-3xl glass-card p-4.5 shadow-md">
+        <MyLearningLanguages />
+      </div>
+
+      {/* SECTION 2: APPEARANCE & INTERFACE LANGUAGE */}
       <div className="rounded-3xl glass-card p-4.5 shadow-md space-y-4">
         <div className="flex items-center gap-2">
           <Globe className="w-4 h-4 text-emerald-400" />

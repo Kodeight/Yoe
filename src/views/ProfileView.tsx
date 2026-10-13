@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { SUPPORTED_LANGUAGES } from '../constants/languages';
 import { LanguageFlag } from '../components/LanguageFlag';
+import { MyLearningLanguages } from '../components/MyLearningLanguages';
 
 export const ProfileView: React.FC = () => {
   const {
@@ -118,7 +119,7 @@ export const ProfileView: React.FC = () => {
                 <span>{t.streak}</span>
               </div>
               <div className="text-xs font-black text-amber-400 mt-1">
-                {activeJourney.streakDays || 1}d
+                {activeJourney.streakDays ?? 0}d
               </div>
             </div>
             <div className="p-2.5 rounded-xl glass-pill">
@@ -134,80 +135,9 @@ export const ProfileView: React.FC = () => {
         )}
       </div>
 
-      {/* SECTION 2: ACTIVE LEARNING PROFILE & JOURNEY */}
-      <div className="rounded-3xl glass-card p-4.5 shadow-md space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Compass className="w-4 h-4 text-emerald-400" />
-            <h3 className="text-xs font-bold text-[var(--text-primary)]">
-              {t.activeJourneys}
-            </h3>
-          </div>
-          <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-            {activeJourney?.cefrLevel || 'A1'}
-          </span>
-        </div>
-
-        {activeJourney ? (
-          <div className="p-3.5 rounded-2xl bg-white/5 dark:bg-white/5 light-mode:bg-white border border-white/10 dark:border-white/10 light-mode:border-slate-200 space-y-2.5">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <LanguageFlag code={targetLangMeta?.code || 'es'} size="lg" className="shadow-xs" />
-                <div>
-                  <h4 className="text-xs font-bold text-[var(--text-primary)]">
-                    {targetLangMeta?.name || 'Spanish'} ({targetLangMeta?.nativeName || 'Español'})
-                  </h4>
-                  <p className="text-[10px] text-[var(--text-secondary)]">
-                    Explanation Language: {supportLangMeta?.name || 'English'}
-                  </p>
-                </div>
-              </div>
-              <div className="px-2 py-1 rounded-xl bg-emerald-500/15 text-emerald-400 text-[10px] font-black">
-                Active
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between text-[11px] text-[var(--text-muted)] pt-1 border-t border-white/5 dark:border-white/5 light-mode:border-slate-100">
-              <span className="flex items-center gap-1">
-                <BookOpen className="w-3 h-3 text-emerald-400" />
-                <span>Vocabulary Bank: {vocabulary.length} words</span>
-              </span>
-              <span>Review items: {mistakes.length}</span>
-            </div>
-          </div>
-        ) : (
-          <p className="text-xs text-[var(--text-secondary)]">No active learning journey selected.</p>
-        )}
-
-        {/* Multiple Journeys Switcher if user has more than 1 */}
-        {journeys.length > 1 && (
-          <div className="pt-2 space-y-1.5">
-            <span className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider font-bold">
-              Switch Target Language
-            </span>
-            <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
-              {journeys.map((j) => {
-                const lang = SUPPORTED_LANGUAGES.find((l) => l.code === j.targetLanguage);
-                const isSelected = j.id === activeJourney?.id;
-                return (
-                  <button
-                    key={j.id}
-                    onClick={() => setActiveJourney(j)}
-                    className={`py-1.5 px-3 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shrink-0 transition-all ${
-                      isSelected
-                        ? 'bg-emerald-500 text-white shadow-sm'
-                        : 'glass-pill text-[var(--text-secondary)] hover:border-emerald-500/40'
-                    }`}
-                  >
-                    <LanguageFlag code={lang?.code || j.targetLanguage} size="xs" className="shadow-xs" />
-                    <span>{lang?.name}</span>
-                    <span className="text-[10px] opacity-80 uppercase">({j.cefrLevel})</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
+      {/* SECTION 2: MY LEARNING LANGUAGES */}
+      <div className="rounded-3xl glass-card p-4.5 shadow-md">
+        <MyLearningLanguages />
       </div>
 
       {/* SECTION 3: WEEKLY SPEAKING GOAL */}
@@ -220,14 +150,14 @@ export const ProfileView: React.FC = () => {
             </h3>
           </div>
           <span className="text-xs font-black text-emerald-400">
-            {Math.min(7, activeJourney?.streakDays || 1)} / 7 Days
+            {activeJourney?.totalMinutesSpoken || 0} / 30 Min
           </span>
         </div>
 
         <div className="w-full bg-slate-800/80 rounded-full h-2 overflow-hidden">
           <div
             className="bg-gradient-to-r from-emerald-400 to-cyan-400 h-full rounded-full transition-all duration-500"
-            style={{ width: `${Math.min(100, Math.round(((activeJourney?.streakDays || 1) / 7) * 100))}%` }}
+            style={{ width: `${Math.min(100, Math.round(((activeJourney?.totalMinutesSpoken || 0) / 30) * 100))}%` }}
           />
         </div>
         <p className="text-[11px] text-[var(--text-muted)] italic">

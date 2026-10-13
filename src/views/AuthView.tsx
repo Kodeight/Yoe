@@ -742,11 +742,10 @@ export const AuthView: React.FC<{ onComplete?: () => void }> = ({ onComplete }) 
       {/* 3. SIGN-UP / CREATE ACCOUNT FORM (STEP 8) */}
       {/* ========================================================================= */}
       {viewMode === 'signup' && (
-        <div className="flex-1 flex flex-col justify-between max-w-md w-full mx-auto my-auto animate-in fade-in duration-300 py-2">
+        <div className="flex-1 flex flex-col justify-start max-w-md w-full mx-auto animate-in fade-in duration-300 pt-1 pb-2">
           
-          <div className="space-y-4">
-            <div className="text-center space-y-1.5">
-              <YoeLogo size="sm" className="justify-center mx-auto" />
+          <div className="space-y-3">
+            <div className="text-center space-y-1">
               <h1 className="text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight">
                 {t.saveProgressTitle}
               </h1>
@@ -914,11 +913,10 @@ export const AuthView: React.FC<{ onComplete?: () => void }> = ({ onComplete }) 
       {/* 4. LOGIN FORM */}
       {/* ========================================================================= */}
       {viewMode === 'login' && (
-        <div className="flex-1 flex flex-col justify-between max-w-md w-full mx-auto my-auto animate-in fade-in duration-300 py-4">
+        <div className="flex-1 flex flex-col justify-start max-w-md w-full mx-auto animate-in fade-in duration-300 pt-2 pb-4">
           
-          <div className="space-y-5">
-            <div className="text-center space-y-2">
-              <YoeLogo size="md" className="justify-center mx-auto" />
+          <div className="space-y-4">
+            <div className="text-center space-y-1.5">
               <h1 className="text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight">
                 {t.welcomeBack}
               </h1>

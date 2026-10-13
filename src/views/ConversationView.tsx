@@ -40,6 +40,7 @@ export const ConversationView: React.FC = () => {
     scenarios,
     recommendations,
     completeScenario,
+    recordSpeakingSession,
     setActiveScenarioId,
     setActiveView,
     previousView,
@@ -97,9 +98,17 @@ export const ConversationView: React.FC = () => {
   const tutorPcmChunksRef = useRef<Uint8Array[]>([]);
   const touchStartXRef = useRef<number | null>(null);
   const touchStartYRef = useRef<number | null>(null);
+  const hasRecordedPracticeRef = useRef<boolean>(false);
 
   // Close conversation and navigate back using browser history or previous view
   const handleCloseConversation = useCallback(() => {
+    // Meaningful voice/speaking practice: user exchanged messages or practiced for >20 seconds
+    if (!hasRecordedPracticeRef.current && (messages.length >= 2 || Date.now() - sessionStartTime > 20000)) {
+      hasRecordedPracticeRef.current = true;
+      const elapsedSec = Math.max(1, Math.round((Date.now() - sessionStartTime) / 1000));
+      recordSpeakingSession({ durationSeconds: elapsedSec, turnsCount: messages.length });
+    }
+
     if (liveSessionRef.current) {
       liveSessionRef.current.stop();
       liveSessionRef.current = null;
@@ -113,7 +122,7 @@ export const ConversationView: React.FC = () => {
     } else {
       setActiveView(previousView || 'home');
     }
-  }, [navigateBack, setActiveView, previousView, stopSpeaking, stopListening]);
+  }, [navigateBack, setActiveView, previousView, stopSpeaking, stopListening, messages.length, sessionStartTime, recordSpeakingSession]);
 
   // Swipe-to-close gesture handler:
   // Detects horizontal swipe right (> 70px) OR vertical swipe down from top (> 80px)
@@ -1099,6 +1108,7 @@ export const ConversationView: React.FC = () => {
           allScenarios={scenarios}
           onSelectScenario={(newScenarioId) => {
             setShowSummaryModal(false);
+            hasRecordedPracticeRef.current = true;
             const durationSecs = Math.max(1, Math.round((Date.now() - sessionStartTime) / 1000));
             completeScenario(activeScenario.id, {
               durationSeconds: durationSecs,
@@ -1110,6 +1120,7 @@ export const ConversationView: React.FC = () => {
           }}
           onClose={() => {
             setShowSummaryModal(false);
+            hasRecordedPracticeRef.current = true;
             const durationSecs = Math.max(1, Math.round((Date.now() - sessionStartTime) / 1000));
             completeScenario(activeScenario.id, {
               durationSeconds: durationSecs,
@@ -1122,6 +1133,7 @@ export const ConversationView: React.FC = () => {
           }}
           onRestart={() => {
             setShowSummaryModal(false);
+            hasRecordedPracticeRef.current = true;
             setMessages([
               {
                 id: `msg_init_${activeScenario.id}_${Date.now()}`,
@@ -1136,6 +1148,7 @@ export const ConversationView: React.FC = () => {
           }}
           onGoHome={() => {
             setShowSummaryModal(false);
+            hasRecordedPracticeRef.current = true;
             const durationSecs = Math.max(1, Math.round((Date.now() - sessionStartTime) / 1000));
             completeScenario(activeScenario.id, {
               durationSeconds: durationSecs,

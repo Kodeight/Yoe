@@ -30,30 +30,12 @@ export function getActivityDates(): string[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) {
-      // Seed default active dates ending yesterday or today for realistic initial state
-      const seedDates = generateSeedDates(12);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(seedDates));
-      return seedDates;
+      return [];
     }
     return JSON.parse(raw);
   } catch (e) {
     return [];
   }
-}
-
-function generateSeedDates(count: number): string[] {
-  const dates: string[] = [];
-  const now = new Date();
-  // Generate dates up to yesterday so today is ready to be logged, or include today
-  for (let i = 1; i <= count; i++) {
-    const d = new Date(now);
-    d.setDate(now.getDate() - i);
-    const yr = d.getFullYear();
-    const mo = String(d.getMonth() + 1).padStart(2, '0');
-    const da = String(d.getDate()).padStart(2, '0');
-    dates.push(`${yr}-${mo}-${da}`);
-  }
-  return dates;
 }
 
 export function recordDayActivity(): StreakData {
@@ -68,13 +50,34 @@ export function recordDayActivity(): StreakData {
   return calculateStreak(dates);
 }
 
+function computeLongestConsecutiveRun(dates: string[]): number {
+  if (dates.length === 0) return 0;
+  const sortedUnique = Array.from(new Set(dates)).sort();
+  let maxRun = 1;
+  let currentRun = 1;
+
+  for (let i = 1; i < sortedUnique.length; i++) {
+    const prev = new Date(sortedUnique[i - 1]);
+    const curr = new Date(sortedUnique[i]);
+    const diffDays = Math.round((curr.getTime() - prev.getTime()) / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 1) {
+      currentRun++;
+      if (currentRun > maxRun) maxRun = currentRun;
+    } else if (diffDays > 1) {
+      currentRun = 1;
+    }
+  }
+
+  return maxRun;
+}
+
 export function calculateStreak(datesInput?: string[]): StreakData {
   const dates = datesInput || getActivityDates();
   const dateSet = new Set(dates);
   const todayStr = getTodayDateStr();
   const completedToday = dateSet.has(todayStr);
 
-  // Calculate consecutive days counting back from today or yesterday
   const now = new Date();
   let streak = 0;
   let checkDate = new Date(now);
@@ -82,27 +85,33 @@ export function calculateStreak(datesInput?: string[]): StreakData {
   if (completedToday) {
     streak = 1;
     checkDate.setDate(checkDate.getDate() - 1);
+    while (true) {
+      const dStr = `${checkDate.getFullYear()}-${String(checkDate.getMonth() + 1).padStart(2, '0')}-${String(checkDate.getDate()).padStart(2, '0')}`;
+      if (dateSet.has(dStr)) {
+        streak++;
+        checkDate.setDate(checkDate.getDate() - 1);
+      } else {
+        break;
+      }
+    }
   } else {
     // If not completed today, check if yesterday was completed
     checkDate.setDate(checkDate.getDate() - 1);
     const yStr = `${checkDate.getFullYear()}-${String(checkDate.getMonth() + 1).padStart(2, '0')}-${String(checkDate.getDate()).padStart(2, '0')}`;
-    if (!dateSet.has(yStr)) {
-      streak = 0;
-    }
-  }
-
-  // Count backwards consecutively
-  while (true) {
-    const dStr = `${checkDate.getFullYear()}-${String(checkDate.getMonth() + 1).padStart(2, '0')}-${String(checkDate.getDate()).padStart(2, '0')}`;
-    if (dateSet.has(dStr)) {
-      if (!completedToday && streak === 0) {
-        streak = 1;
-      } else {
-        streak++;
-      }
+    if (dateSet.has(yStr)) {
+      streak = 1;
       checkDate.setDate(checkDate.getDate() - 1);
+      while (true) {
+        const dStr = `${checkDate.getFullYear()}-${String(checkDate.getMonth() + 1).padStart(2, '0')}-${String(checkDate.getDate()).padStart(2, '0')}`;
+        if (dateSet.has(dStr)) {
+          streak++;
+          checkDate.setDate(checkDate.getDate() - 1);
+        } else {
+          break;
+        }
+      }
     } else {
-      break;
+      streak = 0;
     }
   }
 
@@ -135,14 +144,16 @@ export function calculateStreak(datesInput?: string[]): StreakData {
     });
   }
 
-  const longestStreak = Math.max(streak, 14);
+  const longestStreak = computeLongestConsecutiveRun(dates);
   const totalActiveDays = dateSet.size;
 
   let streakStatusMessage = '';
   if (completedToday) {
     streakStatusMessage = `You're on fire! 🔥 Practiced today. Next milestone: ${streak + 1} days!`;
-  } else {
+  } else if (streak > 0) {
     streakStatusMessage = `Keep your ${streak}-day streak alive! Complete 1 scenario today.`;
+  } else {
+    streakStatusMessage = 'Start a new practice streak today!';
   }
 
   return {

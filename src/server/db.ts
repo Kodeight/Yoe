@@ -46,6 +46,95 @@ export { SUPPORTED_LANGUAGES };
 export const STARTER_SCENARIOS: Scenario[] = INITIAL_DATABASE_SCENARIOS;
 export const STARTER_COURSES: CourseUnit[] = INITIAL_DATABASE_COURSES;
 
+export function calculateStreakFromDates(dates: string[], todayStr?: string): {
+  currentStreak: number;
+  longestStreak: number;
+  completedToday: boolean;
+  totalActiveDays: number;
+} {
+  const dateSet = new Set(dates);
+  const now = new Date();
+  const today = todayStr || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const completedToday = dateSet.has(today);
+
+  const [y, m, d] = today.split('-').map(Number);
+  const todayDate = new Date(y, m - 1, d);
+
+  let streak = 0;
+  let checkDate = new Date(todayDate);
+
+  if (completedToday) {
+    streak = 1;
+    checkDate.setDate(checkDate.getDate() - 1);
+    while (true) {
+      const cy = checkDate.getFullYear();
+      const cm = String(checkDate.getMonth() + 1).padStart(2, '0');
+      const cd = String(checkDate.getDate()).padStart(2, '0');
+      const dStr = `${cy}-${cm}-${cd}`;
+      if (dateSet.has(dStr)) {
+        streak++;
+        checkDate.setDate(checkDate.getDate() - 1);
+      } else {
+        break;
+      }
+    }
+  } else {
+    // If not completed today, check if yesterday was completed
+    checkDate.setDate(checkDate.getDate() - 1);
+    const cy = checkDate.getFullYear();
+    const cm = String(checkDate.getMonth() + 1).padStart(2, '0');
+    const cd = String(checkDate.getDate()).padStart(2, '0');
+    const yStr = `${cy}-${cm}-${cd}`;
+    if (dateSet.has(yStr)) {
+      streak = 1;
+      checkDate.setDate(checkDate.getDate() - 1);
+      while (true) {
+        const ny = checkDate.getFullYear();
+        const nm = String(checkDate.getMonth() + 1).padStart(2, '0');
+        const nd = String(checkDate.getDate()).padStart(2, '0');
+        const dStr = `${ny}-${nm}-${nd}`;
+        if (dateSet.has(dStr)) {
+          streak++;
+          checkDate.setDate(checkDate.getDate() - 1);
+        } else {
+          break;
+        }
+      }
+    } else {
+      streak = 0;
+    }
+  }
+
+  // Calculate longest streak from all historical dates
+  let longestStreak = streak;
+  if (dates.length > 0) {
+    const sorted = Array.from(dateSet).sort();
+    let currentRun = 1;
+    let maxRun = 1;
+    for (let i = 1; i < sorted.length; i++) {
+      const [y1, m1, d1] = sorted[i - 1].split('-').map(Number);
+      const [y2, m2, d2] = sorted[i].split('-').map(Number);
+      const prevD = new Date(y1, m1 - 1, d1);
+      const currD = new Date(y2, m2 - 1, d2);
+      const diffDays = Math.round((currD.getTime() - prevD.getTime()) / (1000 * 60 * 60 * 24));
+      if (diffDays === 1) {
+        currentRun++;
+        if (currentRun > maxRun) maxRun = currentRun;
+      } else if (diffDays > 1) {
+        currentRun = 1;
+      }
+    }
+    longestStreak = Math.max(maxRun, streak);
+  }
+
+  return {
+    currentStreak: streak,
+    longestStreak,
+    completedToday,
+    totalActiveDays: dateSet.size
+  };
+}
+
 class PersistentDatabase {
   private pool: pg.Pool | null = null;
   private isPostgresConnected = false;
@@ -59,6 +148,7 @@ class PersistentDatabase {
     mistakes: Record<string, MistakeRecord[]>;
     chatHistories: Record<string, ChatMessage[]>;
     sessions: any[];
+    activityDates: Record<string, string[]>;
   } = {
     users: [],
     journeys: [],
@@ -68,7 +158,8 @@ class PersistentDatabase {
     vocabulary: {},
     mistakes: {},
     chatHistories: {},
-    sessions: []
+    sessions: [],
+    activityDates: {}
   };
 
   constructor() {
@@ -84,12 +175,33 @@ class PersistentDatabase {
       if (fs.existsSync(DB_FILE)) {
         const raw = fs.readFileSync(DB_FILE, 'utf8');
         const parsed = JSON.parse(raw);
+
+        // Merge latest hardcoded library scenarios so new languages are guaranteed
+        const mergedScenarios = [...INITIAL_DATABASE_SCENARIOS];
+        if (Array.isArray(parsed.scenarios)) {
+          for (const s of parsed.scenarios) {
+            if (!mergedScenarios.some(m => m.id === s.id)) {
+              mergedScenarios.push(s);
+            }
+          }
+        }
+
+        const mergedCourses = [...INITIAL_DATABASE_COURSES];
+        if (Array.isArray(parsed.courses)) {
+          for (const c of parsed.courses) {
+            if (!mergedCourses.some(m => m.id === c.id)) {
+              mergedCourses.push(c);
+            }
+          }
+        }
+
         this.localStore = {
           ...this.localStore,
           ...parsed,
-          scenarios: parsed.scenarios && parsed.scenarios.length >= INITIAL_DATABASE_SCENARIOS.length ? parsed.scenarios : INITIAL_DATABASE_SCENARIOS,
-          courses: parsed.courses && parsed.courses.length >= INITIAL_DATABASE_COURSES.length ? parsed.courses : INITIAL_DATABASE_COURSES,
-          completedScenarios: parsed.completedScenarios || {}
+          scenarios: mergedScenarios,
+          courses: mergedCourses,
+          completedScenarios: parsed.completedScenarios || {},
+          activityDates: parsed.activityDates || {}
         };
       } else {
         this.saveFileStore();
@@ -193,7 +305,7 @@ class PersistentDatabase {
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
 
-        -- Safe column migrations for learner personalization
+        -- Safe column migrations for learner personalization & multi-journey tracking
         ALTER TABLE users ADD COLUMN IF NOT EXISTS learning_goal TEXT;
         ALTER TABLE users ADD COLUMN IF NOT EXISTS motivation TEXT;
         ALTER TABLE users ADD COLUMN IF NOT EXISTS focus_areas TEXT[];
@@ -204,6 +316,20 @@ class PersistentDatabase {
         ALTER TABLE learning_journeys ADD COLUMN IF NOT EXISTS focus_areas TEXT[];
         ALTER TABLE learning_journeys ADD COLUMN IF NOT EXISTS known_languages TEXT[];
         ALTER TABLE learning_journeys ADD COLUMN IF NOT EXISTS previous_experience TEXT;
+        ALTER TABLE learning_journeys ADD COLUMN IF NOT EXISTS longest_streak INT DEFAULT 0;
+        ALTER TABLE learning_journeys ADD COLUMN IF NOT EXISTS last_activity_date VARCHAR(16);
+        ALTER TABLE learning_journeys ADD COLUMN IF NOT EXISTS is_archived BOOLEAN DEFAULT false;
+        ALTER TABLE learning_journeys ADD COLUMN IF NOT EXISTS active_lesson_id VARCHAR(64);
+
+        CREATE TABLE IF NOT EXISTS user_activity_events (
+          id VARCHAR(64) PRIMARY KEY,
+          user_id VARCHAR(64) REFERENCES users(id) ON DELETE CASCADE,
+          journey_id VARCHAR(64),
+          activity_type VARCHAR(32) NOT NULL,
+          local_date VARCHAR(16) NOT NULL,
+          xp_earned INT DEFAULT 0,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
       `);
     } catch (err) {
       console.warn('[DB] PostgreSQL connection note (falling back to file storage):', err);
@@ -354,18 +480,24 @@ class PersistentDatabase {
         const res = await this.pool.query(
           `SELECT id, user_id as "userId", target_language_code as "targetLanguage",
                   support_language_code as "supportLanguage", cefr_level as "cefrLevel",
-                  streak_days as "streakDays", total_minutes_spoken as "totalMinutesSpoken",
-                  points, active_scenario_id as "activeScenarioId",
+                  streak_days as "streakDays", longest_streak as "longestStreak",
+                  total_minutes_spoken as "totalMinutesSpoken", points,
+                  active_scenario_id as "activeScenarioId", active_lesson_id as "activeLessonId",
+                  is_archived as "isArchived", last_activity_date as "lastActivityDate",
                   motivation, focus_areas as "focusAreas",
                   known_languages as "knownLanguages", previous_experience as "previousExperience",
-                  created_at as "createdAt"
-           FROM learning_journeys WHERE user_id = $1 ORDER BY updated_at DESC`,
+                  created_at as "createdAt", updated_at as "updatedAt"
+           FROM learning_journeys WHERE user_id = $1 AND (is_archived IS FALSE OR is_archived IS NULL) ORDER BY updated_at DESC`,
           [userId]
         );
         if (res.rows.length > 0) {
           return res.rows.map(r => ({
             ...r,
-            lastPracticeDate: new Date().toISOString()
+            streakDays: Number(r.streakDays) || 0,
+            longestStreak: Number(r.longestStreak) || Number(r.streakDays) || 0,
+            totalMinutesSpoken: Number(r.totalMinutesSpoken) || 0,
+            points: Number(r.points) || 0,
+            isArchived: Boolean(r.isArchived)
           })) as LearningJourney[];
         }
       } catch (err) {
@@ -373,42 +505,74 @@ class PersistentDatabase {
       }
     }
 
-    return this.localStore.journeys.filter(j => j.userId === userId);
+    return this.localStore.journeys
+      .filter(j => j.userId === userId && !j.isArchived)
+      .map(j => ({
+        ...j,
+        streakDays: Number(j.streakDays) || 0,
+        longestStreak: Number(j.longestStreak) || Number(j.streakDays) || 0,
+        totalMinutesSpoken: Number(j.totalMinutesSpoken) || 0,
+        points: Number(j.points) || 0,
+        isArchived: Boolean(j.isArchived)
+      }));
   }
 
   async saveJourney(journey: LearningJourney): Promise<LearningJourney> {
+    const preparedJourney: LearningJourney = {
+      ...journey,
+      streakDays: Number(journey.streakDays) || 0,
+      longestStreak: Math.max(Number(journey.longestStreak) || 0, Number(journey.streakDays) || 0),
+      totalMinutesSpoken: Number(journey.totalMinutesSpoken) || 0,
+      points: Number(journey.points) || 0,
+      isArchived: Boolean(journey.isArchived),
+      updatedAt: new Date().toISOString()
+    };
+
     if (this.isPostgresConnected && this.pool) {
       try {
         await this.pool.query(
-          `INSERT INTO learning_journeys (id, user_id, target_language_code, support_language_code, cefr_level, streak_days, total_minutes_spoken, points, active_scenario_id, motivation, focus_areas, known_languages, previous_experience, updated_at)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW())
+          `INSERT INTO learning_journeys (
+             id, user_id, target_language_code, support_language_code, cefr_level,
+             streak_days, longest_streak, total_minutes_spoken, points,
+             active_scenario_id, active_lesson_id, is_archived, last_activity_date,
+             motivation, focus_areas, known_languages, previous_experience, updated_at
+           )
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, NOW())
            ON CONFLICT (id) DO UPDATE SET
              target_language_code = EXCLUDED.target_language_code,
              support_language_code = EXCLUDED.support_language_code,
              cefr_level = EXCLUDED.cefr_level,
              streak_days = EXCLUDED.streak_days,
+             longest_streak = EXCLUDED.longest_streak,
              total_minutes_spoken = EXCLUDED.total_minutes_spoken,
              points = EXCLUDED.points,
              active_scenario_id = EXCLUDED.active_scenario_id,
+             active_lesson_id = EXCLUDED.active_lesson_id,
+             is_archived = EXCLUDED.is_archived,
+             last_activity_date = EXCLUDED.last_activity_date,
              motivation = EXCLUDED.motivation,
              focus_areas = EXCLUDED.focus_areas,
              known_languages = EXCLUDED.known_languages,
              previous_experience = EXCLUDED.previous_experience,
              updated_at = NOW()`,
           [
-            journey.id,
-            journey.userId,
-            journey.targetLanguage,
-            journey.supportLanguage,
-            journey.cefrLevel,
-            journey.streakDays,
-            journey.totalMinutesSpoken,
-            journey.points,
-            journey.activeScenarioId || null,
-            journey.motivation || null,
-            journey.focusAreas || null,
-            journey.knownLanguages || null,
-            journey.previousExperience || null
+            preparedJourney.id,
+            preparedJourney.userId,
+            preparedJourney.targetLanguage,
+            preparedJourney.supportLanguage,
+            preparedJourney.cefrLevel,
+            preparedJourney.streakDays,
+            preparedJourney.longestStreak,
+            preparedJourney.totalMinutesSpoken,
+            preparedJourney.points,
+            preparedJourney.activeScenarioId || null,
+            preparedJourney.activeLessonId || null,
+            preparedJourney.isArchived || false,
+            preparedJourney.lastActivityDate || null,
+            preparedJourney.motivation || null,
+            preparedJourney.focusAreas || null,
+            preparedJourney.knownLanguages || null,
+            preparedJourney.previousExperience || null
           ]
         );
       } catch (err) {
@@ -416,15 +580,15 @@ class PersistentDatabase {
       }
     }
 
-    const idx = this.localStore.journeys.findIndex(j => j.id === journey.id);
+    const idx = this.localStore.journeys.findIndex(j => j.id === preparedJourney.id);
     if (idx !== -1) {
-      this.localStore.journeys[idx] = journey;
+      this.localStore.journeys[idx] = preparedJourney;
     } else {
-      this.localStore.journeys.push(journey);
+      this.localStore.journeys.push(preparedJourney);
     }
     this.saveFileStore();
 
-    return journey;
+    return preparedJourney;
   }
 
   getScenarios(targetLang?: string, category?: string, cefrLevel?: string): Scenario[] {
@@ -433,9 +597,9 @@ class PersistentDatabase {
       : INITIAL_DATABASE_SCENARIOS;
 
     return all.filter(s => {
+      // STRICT targetLanguage filtering: never leak scenarios of other languages!
       if (targetLang && s.targetLanguage !== targetLang) {
-        // Fallback matching if exact target language has fewer scenarios
-        return true;
+        return false;
       }
       if (category && category !== 'all' && s.category !== category) return false;
       if (cefrLevel && cefrLevel !== 'all' && s.cefrLevel !== cefrLevel) return false;
@@ -552,8 +716,81 @@ class PersistentDatabase {
     return undefined;
   }
 
-  getCompletedScenarioIds(userId: string): string[] {
-    return this.localStore.completedScenarios[userId] || [];
+  getCompletedScenarioIds(userId: string, journeyId?: string): string[] {
+    if (journeyId) {
+      return [...(this.localStore.completedScenarios[journeyId] || [])];
+    }
+    const list: string[] = [];
+    if (this.localStore.completedScenarios[userId]) {
+      for (const s of this.localStore.completedScenarios[userId]) {
+        if (!list.includes(s)) list.push(s);
+      }
+    }
+    return list;
+  }
+
+  getUserActivityDates(userId: string): string[] {
+    return this.localStore.activityDates[userId] || [];
+  }
+
+  async recordUserActivity(
+    userId: string,
+    journeyId?: string,
+    activityType: string = 'practice',
+    localDate?: string,
+    xpEarned: number = 0
+  ): Promise<{ streak: number; longestStreak: number; completedToday: boolean }> {
+    const now = new Date();
+    const today = localDate || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+    let dates = this.localStore.activityDates[userId];
+    if (!dates) {
+      dates = [];
+      this.localStore.activityDates[userId] = dates;
+    }
+
+    if (!dates.includes(today)) {
+      dates.push(today);
+      dates.sort();
+    }
+
+    const streakData = calculateStreakFromDates(dates, today);
+
+    // Save event in PostgreSQL if connected
+    if (this.isPostgresConnected && this.pool) {
+      try {
+        await this.pool.query(
+          `INSERT INTO user_activity_events (id, user_id, journey_id, activity_type, local_date, xp_earned, created_at)
+           VALUES ($1, $2, $3, $4, $5, $6, NOW())`,
+          [
+            `evt_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+            userId,
+            journeyId || null,
+            activityType,
+            today,
+            xpEarned
+          ]
+        );
+      } catch (e) {}
+    }
+
+    // Update active journey streak fields
+    if (journeyId) {
+      const journey = this.getJourney(journeyId);
+      if (journey) {
+        journey.streakDays = streakData.currentStreak;
+        journey.longestStreak = Math.max(journey.longestStreak || 0, streakData.longestStreak);
+        journey.lastActivityDate = today;
+        await this.saveJourney(journey);
+      }
+    }
+
+    this.saveFileStore();
+    return {
+      streak: streakData.currentStreak,
+      longestStreak: streakData.longestStreak,
+      completedToday: streakData.completedToday
+    };
   }
 
   async recordCompletedScenario(
@@ -561,43 +798,63 @@ class PersistentDatabase {
     journeyId: string,
     scenarioId: string,
     stats: {
-      xpEarned: number;
-      durationMinutes: number;
+      xpEarned?: number;
+      durationMinutes?: number;
       durationSeconds?: number;
       errorCount?: number;
       lessonId?: string;
       courseId?: string;
-    }
+      sessionToken?: string;
+    },
+    localDate?: string
   ): Promise<{ journey: LearningJourney | undefined; nextRecommended: Scenario[]; sessionRecord?: any }> {
-    // 1. Mark scenario as completed in user's completed history (Scenario progress)
-    let completed = this.localStore.completedScenarios[userId];
-    if (!completed) {
-      completed = [];
-      this.localStore.completedScenarios[userId] = completed;
-    }
-    if (!completed.includes(scenarioId)) {
-      completed.push(scenarioId);
+    const now = new Date();
+    const today = localDate || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+    // 1. Check if scenario was already completed for this journey
+    let journeyCompleted = this.localStore.completedScenarios[journeyId];
+    if (!journeyCompleted) {
+      journeyCompleted = [];
+      this.localStore.completedScenarios[journeyId] = journeyCompleted;
     }
 
+    let userCompleted = this.localStore.completedScenarios[userId];
+    if (!userCompleted) {
+      userCompleted = [];
+      this.localStore.completedScenarios[userId] = userCompleted;
+    }
+
+    const isFirstTimeCompletion = !journeyCompleted.includes(scenarioId);
+    if (isFirstTimeCompletion) {
+      journeyCompleted.push(scenarioId);
+    }
+    if (!userCompleted.includes(scenarioId)) {
+      userCompleted.push(scenarioId);
+    }
+
+    // Idempotent XP calculation:
+    // First time completion: full 50 XP (or provided xpEarned)
+    // Repeat replay of completed content: review reward 10 XP
+    const earnedXp = isFirstTimeCompletion ? Math.max(stats.xpEarned || 50, 20) : 10;
     const durationMins = stats.durationMinutes || (stats.durationSeconds ? Math.max(1, Math.round(stats.durationSeconds / 60)) : 2);
     const errors = typeof stats.errorCount === 'number' ? stats.errorCount : 0;
-    const earnedXp = Math.max(stats.xpEarned || 50, 10);
 
-    // Resolve lesson context for traceability
+    // 2. Record qualifying activity date for streak
+    await this.recordUserActivity(userId, journeyId, 'scenario_completion', today, earnedXp);
+
+    // 3. Update journey points and spoken minutes
+    const journey = this.getJourney(journeyId);
+    if (journey) {
+      journey.points = (journey.points || 0) + earnedXp;
+      journey.totalMinutesSpoken = (journey.totalMinutesSpoken || 0) + durationMins;
+      await this.saveJourney(journey);
+    }
+
+    // 4. Create Session Record
     const resolvedContext = this.getLessonAndCourseForScenario(scenarioId, stats.lessonId);
     const lessonId = stats.lessonId || resolvedContext?.lesson.id;
     const courseId = stats.courseId || resolvedContext?.course.id;
 
-    // 2. Update user journey points and minutes
-    const journey = this.getJourney(journeyId);
-    if (journey) {
-      journey.points += earnedXp;
-      journey.totalMinutesSpoken += durationMins;
-      journey.streakDays = Math.max(journey.streakDays, 1);
-      await this.saveJourney(journey);
-    }
-
-    // 3. Create Session Record with full educational metadata
     const sessionRecord = {
       id: `sess_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
       userId,
@@ -606,6 +863,7 @@ class PersistentDatabase {
       lessonId: lessonId || undefined,
       courseId: courseId || undefined,
       completedAt: new Date().toISOString(),
+      localDate: today,
       durationSeconds: stats.durationSeconds || durationMins * 60,
       durationMinutes: durationMins,
       errorCount: errors,
@@ -616,27 +874,222 @@ class PersistentDatabase {
       this.localStore.sessions = [];
     }
     this.localStore.sessions.push(sessionRecord);
-
     this.saveFileStore();
 
-    // 4. Generate dynamic next scenario recommendations (Never force completed scenario!)
-    const nextRecommended = this.getRecommendations(userId, journey?.targetLanguage, journey?.cefrLevel);
+    // 5. Generate dynamic recommendations prioritizing uncompleted scenarios
+    const nextRecommended = this.getRecommendations(userId, journey?.targetLanguage, journey?.cefrLevel, journeyId, journey?.goals || journey?.motivation);
 
     return { journey, nextRecommended, sessionRecord };
   }
 
-  getRecommendations(userId: string, targetLang?: string, cefrLevel?: string): Scenario[] {
-    const completed = this.getCompletedScenarioIds(userId);
-    const all = this.getScenarios(targetLang, undefined, cefrLevel);
-
-    // Prioritize uncompleted scenarios matching user language and level
-    const uncompleted = all.filter(s => !completed.includes(s.id));
-    if (uncompleted.length >= 3) {
-      return uncompleted.slice(0, 6);
+  async recordVoiceDuration(
+    userId: string,
+    journeyId: string,
+    durationSeconds: number,
+    durationMinutes: number,
+    localDate?: string
+  ): Promise<{ success: boolean; journey?: LearningJourney; totalMinutesSpoken: number; sessionRecord?: any }> {
+    if (durationSeconds < 3) {
+      return { success: false, totalMinutesSpoken: 0 };
     }
 
-    // If all completed or fewer available, shuffle across other rich categories
-    return all.slice(0, 6);
+    const now = new Date();
+    const today = localDate || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const minsToAdd = durationMinutes > 0 ? durationMinutes : Math.max(1, Math.round(durationSeconds / 60));
+
+    const journey = this.getJourney(journeyId);
+    if (!journey) {
+      return { success: false, totalMinutesSpoken: 0 };
+    }
+
+    journey.totalMinutesSpoken = (journey.totalMinutesSpoken || 0) + minsToAdd;
+
+    // If active speaking lasted >= 30 seconds, it counts as meaningful qualifying activity for streak!
+    if (durationSeconds >= 30) {
+      await this.recordUserActivity(userId, journeyId, 'voice_practice', today, 15);
+      journey.points = (journey.points || 0) + 15;
+    }
+
+    await this.saveJourney(journey);
+
+    const sessionRecord = {
+      id: `sess_voice_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      userId,
+      journeyId,
+      activityType: 'voice_session',
+      completedAt: new Date().toISOString(),
+      localDate: today,
+      durationSeconds,
+      durationMinutes: minsToAdd,
+      xpEarned: durationSeconds >= 30 ? 15 : 0
+    };
+
+    if (!this.localStore.sessions) {
+      this.localStore.sessions = [];
+    }
+    this.localStore.sessions.push(sessionRecord);
+    this.saveFileStore();
+
+    return {
+      success: true,
+      journey,
+      totalMinutesSpoken: journey.totalMinutesSpoken,
+      sessionRecord
+    };
+  }
+
+  getRecommendations(
+    userId: string,
+    targetLang?: string,
+    cefrLevel?: string,
+    journeyId?: string,
+    learningGoal?: string
+  ): Scenario[] {
+    const completed = this.getCompletedScenarioIds(userId, journeyId);
+    const all = this.getScenarios(targetLang, undefined, cefrLevel);
+
+    if (all.length === 0) {
+      return [];
+    }
+
+    // Score and rank scenarios:
+    // 1. Uncompleted scenarios are prioritized over completed ones.
+    // 2. Foundational categories ('social', 'daily') and titles with 'Greeting' / 'Introduction' get highest rank for beginners.
+    // 3. Learning goal matching (e.g. Travel, Work) gets a boost, but does not displace greetings.
+    // 4. Completed scenarios are kept at the end for review/replay.
+    const scored = all.map(scenario => {
+      let score = 100;
+      const isCompleted = completed.includes(scenario.id);
+      if (isCompleted) {
+        score -= 200; // Deprioritize completed scenarios
+      }
+
+      const titleLower = scenario.title.toLowerCase();
+      if (titleLower.includes('greeting') || titleLower.includes('introduction') || titleLower.includes('first meeting')) {
+        score += 80;
+      } else if (titleLower.includes('café') || titleLower.includes('cafe') || titleLower.includes('coffee') || titleLower.includes('order')) {
+        score += 50;
+      } else if (titleLower.includes('direction') || titleLower.includes('city')) {
+        score += 40;
+      }
+
+      if (learningGoal) {
+        const goalLower = learningGoal.toLowerCase();
+        if (goalLower.includes('travel') && scenario.category === 'travel') {
+          score += 30;
+        } else if (goalLower.includes('work') && scenario.category === 'work') {
+          score += 30;
+        } else if (goalLower.includes('conversation') && scenario.category === 'social') {
+          score += 30;
+        }
+      }
+
+      return { scenario, score };
+    });
+
+    scored.sort((a, b) => b.score - a.score);
+    return scored.slice(0, 8).map(s => s.scenario);
+  }
+
+  async switchActiveJourney(userId: string, journeyId: string): Promise<{ user: DatabaseUser | undefined; journey: LearningJourney | undefined }> {
+    const journey = this.getJourney(journeyId);
+    if (!journey || journey.userId !== userId) {
+      return { user: undefined, journey: undefined };
+    }
+
+    const updatedUser = this.updateUser(userId, { activeJourneyId: journeyId });
+    return { user: updatedUser, journey };
+  }
+
+  async archiveJourney(userId: string, journeyId: string): Promise<{ success: boolean; nextActiveJourney?: LearningJourney }> {
+    const journey = this.getJourney(journeyId);
+    if (!journey || journey.userId !== userId) {
+      return { success: false };
+    }
+
+    journey.isArchived = true;
+    await this.saveJourney(journey);
+
+    // If this was the user's active journey, switch to another non-archived journey
+    const user = this.getUser(userId);
+    let nextJourney: LearningJourney | undefined;
+    if (user && user.activeJourneyId === journeyId) {
+      const otherJourneys = this.localStore.journeys.filter(j => j.userId === userId && j.id !== journeyId && !j.isArchived);
+      if (otherJourneys.length > 0) {
+        nextJourney = otherJourneys[0];
+        this.updateUser(userId, { activeJourneyId: nextJourney.id });
+      }
+    }
+
+    return { success: true, nextActiveJourney: nextJourney };
+  }
+
+  getJourneyStats(userId: string, journeyId?: string, localDate?: string) {
+    const now = new Date();
+    const today = localDate || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+    const dates = this.getUserActivityDates(userId);
+    const streakInfo = calculateStreakFromDates(dates, today);
+
+    const userJourneys = this.localStore.journeys.filter(j => j.userId === userId && !j.isArchived);
+    const activeJourney = journeyId ? this.getJourney(journeyId) : userJourneys[0];
+
+    const totalUserPoints = userJourneys.reduce((sum, j) => sum + (j.points || 0), 0);
+    const totalUserMinutes = userJourneys.reduce((sum, j) => sum + (j.totalMinutesSpoken || 0), 0);
+
+    // Calculate actual spoken minutes for current week from sessions
+    const userSessions = (this.localStore.sessions || []).filter(s => s.userId === userId);
+    
+    // Past 7 days breakdown
+    const dayBreakdown: Array<{ date: string; day: string; minutes: number; xp: number }> = [];
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const [y, m, d] = today.split('-').map(Number);
+    const baseDate = new Date(y, m - 1, d);
+
+    let weeklyMinutes = 0;
+    const weeklyActiveDaySet = new Set<string>();
+
+    for (let offset = 6; offset >= 0; offset--) {
+      const dt = new Date(baseDate);
+      dt.setDate(baseDate.getDate() - offset);
+      const curStr = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+      const dayName = offset === 0 ? 'Today' : dayNames[dt.getDay()];
+
+      const daySessions = userSessions.filter(s => {
+        const sDate = s.localDate || (s.completedAt ? s.completedAt.slice(0, 10) : '');
+        return sDate === curStr && (!journeyId || s.journeyId === journeyId);
+      });
+
+      const dayMins = daySessions.reduce((acc, s) => acc + (s.durationMinutes || Math.round((s.durationSeconds || 0) / 60) || 0), 0);
+      const dayXp = daySessions.reduce((acc, s) => acc + (s.xpEarned || 0), 0);
+
+      if (dayMins > 0 || dayXp > 0 || dates.includes(curStr)) {
+        weeklyActiveDaySet.add(curStr);
+      }
+      weeklyMinutes += dayMins;
+
+      dayBreakdown.push({
+        date: curStr,
+        day: dayName,
+        minutes: dayMins,
+        xp: dayXp
+      });
+    }
+
+    return {
+      journeyPoints: activeJourney?.points || 0,
+      totalUserPoints,
+      journeyMinutesSpoken: activeJourney?.totalMinutesSpoken || 0,
+      totalUserMinutes,
+      streakDays: streakInfo.currentStreak,
+      longestStreak: streakInfo.longestStreak,
+      completedToday: streakInfo.completedToday,
+      totalActiveDays: streakInfo.totalActiveDays,
+      weeklyMinutesSpoken: Math.max(weeklyMinutes, activeJourney?.totalMinutesSpoken ? Math.min(activeJourney.totalMinutesSpoken, 30) : 0),
+      weeklyActiveDays: weeklyActiveDaySet.size,
+      dayBreakdown,
+      completedScenarioIds: this.getCompletedScenarioIds(userId, activeJourney?.id)
+    };
   }
 
   getJourney(id: string): LearningJourney | undefined {

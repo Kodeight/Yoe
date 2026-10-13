@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { User, LearningJourney, Scenario, VocabularyItem, MistakeRecord, LanguageCode, Language, CourseUnit, Lesson, OnboardingRegistrationPayload } from '../types';
 import { applyDocumentDirection } from '../utils/i18n';
-import { persistScenarioCompletion } from '../services/progressService';
+import { persistScenarioCompletion, persistSpeakingSession } from '../services/progressService';
+import { recordDayActivity, getTodayDateStr } from '../utils/streakManager';
 
 export type AppView = 'home' | 'chat' | 'learn' | 'explore' | 'profile' | 'profile-settings' | 'vocab' | 'grammar' | 'auth';
 
@@ -31,6 +32,9 @@ interface AppContextType {
   setActiveView: (view: AppView) => void;
   navigateBack: () => void;
   setActiveJourney: (journey: LearningJourney) => void;
+  switchJourney: (journeyId: string) => Promise<void>;
+  removeJourney: (journeyId: string) => Promise<{ success: boolean; reason?: string }>;
+  recordSpeakingSession: (stats: { durationSeconds: number; turnsCount?: number }) => Promise<void>;
   setActiveScenarioId: (scenarioId: string, preferredLessonId?: string) => void;
   setActiveLesson: (lesson: Lesson, course?: CourseUnit) => void;
   completeScenario: (
@@ -47,7 +51,7 @@ interface AppContextType {
   toggleTheme: () => void;
   setThemeMode: (mode: 'dark' | 'light') => void;
   setUiLanguage: (lang: LanguageCode) => void;
-  createNewJourney: (targetLang: LanguageCode, supportLang: LanguageCode, level?: string, extra?: { motivation?: string; focusAreas?: string[]; knownLanguages?: LanguageCode[]; previousExperience?: string }) => Promise<void>;
+  createNewJourney: (targetLang: LanguageCode, supportLang: LanguageCode, level?: string, extra?: { motivation?: string; focusAreas?: string[]; knownLanguages?: LanguageCode[]; previousExperience?: string; activateImmediately?: boolean }) => Promise<void>;
   updateActiveJourney: (updates: Partial<LearningJourney>) => Promise<void>;
   updateUserProfile: (updates: Partial<User>) => Promise<User | null>;
   refreshProgress: () => Promise<void>;
@@ -348,26 +352,74 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       // 1. Load database-driven scenarios for target language
       const scenRes = await fetch(`/api/scenarios?targetLanguage=${journey.targetLanguage}`);
       const scenData = await scenRes.json();
-      const loadedScenarios = scenData.scenarios || [];
+      const loadedScenarios: Scenario[] = scenData.scenarios || [];
       setScenarios(loadedScenarios);
-
-      if (loadedScenarios.length > 0) {
-        const match = loadedScenarios.find((s: Scenario) => s.id === journey.activeScenarioId) || loadedScenarios[0];
-        setActiveScenario(match);
-      }
 
       // 2. Load database-driven curriculum courses
       const courseRes = await fetch(`/api/courses?targetLanguage=${journey.targetLanguage}`);
       const courseData = await courseRes.json();
-      const loadedCourses = courseData.courses || [];
+      const loadedCourses: CourseUnit[] = courseData.courses || [];
       setCourses(loadedCourses);
 
-      // 3. Load dynamic recommendations
-      const recRes = await fetch(`/api/recommendations?targetLanguage=${journey.targetLanguage}&userId=${user?.id || 'guest_user'}`);
+      // Match active scenario for this journey (starter scenario or previously active)
+      if (loadedScenarios.length > 0) {
+        const match = (journey.activeScenarioId && loadedScenarios.find((s: Scenario) => s.id === journey.activeScenarioId)) || loadedScenarios[0];
+        setActiveScenario(match);
+
+        // Associate matching curriculum lesson and course
+        let matchedLesson: Lesson | null = null;
+        let matchedCourse: CourseUnit | null = null;
+        if (match?.lessonId) {
+          for (const c of loadedCourses) {
+            const l = c.lessons.find((item: Lesson) => item.id === match.lessonId);
+            if (l) {
+              matchedLesson = l;
+              matchedCourse = c;
+              break;
+            }
+          }
+        }
+        setActiveLessonState(matchedLesson);
+        setActiveCourseState(matchedCourse);
+      } else {
+        setActiveScenario(null);
+        setActiveLessonState(null);
+        setActiveCourseState(null);
+      }
+
+      // 3. Load dynamic recommendations scoped to this journey and target language
+      const recRes = await fetch(
+        `/api/recommendations?targetLanguage=${journey.targetLanguage}&userId=${user?.id || 'guest_user'}&journeyId=${journey.id}&learningGoal=${encodeURIComponent(journey.motivation || '')}`
+      );
       const recData = await recRes.json();
       setRecommendations(recData.recommendations || loadedScenarios.slice(0, 6));
 
-      // 4. Load adaptive memory vocabulary & mistakes
+      // 4. Load real persistent stats & completed scenario IDs for this journey
+      const todayStr = getTodayDateStr();
+      try {
+        const statsRes = await fetch(`/api/progress/stats?userId=${user?.id || 'guest_user'}&journeyId=${journey.id}&localDate=${todayStr}`);
+        if (statsRes.ok) {
+          const statsData = await statsRes.json();
+          if (statsData.stats) {
+            if (Array.isArray(statsData.stats.completedScenarioIds)) {
+              setCompletedScenarioIds(statsData.stats.completedScenarioIds);
+              if (typeof window !== 'undefined') {
+                localStorage.setItem(`yoe_completed_scenarios_${journey.id}`, JSON.stringify(statsData.stats.completedScenarioIds));
+              }
+            }
+            // Sync database-calculated streak, points, spoken minutes to active journey
+            setActiveJourneyState(prev => prev && prev.id === journey.id ? {
+              ...prev,
+              points: statsData.stats.journeyPoints ?? prev.points,
+              streakDays: statsData.stats.streakDays ?? prev.streakDays,
+              longestStreak: statsData.stats.longestStreak ?? prev.longestStreak,
+              totalMinutesSpoken: statsData.stats.journeyMinutesSpoken ?? prev.totalMinutesSpoken
+            } : prev);
+          }
+        }
+      } catch (e) {}
+
+      // 5. Load adaptive memory vocabulary & mistakes for this journey
       const vocabRes = await fetch(`/api/vocabulary?journeyId=${journey.id}`);
       const vocabData = await vocabRes.json();
       const loadedVocab = vocabData.vocabulary || [];
@@ -380,18 +432,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       // Save to localStorage for instant offline access
       if (typeof window !== 'undefined') {
-        localStorage.setItem('yoe_cached_vocabulary', JSON.stringify(loadedVocab));
-        localStorage.setItem('yoe_cached_mistakes', JSON.stringify(loadedMistakes));
-        localStorage.setItem('yoe_cached_scenarios', JSON.stringify(loadedScenarios));
-        localStorage.setItem('yoe_cached_courses', JSON.stringify(loadedCourses));
+        localStorage.setItem(`yoe_cached_vocabulary_${journey.id}`, JSON.stringify(loadedVocab));
+        localStorage.setItem(`yoe_cached_mistakes_${journey.id}`, JSON.stringify(loadedMistakes));
+        localStorage.setItem(`yoe_cached_scenarios_${journey.targetLanguage}`, JSON.stringify(loadedScenarios));
+        localStorage.setItem(`yoe_cached_courses_${journey.targetLanguage}`, JSON.stringify(loadedCourses));
       }
     } catch (err) {
       console.warn('Network offline or error loading journey details. Recovering from offline cache:', err);
       if (typeof window !== 'undefined') {
-        const offlineVocab = localStorage.getItem('yoe_cached_vocabulary');
-        const offlineMstk = localStorage.getItem('yoe_cached_mistakes');
-        const offlineScen = localStorage.getItem('yoe_cached_scenarios');
-        const offlineCourses = localStorage.getItem('yoe_cached_courses');
+        const offlineVocab = localStorage.getItem(`yoe_cached_vocabulary_${journey.id}`);
+        const offlineMstk = localStorage.getItem(`yoe_cached_mistakes_${journey.id}`);
+        const offlineScen = localStorage.getItem(`yoe_cached_scenarios_${journey.targetLanguage}`);
+        const offlineCourses = localStorage.getItem(`yoe_cached_courses_${journey.targetLanguage}`);
         if (offlineVocab) setVocabulary(JSON.parse(offlineVocab));
         if (offlineMstk) setMistakes(JSON.parse(offlineMstk));
         if (offlineScen) {
@@ -410,11 +462,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     scenarioId: string,
     stats: { xpEarned?: number; durationMinutes?: number; durationSeconds?: number; errorCount?: number } = {}
   ): Promise<Scenario[]> => {
-    // 1. Update local completed list
+    // Record qualifying day activity in local streak tracker
+    recordDayActivity();
+
+    // 1. Update local completed list scoped by journey
     const updatedCompleted = Array.from(new Set([...completedScenarioIds, scenarioId]));
     setCompletedScenarioIds(updatedCompleted);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('yoe_completed_scenarios', JSON.stringify(updatedCompleted));
+    if (typeof window !== 'undefined' && activeJourney) {
+      localStorage.setItem(`yoe_completed_scenarios_${activeJourney.id}`, JSON.stringify(updatedCompleted));
     }
 
     // Optimistically update journey points and minutes for instantaneous UI progress bar response
@@ -429,6 +484,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         streakDays: Math.max(activeJourney.streakDays || 0, 1)
       };
       setActiveJourneyState(optimisticallyUpdated);
+      setJourneys(prev => prev.map(j => j.id === activeJourney.id ? optimisticallyUpdated : j));
       if (typeof window !== 'undefined') {
         localStorage.setItem('yoe_active_journey', JSON.stringify(optimisticallyUpdated));
       }
@@ -448,6 +504,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       if (result.journey) {
         setActiveJourneyState(result.journey);
+        setJourneys(prev => prev.map(j => j.id === result.journey!.id ? result.journey! : j));
         if (typeof window !== 'undefined') {
           localStorage.setItem('yoe_active_journey', JSON.stringify(result.journey));
         }
@@ -470,6 +527,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const setActiveJourney = (journey: LearningJourney) => {
     setActiveJourneyState(journey);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('yoe_active_journey', JSON.stringify(journey));
+    }
     loadScenariosAndData(journey);
     if (user) {
       fetch('/api/settings', {
@@ -477,6 +537,87 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
         body: JSON.stringify({ activeJourneyId: journey.id })
       }).catch(() => {});
+    }
+  };
+
+  const switchJourney = async (journeyId: string) => {
+    const target = journeys.find(j => j.id === journeyId);
+    if (!target) return;
+    setActiveJourney(target);
+    try {
+      await fetch(`/api/journeys/${journeyId}/activate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeader() }
+      });
+    } catch (err) {
+      console.warn('Could not sync active journey switch:', err);
+    }
+  };
+
+  const removeJourney = async (journeyId: string): Promise<{ success: boolean; reason?: string }> => {
+    if (journeys.length <= 1) {
+      return { success: false, reason: 'cannot_remove_last' };
+    }
+    try {
+      const res = await fetch(`/api/journeys/${journeyId}/archive`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeader() }
+      });
+      const data = await res.json();
+      if (data.success) {
+        const remaining = journeys.filter(j => j.id !== journeyId);
+        setJourneys(remaining);
+        if (activeJourney?.id === journeyId) {
+          const next = data.nextActiveJourney || remaining[0];
+          if (next) {
+            setActiveJourney(next);
+          }
+        }
+        return { success: true };
+      }
+    } catch (err) {
+      console.error('Failed to archive journey:', err);
+    }
+    return { success: false };
+  };
+
+  const recordSpeakingSession = async (stats: { durationSeconds: number; turnsCount?: number }) => {
+    if (!activeJourney || stats.durationSeconds < 10) return;
+    try {
+      const durationMinutes = Math.max(1, Math.round(stats.durationSeconds / 60));
+      const today = getTodayDateStr();
+
+      // Record activity in local streak manager
+      recordDayActivity();
+
+      const res = await persistSpeakingSession({
+        userId: user?.id || 'guest_user',
+        journeyId: activeJourney.id,
+        scenarioId: activeScenario?.id,
+        durationSeconds: stats.durationSeconds,
+        durationMinutes,
+        turnsCount: stats.turnsCount || 1,
+        localDate: today
+      });
+
+      if (res && res.journey) {
+        setActiveJourneyState(res.journey);
+        setJourneys(prev => prev.map(j => j.id === res.journey.id ? res.journey : j));
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('yoe_active_journey', JSON.stringify(res.journey));
+        }
+      } else if (res && res.earnedXp) {
+        // Optimistic fallback
+        const updated: LearningJourney = {
+          ...activeJourney,
+          totalMinutesSpoken: (activeJourney.totalMinutesSpoken || 0) + durationMinutes,
+          points: (activeJourney.points || 0) + res.earnedXp
+        };
+        setActiveJourneyState(updated);
+        setJourneys(prev => prev.map(j => j.id === updated.id ? updated : j));
+      }
+    } catch (err) {
+      console.warn('Failed to record speaking session:', err);
     }
   };
 
@@ -654,7 +795,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     targetLang: LanguageCode,
     supportLang: LanguageCode,
     level: string = 'A1',
-    extra?: { motivation?: string; focusAreas?: string[]; knownLanguages?: LanguageCode[]; previousExperience?: string }
+    extra?: { motivation?: string; focusAreas?: string[]; knownLanguages?: LanguageCode[]; previousExperience?: string; activateImmediately?: boolean }
   ) => {
     if (!user) return;
     try {
@@ -670,17 +811,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           supportLanguage: supportLang,
           cefrLevel: level,
           learnerName: user.name,
-          motivation: extra?.motivation || user.motivation || 'Conversation',
+          motivation: extra?.motivation || user.motivation || 'Daily Conversation',
           focusAreas: extra?.focusAreas || user.focusAreas || ['Speaking'],
           knownLanguages: extra?.knownLanguages || user.knownLanguages || [supportLang],
-          previousExperience: extra?.previousExperience || user.previousExperience || 'never'
+          previousExperience: extra?.previousExperience || user.previousExperience || 'beginner',
+          activateImmediately: extra?.activateImmediately !== false
         })
       });
       const data = await res.json();
       if (data.journey) {
-        setJourneys(prev => [data.journey, ...prev]);
-        setActiveJourney(data.journey);
-        localStorage.setItem('yoe_active_journey', JSON.stringify(data.journey));
+        if (Array.isArray(data.journeys)) {
+          setJourneys(data.journeys);
+        } else {
+          setJourneys(prev => {
+            const filtered = prev.filter(j => j.id !== data.journey.id && j.targetLanguage !== data.journey.targetLanguage);
+            return [data.journey, ...filtered];
+          });
+        }
+        if (extra?.activateImmediately !== false) {
+          setActiveJourney(data.journey);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('yoe_active_journey', JSON.stringify(data.journey));
+          }
+        }
       }
     } catch (err) {
       console.error('Failed to create new journey:', err);
@@ -859,6 +1012,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setActiveView,
         navigateBack,
         setActiveJourney,
+        switchJourney,
+        removeJourney,
+        recordSpeakingSession,
         setActiveScenarioId,
         setActiveLesson,
         completeScenario,

@@ -112,14 +112,15 @@ export async function persistScenarioCompletion(
   } catch (error: any) {
     console.warn('[progressService] API sync note:', error.message || error);
 
-    // Graceful offline fallback: update local storage
+    // Graceful offline fallback: update local storage (scoped by journey if provided)
     if (typeof window !== 'undefined') {
       try {
-        const saved = localStorage.getItem('yoe_completed_scenarios');
+        const storageKey = journeyId ? `yoe_completed_scenarios_${journeyId}` : 'yoe_completed_scenarios';
+        const saved = localStorage.getItem(storageKey);
         const list: string[] = saved ? JSON.parse(saved) : [];
         if (!list.includes(scenarioId)) {
           list.push(scenarioId);
-          localStorage.setItem('yoe_completed_scenarios', JSON.stringify(list));
+          localStorage.setItem(storageKey, JSON.stringify(list));
         }
       } catch (e) {}
     }
@@ -128,5 +129,38 @@ export async function persistScenarioCompletion(
       success: true,
       error: error.message || 'Offline saved'
     };
+  }
+}
+
+export interface SpeakingSessionPayload {
+  scenarioId?: string;
+  journeyId?: string;
+  userId?: string;
+  durationSeconds: number;
+  durationMinutes?: number;
+  turnsCount?: number;
+  localDate?: string;
+}
+
+export async function persistSpeakingSession(payload: SpeakingSessionPayload) {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('yoe_auth_token') : null;
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json'
+  };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  try {
+    const res = await fetch('/api/progress/speaking-session', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } catch (err: any) {
+    console.warn('[progressService] Speaking session sync note:', err.message || err);
+    return { success: false, error: err.message };
   }
 }

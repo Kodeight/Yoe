@@ -120,9 +120,9 @@ export async function requireAuth(req: AuthRequest, res: Response, next: NextFun
         targetLanguage: 'es',
         supportLanguage: 'en',
         cefrLevel: 'A1',
-        streakDays: 1,
+        streakDays: 0,
         totalMinutesSpoken: 0,
-        points: 50,
+        points: 0,
         createdAt: new Date().toISOString()
       });
     }
@@ -237,9 +237,9 @@ export async function registerHandler(req: Request, res: Response) {
       targetLanguage,
       supportLanguage,
       cefrLevel: resolvedCefr,
-      streakDays: 1,
+      streakDays: 0,
       totalMinutesSpoken: 0,
-      points: 50,
+      points: 0,
       learnerName: savedUser.name,
       motivation,
       focusAreas,

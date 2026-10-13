@@ -103,29 +103,147 @@ apiRouter.post('/journeys', requireAuth, async (req: AuthRequest, res: Response)
     return;
   }
 
-  const { targetLanguage, supportLanguage, cefrLevel, goals } = req.body;
-  const newJourney: LearningJourney = {
-    id: `jrn_${targetLanguage || 'es'}_${Date.now()}`,
-    userId: req.user.id,
-    targetLanguage: targetLanguage || 'es',
-    supportLanguage: supportLanguage || 'en',
-    cefrLevel: cefrLevel || 'A1',
-    streakDays: 1,
-    totalMinutesSpoken: 0,
-    points: 50,
-    createdAt: new Date().toISOString()
-  };
+  const {
+    targetLanguage,
+    supportLanguage,
+    cefrLevel,
+    goals,
+    motivation,
+    focusAreas,
+    knownLanguages,
+    previousExperience,
+    activateImmediately
+  } = req.body;
 
-  await db.saveJourney(newJourney);
+  const targetLang = targetLanguage || 'es';
+  const supportLang = supportLanguage || req.user.supportLanguage || 'en';
+  const level = cefrLevel || 'A1';
 
-  // Set as user's active journey and mark onboarding completed
-  const updatedUser = db.updateUser(req.user.id, {
-    activeJourneyId: newJourney.id,
-    onboardingCompleted: true
-  });
+  // Check if an existing archived journey exists for this language to resume
+  const existingJourneys = await db.getJourneysForUser(req.user.id);
+  const existingArchived = (db as any).localStore?.journeys?.find(
+    (j: LearningJourney) => j.userId === req.user!.id && j.targetLanguage === targetLang && j.isArchived
+  );
+
+  let targetJourney: LearningJourney;
+
+  if (existingArchived) {
+    existingArchived.isArchived = false;
+    existingArchived.cefrLevel = level;
+    existingArchived.supportLanguage = supportLang;
+    if (motivation || goals) existingArchived.motivation = motivation || goals;
+    if (focusAreas) existingArchived.focusAreas = focusAreas;
+    existingArchived.updatedAt = new Date().toISOString();
+    await db.saveJourney(existingArchived);
+    targetJourney = existingArchived;
+  } else {
+    // Find starter scenario for this language
+    const langScenarios = db.getScenarios(targetLang, undefined, level);
+    const starterScen = langScenarios.length > 0 ? langScenarios[0] : undefined;
+
+    targetJourney = {
+      id: `jrn_${targetLang}_${Date.now()}`,
+      userId: req.user.id,
+      targetLanguage: targetLang,
+      supportLanguage: supportLang,
+      cefrLevel: level,
+      streakDays: 0,
+      totalMinutesSpoken: 0,
+      points: 0,
+      motivation: motivation || goals || req.user.motivation || 'Daily Conversation',
+      focusAreas: focusAreas || req.user.focusAreas || ['Speaking'],
+      knownLanguages: knownLanguages || req.user.knownLanguages || [supportLang],
+      previousExperience: previousExperience || req.user.previousExperience || 'beginner',
+      activeScenarioId: starterScen?.id,
+      createdAt: new Date().toISOString()
+    };
+
+    await db.saveJourney(targetJourney);
+  }
+
+  // Activate journey if requested (default true)
+  const shouldActivate = activateImmediately !== false;
+  let updatedUser = req.user;
+  if (shouldActivate) {
+    updatedUser = db.updateUser(req.user.id, {
+      activeJourneyId: targetJourney.id,
+      onboardingCompleted: true
+    }) || req.user;
+  }
+
+  const allJourneys = await db.getJourneysForUser(req.user.id);
 
   res.json({
-    journey: newJourney,
+    journey: targetJourney,
+    journeys: allJourneys,
+    user: sanitizeUser(updatedUser)
+  });
+});
+
+apiRouter.post('/journeys/:id/activate', requireAuth, async (req: AuthRequest, res: Response) => {
+  if (!req.user) {
+    res.status(401).json({ error: 'Unauthorized' });
+    return;
+  }
+
+  const result = await db.switchActiveJourney(req.user.id, req.params.id);
+  if (!result.journey) {
+    res.status(404).json({ error: 'Journey not found or unauthorized' });
+    return;
+  }
+
+  const allJourneys = await db.getJourneysForUser(req.user.id);
+
+  res.json({
+    success: true,
+    journey: result.journey,
+    journeys: allJourneys,
+    user: result.user ? sanitizeUser(result.user) : sanitizeUser(req.user)
+  });
+});
+
+apiRouter.post('/journeys/:id/archive', requireAuth, async (req: AuthRequest, res: Response) => {
+  if (!req.user) {
+    res.status(401).json({ error: 'Unauthorized' });
+    return;
+  }
+
+  const result = await db.archiveJourney(req.user.id, req.params.id);
+  if (!result.success) {
+    res.status(404).json({ error: 'Journey not found or unauthorized' });
+    return;
+  }
+
+  const remainingJourneys = await db.getJourneysForUser(req.user.id);
+  const updatedUser = db.getUser(req.user.id);
+
+  res.json({
+    success: true,
+    nextActiveJourney: result.nextActiveJourney,
+    journeys: remainingJourneys,
+    user: updatedUser ? sanitizeUser(updatedUser) : sanitizeUser(req.user)
+  });
+});
+
+apiRouter.delete('/journeys/:id', requireAuth, async (req: AuthRequest, res: Response) => {
+  if (!req.user) {
+    res.status(401).json({ error: 'Unauthorized' });
+    return;
+  }
+
+  const result = await db.archiveJourney(req.user.id, req.params.id);
+  if (!result.success) {
+    res.status(404).json({ error: 'Journey not found or unauthorized' });
+    return;
+  }
+
+  const remainingJourneys = await db.getJourneysForUser(req.user.id);
+  const updatedUser = db.getUser(req.user.id);
+
+  res.json({
+    success: true,
+    nextActiveJourney: result.nextActiveJourney,
+    journeys: remainingJourneys,
     user: updatedUser ? sanitizeUser(updatedUser) : sanitizeUser(req.user)
   });
 });
@@ -201,14 +319,66 @@ apiRouter.get('/recommendations', (req: Request, res: Response) => {
   const userId = (req.query.userId as string) || 'guest_user';
   const targetLanguage = req.query.targetLanguage as string;
   const cefrLevel = req.query.cefrLevel as string;
-  const recommendations = db.getRecommendations(userId, targetLanguage, cefrLevel);
+  const learningGoal = req.query.learningGoal as string;
+  const journeyId = req.query.journeyId as string;
+  const recommendations = db.getRecommendations(userId, targetLanguage, cefrLevel, learningGoal, journeyId);
   res.json({ recommendations });
+});
+
+// Real Learning Statistics & Streak Breakdown (Database-Backed)
+apiRouter.get('/progress/stats', (req: Request, res: Response) => {
+  const userId = (req.query.userId as string) || 'guest_user';
+  const journeyId = req.query.journeyId as string | undefined;
+  const localDate = req.query.localDate as string | undefined;
+  const stats = db.getJourneyStats(userId, journeyId, localDate);
+  res.json({ stats });
+});
+
+// Speaking Session & Real Voice Practice Duration Tracker
+apiRouter.post('/progress/speaking-session', async (req: Request, res: Response) => {
+  try {
+    const { userId, journeyId, scenarioId, durationMinutes, durationSeconds, turnsCount, localDate } = req.body;
+    const durMins = Number(durationMinutes) || (durationSeconds ? Math.max(1, Math.round(Number(durationSeconds) / 60)) : 1);
+    const turns = Number(turnsCount) || 1;
+    // Meaningful conversation practice rewards real XP: 15 base + 5 per 2 turns (capped at 40 XP)
+    const earnedXp = Math.min(40, 15 + Math.floor(turns / 2) * 5);
+
+    const uid = userId || 'guest_user';
+    const now = new Date();
+    const today = localDate || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+    // Record qualifying activity date for streak calculation
+    const streakResult = await db.recordUserActivity(uid, journeyId, 'voice_conversation', today, earnedXp);
+
+    let updatedJourney: LearningJourney | undefined;
+    if (journeyId) {
+      const journey = db.getJourney(journeyId);
+      if (journey) {
+        journey.totalMinutesSpoken = (journey.totalMinutesSpoken || 0) + durMins;
+        journey.points = (journey.points || 0) + earnedXp;
+        await db.saveJourney(journey);
+        updatedJourney = journey;
+      }
+    }
+
+    res.json({
+      success: true,
+      earnedXp,
+      durationMinutes: durMins,
+      streak: streakResult.streak,
+      longestStreak: streakResult.longestStreak,
+      journey: updatedJourney
+    });
+  } catch (err: any) {
+    console.error('[SPEAKING SESSION ERROR]:', err);
+    res.status(500).json({ error: 'Failed to record speaking session' });
+  }
 });
 
 // Scenario Completion & Progress Tracking (Database Persistence)
 apiRouter.post('/progress/complete-scenario', async (req: Request, res: Response) => {
   try {
-    const { userId, journeyId, scenarioId, lessonId, courseId, xpEarned, durationMinutes, durationSeconds, errorCount } = req.body;
+    const { userId, journeyId, scenarioId, lessonId, courseId, xpEarned, durationMinutes, durationSeconds, errorCount, localDate } = req.body;
     const result = await db.recordCompletedScenario(
       userId || 'guest_user',
       journeyId,
@@ -220,7 +390,8 @@ apiRouter.post('/progress/complete-scenario', async (req: Request, res: Response
         errorCount: typeof errorCount === 'number' ? errorCount : 0,
         lessonId: lessonId || undefined,
         courseId: courseId || undefined
-      }
+      },
+      localDate
     );
     res.json({
       success: true,

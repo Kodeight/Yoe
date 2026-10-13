@@ -1,11 +1,12 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
 import { YoeLogo } from './YoeLogo';
+import { LanguageFlag } from './LanguageFlag';
 import { Flame, Star, Sun, Moon, Download, WifiOff } from 'lucide-react';
 import { hapticLight } from '../utils/haptics';
 
 export const Header: React.FC = () => {
-  const { activeJourney, theme, toggleTheme, pwaInstallPrompt, installPWA, isOnline } = useApp();
+  const { activeJourney, theme, toggleTheme, pwaInstallPrompt, installPWA, isOnline, setActiveView } = useApp();
 
   const streakDays = activeJourney?.streakDays ?? 0;
   const points = activeJourney?.points ?? 0;
@@ -14,9 +15,26 @@ export const Header: React.FC = () => {
     <header className="sticky top-0 z-40 w-full glass-header px-4 py-3 transition-colors safe-top-padding border-b border-white/10 dark:border-white/10 light-mode:border-slate-200">
       <div className="max-w-md mx-auto flex items-center justify-between">
 
-        {/* Brand Logo only (NO language switcher dropdown in header) */}
-        <div className="flex items-center">
+        {/* Brand Logo & Active Language Indicator */}
+        <div className="flex items-center gap-2">
           <YoeLogo size="md" />
+          {activeJourney && (
+            <button
+              type="button"
+              onClick={() => {
+                hapticLight();
+                setActiveView('profile-settings');
+              }}
+              className="flex items-center gap-1.5 py-1 px-2 rounded-full glass-pill hover:border-emerald-500/40 cursor-pointer text-xs font-bold transition-all active:scale-95 shadow-xs"
+              title="Manage Learning Languages"
+              aria-label={`Current learning language: ${activeJourney.targetLanguage}. Tap to manage.`}
+            >
+              <LanguageFlag code={activeJourney.targetLanguage} size="xs" className="shadow-xs" />
+              <span className="uppercase text-[10px] text-emerald-400 font-extrabold tracking-wider">
+                {activeJourney.targetLanguage}
+              </span>
+            </button>
+          )}
         </div>
 
         {/* Real Stats & Controls */}
